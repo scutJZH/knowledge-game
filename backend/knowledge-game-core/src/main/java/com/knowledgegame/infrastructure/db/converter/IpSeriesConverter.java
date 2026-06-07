@@ -2,16 +2,23 @@ package com.knowledgegame.infrastructure.db.converter;
 
 import com.knowledgegame.domain.model.entity.IpSeries;
 import com.knowledgegame.infrastructure.db.entity.IpSeriesPO;
+import org.mapstruct.Mapper;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.mapstruct.factory.Mappers;
 
 /**
- * PO ↔ 领域模型转换器（IP 系列）
+ * PO ↔ 领域模型转换器（IP 系列，MapStruct 自动生成实现）
  */
-public class IpSeriesConverter {
+@Mapper(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+public interface IpSeriesConverter {
+
+    IpSeriesConverter INSTANCE = Mappers.getMapper(IpSeriesConverter.class);
 
     /**
-     * PO 转领域模型
+     * PO 转领域模型（使用 reconstruct 工厂方法，MapStruct 无法自动映射无构造器的领域实体）
      */
-    public static IpSeries toDomain(IpSeriesPO po) {
+    default IpSeries toDomain(IpSeriesPO po) {
         if (po == null) {
             return null;
         }
@@ -30,30 +37,10 @@ public class IpSeriesConverter {
     /**
      * 领域模型转 PO（新增）
      */
-    public static IpSeriesPO toPO(IpSeries ipSeries) {
-        if (ipSeries == null) {
-            return null;
-        }
-        return IpSeriesPO.builder()
-                .code(ipSeries.getCode())
-                .name(ipSeries.getName())
-                .description(ipSeries.getDescription())
-                .coverImageUrl(ipSeries.getCoverImageUrl())
-                .status(ipSeries.getStatus())
-                .createdAt(ipSeries.getCreatedAt())
-                .updatedAt(ipSeries.getUpdatedAt())
-                .build();
-    }
+    IpSeriesPO toPO(IpSeries ipSeries);
 
     /**
-     * 用领域模型更新已有 PO
+     * 用领域模型更新已有 PO（忽略 null 字段）
      */
-    public static void updatePO(IpSeriesPO po, IpSeries ipSeries) {
-        po.setCode(ipSeries.getCode());
-        po.setName(ipSeries.getName());
-        po.setDescription(ipSeries.getDescription());
-        po.setCoverImageUrl(ipSeries.getCoverImageUrl());
-        po.setStatus(ipSeries.getStatus());
-        po.setUpdatedAt(ipSeries.getUpdatedAt());
-    }
+    void updatePO(@MappingTarget IpSeriesPO po, IpSeries ipSeries);
 }

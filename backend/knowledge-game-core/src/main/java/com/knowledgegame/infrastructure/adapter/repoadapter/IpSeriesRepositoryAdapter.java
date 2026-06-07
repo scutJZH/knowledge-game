@@ -33,30 +33,30 @@ public class IpSeriesRepositoryAdapter implements IpSeriesRepositoryPort {
     @Override
     public IpSeries save(IpSeries ipSeries) {
         if (ipSeries.getId() == null) {
-            IpSeriesPO po = IpSeriesConverter.toPO(ipSeries);
+            IpSeriesPO po = IpSeriesConverter.INSTANCE.toPO(ipSeries);
             IpSeriesPO saved = ipSeriesJpaRepository.save(po);
-            return IpSeriesConverter.toDomain(saved);
+            return IpSeriesConverter.INSTANCE.toDomain(saved);
         }
         IpSeriesPO existing = ipSeriesJpaRepository.findById(ipSeries.getId())
                 .orElseThrow(() -> new IllegalArgumentException("IP 系列不存在: " + ipSeries.getId()));
-        IpSeriesConverter.updatePO(existing, ipSeries);
+        IpSeriesConverter.INSTANCE.updatePO(existing, ipSeries);
         IpSeriesPO saved = ipSeriesJpaRepository.save(existing);
-        return IpSeriesConverter.toDomain(saved);
+        return IpSeriesConverter.INSTANCE.toDomain(saved);
     }
 
     @Override
     public Optional<IpSeries> findById(Long id) {
-        return ipSeriesJpaRepository.findById(id).map(IpSeriesConverter::toDomain);
+        return ipSeriesJpaRepository.findById(id).map(IpSeriesConverter.INSTANCE::toDomain);
     }
 
     @Override
     public Optional<IpSeries> findByCode(String code) {
-        return ipSeriesJpaRepository.findByCode(code).map(IpSeriesConverter::toDomain);
+        return ipSeriesJpaRepository.findByCode(code).map(IpSeriesConverter.INSTANCE::toDomain);
     }
 
     @Override
     public Optional<IpSeries> findByName(String name) {
-        return ipSeriesJpaRepository.findByName(name).map(IpSeriesConverter::toDomain);
+        return ipSeriesJpaRepository.findByName(name).map(IpSeriesConverter.INSTANCE::toDomain);
     }
 
     @Override
@@ -75,7 +75,8 @@ public class IpSeriesRepositoryAdapter implements IpSeriesRepositoryPort {
         Page<IpSeriesPO> springPage = ipSeriesJpaRepository.findAll(spec,
                 PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "createdAt")));
         return PageResult.<IpSeries>builder()
-                .content(springPage.getContent().stream().map(IpSeriesConverter::toDomain).toList())
+                .content(springPage.getContent().stream()
+                        .map(IpSeriesConverter.INSTANCE::toDomain).toList())
                 .totalElements(springPage.getTotalElements())
                 .pageNumber(springPage.getNumber())
                 .pageSize(springPage.getSize())

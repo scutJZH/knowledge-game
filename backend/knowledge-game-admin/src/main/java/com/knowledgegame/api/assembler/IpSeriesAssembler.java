@@ -2,28 +2,19 @@ package com.knowledgegame.api.assembler;
 
 import com.knowledgegame.api.dto.response.IpSeriesResponse;
 import com.knowledgegame.domain.model.entity.IpSeries;
+import org.mapstruct.Mapper;
+import org.mapstruct.factory.Mappers;
 
 /**
- * IP 系列领域模型 ↔ DTO 转换器
+ * IP 系列领域模型 → DTO 转换器（MapStruct 自动生成实现）
  */
-public class IpSeriesAssembler {
+@Mapper
+public interface IpSeriesAssembler {
+
+    IpSeriesAssembler INSTANCE = Mappers.getMapper(IpSeriesAssembler.class);
 
     /**
      * 领域模型转响应 DTO
      */
-    public static IpSeriesResponse toResponse(IpSeries ipSeries) {
-        if (ipSeries == null) {
-            return null;
-        }
-        return IpSeriesResponse.builder()
-                .id(ipSeries.getId())
-                .code(ipSeries.getCode())
-                .name(ipSeries.getName())
-                .description(ipSeries.getDescription())
-                .coverImageUrl(ipSeries.getCoverImageUrl())
-                .status(ipSeries.getStatus().name())
-                .createdAt(ipSeries.getCreatedAt())
-                .updatedAt(ipSeries.getUpdatedAt())
-                .build();
-    }
+    IpSeriesResponse toResponse(IpSeries ipSeries);
 }

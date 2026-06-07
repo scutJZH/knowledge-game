@@ -38,7 +38,7 @@ public class IpSeriesAppService {
         });
         IpSeries ipSeries = IpSeries.create(code, name, description, coverImageUrl, status);
         IpSeries saved = ipSeriesRepositoryPort.save(ipSeries);
-        return IpSeriesAssembler.toResponse(saved);
+        return IpSeriesAssembler.INSTANCE.toResponse(saved);
     }
 
     /**
@@ -47,7 +47,7 @@ public class IpSeriesAppService {
     public IpSeriesResponse getIpSeriesById(Long id) {
         IpSeries ipSeries = ipSeriesRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("IP 系列不存在: " + id));
-        return IpSeriesAssembler.toResponse(ipSeries);
+        return IpSeriesAssembler.INSTANCE.toResponse(ipSeries);
     }
 
     /**
@@ -60,7 +60,7 @@ public class IpSeriesAppService {
                 name, statusEnum, pageNumber, pageSize);
         return PageResult.<IpSeriesResponse>builder()
                 .content(domainPage.getContent().stream()
-                        .map(IpSeriesAssembler::toResponse).toList())
+                        .map(IpSeriesAssembler.INSTANCE::toResponse).toList())
                 .totalElements(domainPage.getTotalElements())
                 .pageNumber(domainPage.getPageNumber())
                 .pageSize(domainPage.getPageSize())
@@ -90,7 +90,7 @@ public class IpSeriesAppService {
         }
         ipSeries.update(code, name, description, coverImageUrl, status);
         IpSeries saved = ipSeriesRepositoryPort.save(ipSeries);
-        return IpSeriesAssembler.toResponse(saved);
+        return IpSeriesAssembler.INSTANCE.toResponse(saved);
     }
 
     /**
