@@ -5,14 +5,13 @@ import com.knowledgegame.admin.api.dto.request.CreateIpSeriesRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateIpSeriesRequest;
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
 import com.knowledgegame.admin.application.service.IpSeriesAppService;
-import com.knowledgegame.admin.config.DomainBeanRegister;
 import com.knowledgegame.admin.config.WebMvcConfig;
-import com.knowledgegame.common.exception.BusinessException;
-import com.knowledgegame.domain.model.domainenum.IpSeriesStatus;
-import com.knowledgegame.infrastructure.adapter.repoadapter.CardTemplateRepositoryAdapter;
-import com.knowledgegame.infrastructure.adapter.repoadapter.IpSeriesRepositoryAdapter;
-import com.knowledgegame.infrastructure.adapter.repoadapter.UserRepositoryAdapter;
-import com.knowledgegame.domain.model.vo.PageResult;
+import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
+import com.knowledgegame.core.infrastructure.adapter.repoadapter.CardTemplateRepositoryAdapter;
+import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesRepositoryAdapter;
+import com.knowledgegame.core.infrastructure.adapter.repoadapter.UserRepositoryAdapter;
+import com.knowledgegame.core.domain.model.vo.PageResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +48,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = {
-                        DomainBeanRegister.class,
                         WebMvcConfig.class,
                         IpSeriesRepositoryAdapter.class,
                         CardTemplateRepositoryAdapter.class,

@@ -1,7 +1,7 @@
 package com.knowledgegame.admin.api.dto.request;
 
-import com.knowledgegame.domain.model.domainenum.CardRarity;
-import com.knowledgegame.domain.model.domainenum.CardTemplateStatus;
+import com.knowledgegame.core.domain.model.domainenum.CardRarity;
+import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;

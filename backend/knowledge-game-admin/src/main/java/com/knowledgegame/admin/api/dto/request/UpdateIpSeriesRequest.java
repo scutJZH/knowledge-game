@@ -1,6 +1,6 @@
 package com.knowledgegame.admin.api.dto.request;
 
-import com.knowledgegame.domain.model.domainenum.IpSeriesStatus;
+import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;

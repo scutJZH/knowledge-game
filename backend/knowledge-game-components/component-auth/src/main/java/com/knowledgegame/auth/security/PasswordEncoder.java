@@ -1,12 +1,12 @@
 package com.knowledgegame.auth.security;
 
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /**
- * 密码加密配置（BCrypt）
+ * 密码加密自动配置（BCrypt）
  */
-@Configuration
+@AutoConfiguration
 public class PasswordEncoder {
 
     /**

@@ -16,6 +16,12 @@
     <description>共享库：领域层 + 基础设施层 + 通用组件</description>
 
     <dependencies>
+        <!-- Spring Boot AutoConfigure（Starter 自动配置） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+
         <!-- Spring Data JPA（infrastructure 层使用） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

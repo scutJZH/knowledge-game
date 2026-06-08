@@ -1,11 +1,11 @@
 package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
-import com.knowledgegame.common.exception.BusinessException;
-import com.knowledgegame.domain.model.domainenum.IpSeriesStatus;
-import com.knowledgegame.domain.model.entity.IpSeries;
-import com.knowledgegame.domain.model.vo.PageResult;
-import com.knowledgegame.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
+import com.knowledgegame.core.domain.model.entity.IpSeries;
+import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

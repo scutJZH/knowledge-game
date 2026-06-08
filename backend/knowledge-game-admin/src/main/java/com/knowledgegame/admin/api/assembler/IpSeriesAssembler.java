@@ -1,7 +1,7 @@
 package com.knowledgegame.admin.api.assembler;
 
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
-import com.knowledgegame.domain.model.entity.IpSeries;
+import com.knowledgegame.core.domain.model.entity.IpSeries;
 import org.mapstruct.Mapper;
 import org.mapstruct.factory.Mappers;
 

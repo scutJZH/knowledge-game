@@ -1,8 +1,8 @@
 package com.knowledgegame.admin.common.exception;
 
-import com.knowledgegame.common.exception.BusinessException;
-import com.knowledgegame.common.result.Result;
-import com.knowledgegame.common.result.ResultCode;
+import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.common.result.Result;
+import com.knowledgegame.core.common.result.ResultCode;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
