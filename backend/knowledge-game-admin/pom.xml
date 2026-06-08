@@ -22,6 +22,12 @@
             <artifactId>knowledge-game-core</artifactId>
         </dependency>
 
+        <!-- 认证组件（Spring Security + JWT） -->
+        <dependency>
+            <groupId>com.knowledgegame</groupId>
+            <artifactId>component-auth</artifactId>
+        </dependency>
+
         <!-- Spring Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

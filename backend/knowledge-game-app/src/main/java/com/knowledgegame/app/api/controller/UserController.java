@@ -2,8 +2,13 @@ package com.knowledgegame.app.api.controller;
 
 import com.knowledgegame.app.api.dto.request.RegisterRequest;
 import com.knowledgegame.app.api.dto.request.UpdateUserRequest;
+import com.knowledgegame.app.api.dto.request.LoginRequest;
+import com.knowledgegame.app.api.dto.request.RefreshTokenRequest;
+import com.knowledgegame.app.api.dto.response.LoginResponse;
+import com.knowledgegame.app.api.dto.response.RefreshTokenResponse;
 import com.knowledgegame.app.api.dto.response.UserResponse;
 import com.knowledgegame.app.application.command.RegisterCommand;
+import com.knowledgegame.app.application.command.LoginCommand;
 import com.knowledgegame.app.application.service.UserAppService;
 import com.knowledgegame.core.common.result.Result;
 import jakarta.validation.Valid;
@@ -42,6 +47,26 @@ public class UserController {
                 .nickname(request.getNickname())
                 .build();
         return Result.success(userAppService.register(command));
+    }
+
+    /**
+     * 用户登录（返回 Access Token + Refresh Token）
+     */
+    @PostMapping("/login")
+    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+        LoginCommand command = LoginCommand.builder()
+                .username(request.getUsername())
+                .rawPassword(request.getPassword())
+                .build();
+        return Result.success(userAppService.login(command));
+    }
+
+    /**
+     * 刷新令牌
+     */
+    @PostMapping("/refresh-token")
+    public Result<RefreshTokenResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        return Result.success(userAppService.refreshToken(request.getRefreshToken()));
     }
 
     /**

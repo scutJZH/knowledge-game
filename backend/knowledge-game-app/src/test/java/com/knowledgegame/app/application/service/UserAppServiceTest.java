@@ -1,6 +1,9 @@
 package com.knowledgegame.app.application.service;
 
+import com.knowledgegame.app.api.dto.response.LoginResponse;
+import com.knowledgegame.app.api.dto.response.RefreshTokenResponse;
 import com.knowledgegame.app.api.dto.response.UserResponse;
+import com.knowledgegame.app.application.command.LoginCommand;
 import com.knowledgegame.app.application.command.RegisterCommand;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.UserRole;
@@ -13,6 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.knowledgegame.auth.security.JwtTokenProvider;
+import com.knowledgegame.auth.security.JwtProperties;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
@@ -37,11 +42,18 @@ class UserAppServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    private JwtTokenProvider jwtTokenProvider;
+
     private UserAppService userAppService;
 
     @BeforeEach
     void setUp() {
-        userAppService = new UserAppService(userRepositoryPort, passwordEncoder);
+        JwtProperties jwtProperties = new JwtProperties();
+        jwtProperties.setSecret("test-secret-key-for-unit-test-must-be-at-least-32-chars");
+        jwtProperties.setAccessTokenExpiration(1800000);
+        jwtProperties.setRefreshTokenExpiration(604800000);
+        jwtTokenProvider = new JwtTokenProvider(jwtProperties);
+        userAppService = new UserAppService(userRepositoryPort, passwordEncoder, jwtTokenProvider);
     }
 
     // ==================== register ====================
@@ -238,6 +250,137 @@ class UserAppServiceTest {
             assertThatThrownBy(() -> userAppService.deleteUser(999L))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("用户不存在: 999");
+        }
+    }
+
+    // ==================== login ====================
+
+    @Nested
+    @DisplayName("用户登录")
+    class Login {
+
+        @Test
+        @DisplayName("正常登录返回双令牌和用户信息")
+        void login_success() {
+            User user = User.reconstruct(1L, "testuser", "$2a$10$encodedHash", "测试用户",
+                    null, UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+            when(userRepositoryPort.findByUsername("testuser")).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches("123456", "$2a$10$encodedHash")).thenReturn(true);
+
+            LoginCommand command = LoginCommand.builder()
+                    .username("testuser")
+                    .rawPassword("123456")
+                    .build();
+
+            LoginResponse response = userAppService.login(command);
+
+            assertThat(response).isNotNull();
+            assertThat(response.getAccessToken()).isNotBlank();
+            assertThat(response.getRefreshToken()).isNotBlank();
+            assertThat(response.getExpiresIn()).isEqualTo(1800);
+            assertThat(response.getUser()).isNotNull();
+            assertThat(response.getUser().getId()).isEqualTo(1L);
+            assertThat(response.getUser().getUsername()).isEqualTo("testuser");
+            assertThat(response.getUser().getRole()).isEqualTo("USER");
+
+            // 验证生成的 Token 可以被解析
+            assertThat(jwtTokenProvider.validateToken(response.getAccessToken())).isTrue();
+            assertThat(jwtTokenProvider.getTypeFromToken(response.getAccessToken())).isEqualTo("access");
+            assertThat(jwtTokenProvider.validateToken(response.getRefreshToken())).isTrue();
+            assertThat(jwtTokenProvider.getTypeFromToken(response.getRefreshToken())).isEqualTo("refresh");
+        }
+
+        @Test
+        @DisplayName("用户名不存在时抛出 BusinessException")
+        void login_userNotFound_throws() {
+            when(userRepositoryPort.findByUsername("nouser")).thenReturn(Optional.empty());
+
+            LoginCommand command = LoginCommand.builder()
+                    .username("nouser")
+                    .rawPassword("123456")
+                    .build();
+
+            assertThatThrownBy(() -> userAppService.login(command))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("用户名或密码错误");
+        }
+
+        @Test
+        @DisplayName("密码错误时抛出 BusinessException")
+        void login_wrongPassword_throws() {
+            User user = User.reconstruct(1L, "testuser", "$2a$10$encodedHash", "测试用户",
+                    null, UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+            when(userRepositoryPort.findByUsername("testuser")).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches("wrongpwd", "$2a$10$encodedHash")).thenReturn(false);
+
+            LoginCommand command = LoginCommand.builder()
+                    .username("testuser")
+                    .rawPassword("wrongpwd")
+                    .build();
+
+            assertThatThrownBy(() -> userAppService.login(command))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("用户名或密码错误");
+        }
+    }
+
+    // ==================== refreshToken ====================
+
+    @Nested
+    @DisplayName("刷新令牌")
+    class RefreshToken {
+
+        @Test
+        @DisplayName("有效 Refresh Token 返回新的双令牌")
+        void refreshToken_success() {
+            User user = User.reconstruct(1L, "testuser", "hash", "测试用户",
+                    null, UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+            when(userRepositoryPort.findById(1L)).thenReturn(Optional.of(user));
+
+            // 先生成一个有效的 Refresh Token
+            String validRefreshToken = jwtTokenProvider.generateRefreshToken(1L);
+
+            RefreshTokenResponse response = userAppService.refreshToken(validRefreshToken);
+
+            assertThat(response).isNotNull();
+            assertThat(response.getAccessToken()).isNotBlank();
+            assertThat(response.getRefreshToken()).isNotBlank();
+            assertThat(response.getExpiresIn()).isEqualTo(1800);
+
+            // 验证新 Token 有效
+            assertThat(jwtTokenProvider.validateToken(response.getAccessToken())).isTrue();
+            assertThat(jwtTokenProvider.getTypeFromToken(response.getAccessToken())).isEqualTo("access");
+        }
+
+        @Test
+        @DisplayName("无效 Refresh Token 抛出 BusinessException")
+        void refreshToken_invalid_throws() {
+            assertThatThrownBy(() -> userAppService.refreshToken("invalid.token.string"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("Refresh Token 无效或已过期");
+        }
+
+        @Test
+        @DisplayName("用 Access Token 刷新时抛出 BusinessException")
+        void refreshToken_wrongType_throws() {
+            // 生成一个 Access Token 来冒充 Refresh Token
+            String accessToken = jwtTokenProvider.generateAccessToken(1L, "testuser", "USER");
+
+            assertThatThrownBy(() -> userAppService.refreshToken(accessToken))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("Refresh Token 无效或已过期");
+        }
+
+        @Test
+        @DisplayName("用户已不存在时抛出 BusinessException")
+        void refreshToken_userNotFound_throws() {
+            when(userRepositoryPort.findById(999L)).thenReturn(Optional.empty());
+
+            String refreshToken = jwtTokenProvider.generateRefreshToken(999L);
+
+            assertThatThrownBy(() -> userAppService.refreshToken(refreshToken))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("用户不存在");
         }
     }
 }

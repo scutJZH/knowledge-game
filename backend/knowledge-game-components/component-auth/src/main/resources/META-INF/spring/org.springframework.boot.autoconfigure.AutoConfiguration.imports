@@ -1,1 +1,1 @@
-com.knowledgegame.auth.security.PasswordEncoder
+com.knowledgegame.auth.security.AuthAutoConfiguration

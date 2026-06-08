@@ -1,0 +1,64 @@
+package com.knowledgegame.auth.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * JWT 认证过滤器（从 Authorization Header 提取 Token → 验证 → 设置 SecurityContext）
+ */
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String BEARER_PREFIX = "Bearer ";
+
+    private final JwtTokenProvider jwtTokenProvider;
+
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
+        this.jwtTokenProvider = jwtTokenProvider;
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
+        String token = extractToken(request);
+        if (token != null && jwtTokenProvider.validateToken(token)) {
+            String type = jwtTokenProvider.getTypeFromToken(token);
+            // 只接受 access 类型的 Token 用于认证
+            if ("access".equals(type)) {
+                Long userId = jwtTokenProvider.getUserIdFromToken(token);
+                String username = jwtTokenProvider.getUsernameFromToken(token);
+                String role = jwtTokenProvider.getRoleFromToken(token);
+
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                userId, null,
+                                List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                authentication.setDetails(username);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
+        }
+        filterChain.doFilter(request, response);
+    }
+
+    /**
+     * 从请求头提取 Bearer Token
+     */
+    private String extractToken(HttpServletRequest request) {
+        String bearerToken = request.getHeader(AUTHORIZATION_HEADER);
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
+            return bearerToken.substring(BEARER_PREFIX.length());
+        }
+        return null;
+    }
+}
