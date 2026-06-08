@@ -20,6 +20,7 @@
 
     <modules>
         <module>knowledge-game-core</module>
+        <module>knowledge-game-components</module>
         <module>knowledge-game-app</module>
         <module>knowledge-game-admin</module>
     </modules>
@@ -40,6 +41,11 @@
                 <groupId>org.mapstruct</groupId>
                 <artifactId>mapstruct</artifactId>
                 <version>${mapstruct.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.knowledgegame</groupId>
+                <artifactId>component-auth</artifactId>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
