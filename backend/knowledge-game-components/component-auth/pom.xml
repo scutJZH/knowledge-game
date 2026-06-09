@@ -15,6 +15,12 @@
     <description>认证组件模块（BCrypt 密码加密 + JWT Token + Spring Security）</description>
 
     <dependencies>
+        <!-- Core 模块（BusinessException 等通用类） -->
+        <dependency>
+            <groupId>com.knowledgegame</groupId>
+            <artifactId>knowledge-game-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
@@ -54,6 +60,17 @@
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
             <scope>provided</scope>
+        </dependency>
+        <!-- 测试依赖 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

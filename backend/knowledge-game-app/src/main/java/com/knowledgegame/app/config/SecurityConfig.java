@@ -2,6 +2,8 @@ package com.knowledgegame.app.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgegame.auth.security.JwtAuthenticationFilter;
+import com.knowledgegame.core.common.result.Result;
+import com.knowledgegame.core.common.result.ResultCode;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -11,8 +13,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import java.util.Map;
 
 /**
  * Spring Security 配置（用户端：JWT 无状态认证）
@@ -41,11 +41,8 @@ public class SecurityConfig {
                             response.setCharacterEncoding("UTF-8");
                             response.setStatus(401);
                             response.getWriter().write(
-                                    objectMapper.writeValueAsString(Map.of(
-                                            "code", 401,
-                                            "message", "未认证或 Token 已过期",
-                                            "data", ""
-                                    )));
+                                    objectMapper.writeValueAsString(
+                                            Result.fail(ResultCode.UNAUTHORIZED)));
                         })
                         // 无权限（403）
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
@@ -53,11 +50,8 @@ public class SecurityConfig {
                             response.setCharacterEncoding("UTF-8");
                             response.setStatus(403);
                             response.getWriter().write(
-                                    objectMapper.writeValueAsString(Map.of(
-                                            "code", 403,
-                                            "message", "无权限访问",
-                                            "data", ""
-                                    )));
+                                    objectMapper.writeValueAsString(
+                                            Result.fail(ResultCode.FORBIDDEN)));
                         })
                 )
                 .authorizeHttpRequests(auth -> auth

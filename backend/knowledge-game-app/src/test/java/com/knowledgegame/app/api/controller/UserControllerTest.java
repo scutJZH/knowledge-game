@@ -2,6 +2,7 @@ package com.knowledgegame.app.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgegame.app.api.dto.request.LoginRequest;
+import com.knowledgegame.app.api.dto.request.LogoutRequest;
 import com.knowledgegame.app.api.dto.request.RefreshTokenRequest;
 import com.knowledgegame.app.api.dto.request.RegisterRequest;
 import com.knowledgegame.app.api.dto.request.UpdateUserRequest;
@@ -232,7 +233,7 @@ class UserControllerTest {
         RefreshTokenRequest request = new RefreshTokenRequest();
         request.setRefreshToken("invalid.token");
 
-        willThrow(new BusinessException("Refresh Token 无效或已过期"))
+        willThrow(new BusinessException("Token 无效或已过期"))
                 .given(userAppService).refreshToken("invalid.token");
 
         mockMvc.perform(post("/api/users/refresh-token")
@@ -240,7 +241,7 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message").value("Refresh Token 无效或已过期"));
+                .andExpect(jsonPath("$.message").value("Token 无效或已过期"));
     }
 
     // ==================== 查询接口 ====================
@@ -343,5 +344,40 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("用户不存在: 999"));
+    }
+
+    // ==================== 登出接口 ====================
+
+    @Test
+    @DisplayName("POST /api/users/logout - 正常登出返回 200")
+    void logout_success() throws Exception {
+        LogoutRequest request = new LogoutRequest();
+        request.setRefreshToken("refresh.token.value");
+
+        willDoNothing().given(userAppService).logout("access.token.value", "refresh.token.value");
+
+        mockMvc.perform(post("/api/users/logout")
+                        .header("Authorization", "Bearer access.token.value")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").isEmpty());
+
+        verify(userAppService).logout("access.token.value", "refresh.token.value");
+    }
+
+    @Test
+    @DisplayName("POST /api/users/logout - refreshToken 为空时校验失败")
+    void logout_blankRefreshToken_validationFails() throws Exception {
+        LogoutRequest request = new LogoutRequest();
+        request.setRefreshToken("");
+
+        mockMvc.perform(post("/api/users/logout")
+                        .header("Authorization", "Bearer access.token.value")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
     }
 }

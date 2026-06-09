@@ -14,7 +14,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * JWT 认证过滤器（从 Authorization Header 提取 Token → 验证 → 设置 SecurityContext）
+ * JWT 认证过滤器（从 Authorization Header 提取 Token → 验证 → 黑名单检查 → 设置 SecurityContext）
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -22,9 +22,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenBlacklist tokenBlacklist;
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, TokenBlacklist tokenBlacklist) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.tokenBlacklist = tokenBlacklist;
     }
 
     @Override
@@ -36,6 +38,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String type = jwtTokenProvider.getTypeFromToken(token);
             // 只接受 access 类型的 Token 用于认证
             if ("access".equals(type)) {
+                // 黑名单检查（jti 为 null 的旧 Token 直接放行）
+                String jti = jwtTokenProvider.getJtiFromToken(token);
+                if (jti != null && tokenBlacklist.isBlacklisted(jti)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
                 Long userId = jwtTokenProvider.getUserIdFromToken(token);
                 String username = jwtTokenProvider.getUsernameFromToken(token);
                 String role = jwtTokenProvider.getRoleFromToken(token);

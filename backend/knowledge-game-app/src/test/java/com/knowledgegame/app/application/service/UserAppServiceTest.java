@@ -18,6 +18,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.knowledgegame.auth.security.JwtTokenProvider;
 import com.knowledgegame.auth.security.JwtProperties;
+import com.knowledgegame.auth.security.InMemoryTokenBlacklist;
+import com.knowledgegame.auth.security.TokenBlacklist;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
@@ -44,6 +46,8 @@ class UserAppServiceTest {
 
     private JwtTokenProvider jwtTokenProvider;
 
+    private TokenBlacklist tokenBlacklist;
+
     private UserAppService userAppService;
 
     @BeforeEach
@@ -53,7 +57,8 @@ class UserAppServiceTest {
         jwtProperties.setAccessTokenExpiration(1800000);
         jwtProperties.setRefreshTokenExpiration(604800000);
         jwtTokenProvider = new JwtTokenProvider(jwtProperties);
-        userAppService = new UserAppService(userRepositoryPort, passwordEncoder, jwtTokenProvider);
+        tokenBlacklist = new InMemoryTokenBlacklist();
+        userAppService = new UserAppService(userRepositoryPort, passwordEncoder, jwtTokenProvider, tokenBlacklist);
     }
 
     // ==================== register ====================
@@ -114,7 +119,7 @@ class UserAppServiceTest {
             // 执行并验证异常
             assertThatThrownBy(() -> userAppService.register(command))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessageContaining("用户名已存在: duplicate");
+                    .hasMessageContaining("用户名已存在");
         }
     }
 
@@ -357,7 +362,7 @@ class UserAppServiceTest {
         void refreshToken_invalid_throws() {
             assertThatThrownBy(() -> userAppService.refreshToken("invalid.token.string"))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessage("Refresh Token 无效或已过期");
+                    .hasMessage("Token 无效或已过期");
         }
 
         @Test
@@ -368,7 +373,7 @@ class UserAppServiceTest {
 
             assertThatThrownBy(() -> userAppService.refreshToken(accessToken))
                     .isInstanceOf(BusinessException.class)
-                    .hasMessage("Refresh Token 无效或已过期");
+                    .hasMessage("Token 无效或已过期");
         }
 
         @Test
@@ -381,6 +386,54 @@ class UserAppServiceTest {
             assertThatThrownBy(() -> userAppService.refreshToken(refreshToken))
                     .isInstanceOf(BusinessException.class)
                     .hasMessage("用户不存在");
+        }
+    }
+
+    // ==================== logout ====================
+
+    @Nested
+    @DisplayName("用户登出")
+    class Logout {
+
+        @Test
+        @DisplayName("登出后 Access Token 和 Refresh Token 的 jti 均在黑名单中")
+        void logout_bothTokensBlacklisted() {
+            User user = User.reconstruct(1L, "testuser", "hash", "测试用户",
+                    null, UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+            when(userRepositoryPort.findByUsername("testuser")).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches("123456", "hash")).thenReturn(true);
+
+            // 先登录获取 Token
+            LoginResponse loginResponse = userAppService.login(
+                    LoginCommand.builder().username("testuser").rawPassword("123456").build());
+
+            // 提取 jti
+            String accessJti = jwtTokenProvider.getJtiFromToken(loginResponse.getAccessToken());
+            String refreshJti = jwtTokenProvider.getJtiFromToken(loginResponse.getRefreshToken());
+
+            // 登出
+            userAppService.logout(loginResponse.getAccessToken(), loginResponse.getRefreshToken());
+
+            // 验证两个 jti 都在黑名单中
+            assertThat(tokenBlacklist.isBlacklisted(accessJti)).isTrue();
+            assertThat(tokenBlacklist.isBlacklisted(refreshJti)).isTrue();
+        }
+
+        @Test
+        @DisplayName("null refreshToken 时仅黑名单 Access Token")
+        void logout_nullRefreshToken_onlyBlacklistAccess() {
+            User user = User.reconstruct(1L, "testuser", "hash", "测试用户",
+                    null, UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+            when(userRepositoryPort.findByUsername("testuser")).thenReturn(Optional.of(user));
+            when(passwordEncoder.matches("123456", "hash")).thenReturn(true);
+
+            LoginResponse loginResponse = userAppService.login(
+                    LoginCommand.builder().username("testuser").rawPassword("123456").build());
+
+            String accessJti = jwtTokenProvider.getJtiFromToken(loginResponse.getAccessToken());
+            userAppService.logout(loginResponse.getAccessToken(), null);
+
+            assertThat(tokenBlacklist.isBlacklisted(accessJti)).isTrue();
         }
     }
 }

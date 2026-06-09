@@ -7,6 +7,7 @@ import io.jsonwebtoken.Jwts;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 import io.jsonwebtoken.security.Keys;
 
@@ -27,7 +28,7 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成 Access Token
+     * 生成 Access Token（含 jti 唯一标识，用于黑名单）
      */
     public String generateAccessToken(Long userId, String username, String role) {
         Date now = new Date();
@@ -35,6 +36,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim("jti", UUID.randomUUID().toString())
                 .claim("username", username)
                 .claim("role", role)
                 .claim("type", "access")
@@ -45,19 +47,28 @@ public class JwtTokenProvider {
     }
 
     /**
-     * 生成 Refresh Token
+     * 生成 Refresh Token（含 jti + role，用于黑名单和管理端刷新校验）
      */
-    public String generateRefreshToken(Long userId) {
+    public String generateRefreshToken(Long userId, String role) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshTokenExpiration);
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim("jti", UUID.randomUUID().toString())
+                .claim("role", role)
                 .claim("type", "refresh")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(signingKey)
                 .compact();
+    }
+
+    /**
+     * 生成 Refresh Token（无 role，向后兼容旧调用方）
+     */
+    public String generateRefreshToken(Long userId) {
+        return generateRefreshToken(userId, null);
     }
 
     /**
@@ -117,5 +128,19 @@ public class JwtTokenProvider {
      */
     public long getAccessTokenExpirationSeconds() {
         return accessTokenExpiration / 1000;
+    }
+
+    /**
+     * 获取 Token 的 jti（唯一标识）
+     */
+    public String getJtiFromToken(String token) {
+        return parseToken(token).get("jti", String.class);
+    }
+
+    /**
+     * 获取 Token 的过期时间
+     */
+    public Date getExpirationFromToken(String token) {
+        return parseToken(token).getExpiration();
     }
 }

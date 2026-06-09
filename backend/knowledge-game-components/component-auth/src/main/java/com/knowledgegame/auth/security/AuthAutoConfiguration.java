@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /**
- * 认证组件自动配置（BCrypt + JWT Token + JwtAuthenticationFilter）
+ * 认证组件自动配置（BCrypt + JWT Token + Token 黑名单 + JwtAuthenticationFilter）
  */
 @AutoConfiguration
 @EnableConfigurationProperties(JwtProperties.class)
@@ -29,10 +29,19 @@ public class AuthAutoConfiguration {
     }
 
     /**
+     * Token 黑名单（内存实现，后期 REQ-81 迁移 Redis）
+     */
+    @Bean
+    public TokenBlacklist tokenBlacklist() {
+        return new InMemoryTokenBlacklist();
+    }
+
+    /**
      * JWT 认证过滤器
      */
     @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
-        return new JwtAuthenticationFilter(jwtTokenProvider);
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider,
+                                                           TokenBlacklist tokenBlacklist) {
+        return new JwtAuthenticationFilter(jwtTokenProvider, tokenBlacklist);
     }
 }
