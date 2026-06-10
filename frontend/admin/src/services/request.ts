@@ -1,6 +1,6 @@
 // frontend/admin/src/services/request.ts
 import { message } from 'antd';
-import type { RequestConfig } from '@umijs/max';
+import { getAccessToken, getRefreshToken, clearAuth } from '@/utils/token';
 
 // 后端统一返回体类型
 interface Result<T> {
@@ -56,7 +56,7 @@ async function tryRefreshToken(): Promise<void> {
 }
 
 // 统一请求配置
-const requestConfig: RequestConfig = {
+const requestConfig = {
   timeout: 10000,
   requestInterceptors: [
     (config: any) => {
