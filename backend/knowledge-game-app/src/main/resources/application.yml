@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8082
 
 cors:
   allowed-origins: http://localhost:*
@@ -20,3 +20,12 @@ jwt:
   secret: "knowledge-game-jwt-secret-key-must-be-at-least-32-characters-long"
   access-token-expiration: 1800000
   refresh-token-expiration: 604800000
+
+knowledgegame:
+  log:
+    masking-fields:
+      - password
+      - token
+      - accessToken
+      - refreshToken
+      - secret
