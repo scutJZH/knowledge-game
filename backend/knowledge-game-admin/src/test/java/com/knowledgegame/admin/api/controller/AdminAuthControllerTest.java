@@ -8,7 +8,7 @@ import com.knowledgegame.admin.api.dto.response.AdminLoginResponse;
 import com.knowledgegame.admin.api.dto.response.AdminRefreshTokenResponse;
 import com.knowledgegame.admin.api.dto.response.AdminUserResponse;
 import com.knowledgegame.admin.application.service.AdminLoginAppService;
-import com.knowledgegame.admin.common.exception.GlobalExceptionHandler;
+import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.core.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

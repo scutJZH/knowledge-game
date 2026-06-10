@@ -17,5 +17,7 @@
 
     <modules>
         <module>component-auth</module>
+        <module>component-exception</module>
+        <module>component-log</module>
     </modules>
 </project>

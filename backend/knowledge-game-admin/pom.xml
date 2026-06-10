@@ -28,6 +28,18 @@
             <artifactId>component-auth</artifactId>
         </dependency>
 
+        <!-- 异常处理组件 -->
+        <dependency>
+            <groupId>com.knowledgegame</groupId>
+            <artifactId>component-exception</artifactId>
+        </dependency>
+
+        <!-- 日志组件（TraceId + 脱敏 + Logback） -->
+        <dependency>
+            <groupId>com.knowledgegame</groupId>
+            <artifactId>component-log</artifactId>
+        </dependency>
+
         <!-- Spring Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

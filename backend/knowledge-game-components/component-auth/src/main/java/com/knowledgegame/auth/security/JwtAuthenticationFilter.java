@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.MDC;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,31 +34,39 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String token = extractToken(request);
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            String type = jwtTokenProvider.getTypeFromToken(token);
-            // 只接受 access 类型的 Token 用于认证
-            if ("access".equals(type)) {
-                // 黑名单检查（jti 为 null 的旧 Token 直接放行）
-                String jti = jwtTokenProvider.getJtiFromToken(token);
-                if (jti != null && tokenBlacklist.isBlacklisted(jti)) {
-                    filterChain.doFilter(request, response);
-                    return;
+        try {
+            String token = extractToken(request);
+            if (token != null && jwtTokenProvider.validateToken(token)) {
+                String type = jwtTokenProvider.getTypeFromToken(token);
+                // 只接受 access 类型的 Token 用于认证
+                if ("access".equals(type)) {
+                    // 黑名单检查（jti 为 null 的旧 Token 直接放行）
+                    String jti = jwtTokenProvider.getJtiFromToken(token);
+                    if (jti != null && tokenBlacklist.isBlacklisted(jti)) {
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+
+                    Long userId = jwtTokenProvider.getUserIdFromToken(token);
+                    String username = jwtTokenProvider.getUsernameFromToken(token);
+                    String role = jwtTokenProvider.getRoleFromToken(token);
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userId, null,
+                                    List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                    authentication.setDetails(username);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    // 认证成功后注入 userId 到 MDC，供日志组件使用
+                    MDC.put("userId", String.valueOf(userId));
                 }
-
-                Long userId = jwtTokenProvider.getUserIdFromToken(token);
-                String username = jwtTokenProvider.getUsernameFromToken(token);
-                String role = jwtTokenProvider.getRoleFromToken(token);
-
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userId, null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + role)));
-                authentication.setDetails(username);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
+            filterChain.doFilter(request, response);
+        } finally {
+            // 清理 MDC 中的 userId，防止线程池复用导致上下文污染
+            MDC.remove("userId");
         }
-        filterChain.doFilter(request, response);
     }
 
     /**

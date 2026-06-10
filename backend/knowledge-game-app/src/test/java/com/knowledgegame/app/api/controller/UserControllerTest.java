@@ -12,7 +12,7 @@ import com.knowledgegame.app.api.dto.response.UserResponse;
 import com.knowledgegame.app.application.command.LoginCommand;
 import com.knowledgegame.app.application.command.RegisterCommand;
 import com.knowledgegame.app.application.service.UserAppService;
-import com.knowledgegame.app.common.exception.GlobalExceptionHandler;
+import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.core.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

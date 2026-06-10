@@ -3,12 +3,14 @@ package com.knowledgegame.admin.api.controller;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryTreeResponse;
 import com.knowledgegame.admin.application.service.KnowledgeCategoryAppService;
+import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * KnowledgeCategoryController 单元测试
  */
 @WebMvcTest(KnowledgeCategoryController.class)
+@Import(GlobalExceptionHandler.class)
 @AutoConfigureMockMvc(addFilters = false)
 class KnowledgeCategoryControllerTest {
 

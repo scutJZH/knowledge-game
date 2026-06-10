@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 引入 Spring Boot 默认配置 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 从 Spring 配置读取应用名，动态生成日志文件名 -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="app"/>
+
+    <!-- 自定义转换词：脱敏（不转义，给 FILE 人类可读格式用） -->
+    <conversionRule conversionWord="maskedMsg" converterClass="com.knowledgegame.components.log.masking.SensitiveDataConverter"/>
+    <!-- 自定义转换词：脱敏 + JSON 转义（给 CONSOLE JSON 格式用） -->
+    <conversionRule conversionWord="maskedJsonMsg" converterClass="com.knowledgegame.components.log.masking.SensitiveDataJsonConverter"/>
+
+    <!-- MDC 字段常量 -->
+    <property name="MDC_PATTERN" value='"traceId":"%X{traceId:-}","requestId":"%X{requestId:-}","userId":"%X{userId:-}","clientIp":"%X{clientIp:-}","requestPath":"%X{requestPath:-}"'/>
+
+    <!-- 控制台输出：JSON 格式（使用带转义的 maskedJsonMsg） -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%level","logger":"%logger{36}",${MDC_PATTERN},"message":"%maskedJsonMsg","thread":"%thread"}%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 文件输出：人类可读格式，按天滚动（使用不转义的 maskedMsg） -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/${APP_NAME}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>logs/${APP_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>200MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [traceId=%X{traceId:-},requestId=%X{requestId:-},userId=%X{userId:-}] - %maskedMsg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>
