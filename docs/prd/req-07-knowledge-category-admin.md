@@ -147,14 +147,17 @@ public class KnowledgeCategory {
     static KnowledgeCategory create(name, description, parentId, iconUrl, color, coverImageUrl, sortOrder)
     // 重建方法：从持久化层重建领域对象
     static KnowledgeCategory reconstruct(id, name, description, parentId, iconUrl, color, coverImageUrl, sortOrder, status, createdAt, updatedAt)
-    // 更新基本信息（不含 parentId）
+    // 更新基本信息（不含 parentId，null 字段不覆盖原值）
     void update(name, description, iconUrl, color, coverImageUrl, sortOrder)
     // 移动到新父级
     void moveTo(newParentId)
     // 软删除（status→INACTIVE）
     void deactivate()
-    // 判断 targetId 是否是自己的祖先（用于循环引用校验）
-    boolean isDescendantOf(targetId, categoryIdPath)
+}
+
+// 循环引用校验由 DomainService 通过 Repository 的 CTE 递归查询实现，而非实体方法
+public class KnowledgeCategoryDomainService {
+    void validateMove(categoryId, newParentId)  // 调用 findDescendantIds CTE 查询
 }
 ```
 

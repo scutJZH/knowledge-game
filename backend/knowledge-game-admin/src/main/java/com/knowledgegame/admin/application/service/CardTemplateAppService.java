@@ -5,6 +5,7 @@ import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
 import com.knowledgegame.admin.application.command.StarImageCommand;
 import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.common.util.EnumUtils;
 import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
@@ -74,8 +75,8 @@ public class CardTemplateAppService {
     public PageResult<CardTemplateListResponse> listCardTemplates(String name, Long ipSeriesId,
                                                                    String rarity, String status,
                                                                    int pageNumber, int pageSize) {
-        CardRarity rarityEnum = rarity != null ? CardRarity.valueOf(rarity) : null;
-        CardTemplateStatus statusEnum = status != null ? CardTemplateStatus.valueOf(status) : null;
+        CardRarity rarityEnum = EnumUtils.valueOfNullable(CardRarity.class, rarity);
+        CardTemplateStatus statusEnum = EnumUtils.valueOfNullable(CardTemplateStatus.class, status);
         PageResult<CardTemplate> domainPage = cardTemplateRepositoryPort.findByConditions(
                 name, ipSeriesId, rarityEnum, statusEnum, pageNumber, pageSize);
         return PageResult.<CardTemplateListResponse>builder()

@@ -3,6 +3,7 @@ package com.knowledgegame.admin.application.service;
 import com.knowledgegame.admin.api.assembler.IpSeriesAssembler;
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.common.util.EnumUtils;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.PageResult;
@@ -55,7 +56,7 @@ public class IpSeriesAppService {
      */
     public PageResult<IpSeriesResponse> listIpSeries(String name, String status,
                                                       int pageNumber, int pageSize) {
-        IpSeriesStatus statusEnum = status != null ? IpSeriesStatus.valueOf(status) : null;
+        IpSeriesStatus statusEnum = EnumUtils.valueOfNullable(IpSeriesStatus.class, status);
         PageResult<IpSeries> domainPage = ipSeriesRepositoryPort.findByConditions(
                 name, statusEnum, pageNumber, pageSize);
         return PageResult.<IpSeriesResponse>builder()
