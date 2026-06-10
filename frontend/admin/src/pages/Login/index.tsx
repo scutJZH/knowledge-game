@@ -1,3 +1,4 @@
+// frontend/admin/src/pages/Login/index.tsx
 import { LoginForm, ProFormText } from '@ant-design/pro-components';
 import { message } from 'antd';
 import { LockOutlined, UserOutlined } from '@ant-design/icons';
@@ -9,7 +10,14 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+      }}
+    >
       <LoginForm
         title="Knowledge Game"
         subTitle="系统管理后台"
@@ -19,13 +27,13 @@ const Login: React.FC = () => {
           name="username"
           fieldProps={{ prefix: <UserOutlined /> }}
           placeholder="用户名"
-          disabled
+          rules={[{ required: true, message: '请输入用户名' }]}
         />
         <ProFormText.Password
           name="password"
           fieldProps={{ prefix: <LockOutlined /> }}
           placeholder="密码"
-          disabled
+          rules={[{ required: true, message: '请输入密码' }]}
         />
       </LoginForm>
     </div>

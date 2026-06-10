@@ -49,9 +49,10 @@ REQ-40 脚手架阶段已搭建 Ant Design Pro 前端骨架，登录页为 disab
   1. 检查 localStorage 是否有 refreshToken
   2. 无 → 清除所有 token，跳转 `/login`
   3. 有 → 调用 `POST /api/admin/refresh-token`
-  4. 刷新成功 → 用新 token 更新 localStorage 并重试原请求
+  4. 刷新成功 → 用新 token 更新 localStorage，reload 页面使新 token 生效
   5. 刷新失败 → 清除所有 token，跳转 `/login`
-- **并发控制**：多个请求同时 401 时，仅发一次 refresh 请求，其余排队等待刷新完成后用新 token 重试
+- **并发控制**：使用 isRefreshing 锁防止并发刷新。reload 后页面重新加载，所有请求自然使用新 token，无需额外的请求队列
+- **Reload 策略说明**：管理后台使用频率低，token 过期（30 分钟）时用户通常处于空闲状态，reload 不会丢失有意义的页面状态。相比请求重试队列，reload 更简单可靠
 
 ### F4. 路由守卫
 
