@@ -40,6 +40,8 @@ public class KnowledgeCategoryRepositoryAdapter implements KnowledgeCategoryRepo
         KnowledgeCategoryPO existing = jpaRepository.findById(category.getId())
                 .orElseThrow(() -> new IllegalArgumentException("知识点分类不存在: " + category.getId()));
         KnowledgeCategoryConverter.INSTANCE.updatePO(existing, category);
+        // 显式设置 parentId，因为 Converter 的 IGNORE 策略会跳过 null（moveTo(null) 移到顶级时需要）
+        existing.setParentId(category.getParentId());
         KnowledgeCategoryPO saved = jpaRepository.save(existing);
         return KnowledgeCategoryConverter.INSTANCE.toDomain(saved);
     }

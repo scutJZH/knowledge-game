@@ -202,6 +202,22 @@ class KnowledgeCategoryAppServiceTest {
     }
 
     /**
+     * 移动 - 移到顶级（newParentId=null）
+     */
+    @Test
+    void move_shouldSetParentIdToNull_whenMovingToRoot() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                2L, 1L, "Java", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(2L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        appService.move(2L, null);
+
+        verify(categoryRepositoryPort).save(argThat(cat -> cat.getParentId() == null));
+    }
+
+    /**
      * 软删除 - status 变为 INACTIVE
      */
     @Test
