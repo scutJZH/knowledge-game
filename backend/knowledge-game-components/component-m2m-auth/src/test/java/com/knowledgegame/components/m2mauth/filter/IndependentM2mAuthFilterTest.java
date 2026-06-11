@@ -449,9 +449,7 @@ class IndependentM2mAuthFilterTest {
                 case "缺少服务名" -> {
                     // 不设置任何头
                 }
-                case "缺少服务密钥" -> {
-                    request.addHeader("X-Service-Name", "app-service");
-                }
+                case "缺少服务密钥" -> request.addHeader("X-Service-Name", "app-service");
                 case "身份验证失败" -> {
                     request.addHeader("X-Service-Name", "app-service");
                     request.addHeader("X-Service-Key", "wrong");

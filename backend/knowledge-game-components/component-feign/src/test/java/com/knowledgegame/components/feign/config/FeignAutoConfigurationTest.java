@@ -11,20 +11,16 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class FeignAutoConfigurationTest {
 
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(FeignAutoConfiguration.class));
+	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+			.withConfiguration(AutoConfigurations.of(FeignAutoConfiguration.class));
 
-    @Test
-    void shouldLoadFeignAutoConfiguration() {
-        contextRunner.run(context -> {
-            assertThat(context).hasSingleBean(FeignAutoConfiguration.class);
-        });
-    }
+	@Test
+	void shouldLoadFeignAutoConfiguration() {
+		contextRunner.run(context -> assertThat(context).hasSingleBean(FeignAutoConfiguration.class));
+	}
 
-    @Test
-    void contextShouldStartWithoutFailure() {
-        contextRunner.run(context -> {
-            assertThat(context).hasNotFailed();
-        });
-    }
+	@Test
+	void contextShouldStartWithoutFailure() {
+		contextRunner.run(context -> assertThat(context).hasNotFailed());
+	}
 }
