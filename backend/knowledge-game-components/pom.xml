@@ -19,5 +19,6 @@
         <module>component-auth</module>
         <module>component-exception</module>
         <module>component-log</module>
+        <module>component-m2m-auth</module>
     </modules>
 </project>
