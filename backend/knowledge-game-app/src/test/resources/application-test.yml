@@ -1,0 +1,41 @@
+server:
+  port: 0
+
+cors:
+  allowed-origins: http://localhost:*
+
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+  autoconfigure:
+    exclude:
+      - com.alibaba.cloud.nacos.discovery.NacosDiscoveryAutoConfiguration
+      - com.alibaba.cloud.nacos.config.NacosConfigAutoConfiguration
+  datasource:
+    url: jdbc:mysql://localhost:3306/knowledge-game?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+jwt:
+  secret: "knowledge-game-app-jwt-secret-key-must-be-at-least-32-characters-long"
+  access-token-expiration: 1800000
+  refresh-token-expiration: 604800000
+
+knowledgegame:
+  log:
+    masking-fields:
+      - password
+      - token
+      - accessToken
+      - refreshToken
+      - secret

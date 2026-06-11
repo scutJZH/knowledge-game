@@ -219,7 +219,7 @@ backend/knowledge-game-components/component-feign/
 
 ### 4.4 各服务启动类变更
 
-- 添加 `@EnableFeignClients(basePackages = "com.knowledgegame.components.feign.client")`
+- Feign Client 扫描通过 `FeignAutoConfiguration` 中的 `@EnableFeignClients` 自动完成，各服务启动类无需修改
 - 不添加 `@EnableDiscoveryClient`（Spring Cloud 2025 自动注册，无需显式声明）
 
 ### 4.5 Nacos Server 安全措施
@@ -234,9 +234,9 @@ backend/knowledge-game-components/component-feign/
 
 | Data ID | Group | 格式 | 内容 |
 |---------|-------|------|------|
-| `common.yml` | DEFAULT_GROUP | YAML | 数据源、JPA 公共配置、JWT、日志脱敏等共享配置 |
-| `knowledge-game-app.yml` | DEFAULT_GROUP | YAML | app 专属配置（如 JPA ddl-auto: none） |
-| `knowledge-game-admin.yml` | DEFAULT_GROUP | YAML | admin 专属配置（如 JPA ddl-auto: update） |
+| `common.yml` | DEFAULT_GROUP | YAML | 数据源、JPA 公共配置、日志脱敏等共享配置 |
+| `knowledge-game-app.yml` | DEFAULT_GROUP | YAML | app 专属配置（JPA ddl-auto: none + JWT secret） |
+| `knowledge-game-admin.yml` | DEFAULT_GROUP | YAML | admin 专属配置（JPA ddl-auto: update + JWT secret） |
 
 > 本轮通过文档说明手动创建步骤，后续可考虑自动化脚本。
 
@@ -277,7 +277,7 @@ admin → component-feign, nacos-discovery, nacos-config, openfeign, component-a
 | `backend/knowledge-game-admin/pom.xml` | 同上 |
 | `backend/knowledge-game-app/src/main/resources/application.yml` | 精简为仅含端口、服务名、Nacos 连接、spring.config.import；新增 `spring.application.name` |
 | `backend/knowledge-game-admin/src/main/resources/application.yml` | 同上 |
-| `backend/knowledge-game-app/src/.../KnowledgeGameApplication.java` | 添加 @EnableFeignClients |
+| `backend/knowledge-game-app/src/.../KnowledgeGameApplication.java` | 无变更（Feign Client 扫描由 FeignAutoConfiguration 自动完成） |
 | `backend/knowledge-game-admin/src/.../KnowledgeGameAdminApplication.java` | 同上 |
 
 ### 5.3 配置变更

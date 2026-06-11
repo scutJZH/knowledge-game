@@ -20,5 +20,6 @@
         <module>component-exception</module>
         <module>component-log</module>
         <module>component-m2m-auth</module>
+        <module>component-feign</module>
     </modules>
 </project>
