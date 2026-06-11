@@ -438,7 +438,6 @@ class IndependentM2mAuthFilterTest {
         }
 
         @ParameterizedTest(name = "失败场景 {0} → message=''{1}''")
-        @DisplayName("各失败场景的 message 字段值")
         @CsvSource({
                 "缺少服务名, 缺少服务名标识",
                 "缺少服务密钥, 缺少服务密钥",
