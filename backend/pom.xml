@@ -23,6 +23,7 @@
         <module>knowledge-game-components</module>
         <module>knowledge-game-app</module>
         <module>knowledge-game-admin</module>
+        <module>knowledge-game-file</module>
     </modules>
 
     <properties>

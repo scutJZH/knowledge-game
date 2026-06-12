@@ -20,16 +20,25 @@
 
 ### 3.1 上传凭证
 
-- 前端通过 app/admin 业务接口请求上传凭证（app/admin 通过 Feign M2M 调用 file 服务）
-- 凭证包含 `userId` + 一次性 `token`（UUID）
+- 前端通过 app/admin 业务接口请求上传凭证（app/admin 通过 Feign 调用 `POST /api/file/internal/credential`）
+- 请求参数：`userId`（上传者 ID）、`count`（本次凭证允许上传的文件数量，默认 1）
+- 凭证包含 `userId` + 一次性 `token`（UUID）+ 剩余可用次数
 - 凭证有效期为 **5 分钟**，过期自动失效
-- 凭证仅支持一次上传，上传成功后立即消费/失效
+- 凭证支持指定次数上传（由 count 决定），每次上传消费 1 次，次数耗尽后凭证失效
 - file 服务内存中维护凭证状态（`ConcurrentHashMap`），定时任务每分钟清理过期凭证
 
 ### 3.2 文件上传
 
 - 前端携带凭证（`X-Upload-Token` 请求头 + `X-User-Id` 请求头）直接向 file 服务上传文件
-- 上传请求：`POST /api/file/upload`，`multipart/form-data`，字段名 `file`
+- **单文件上传**：`POST /api/file/upload`，`multipart/form-data`，字段名 `file`
+- **批量上传**：`POST /api/file/batch-upload`，`multipart/form-data`，字段名 `files`（多文件）
+- 批量上传具有**原子性**：全部成功或全部失败（`@Transactional`）
+- 批量上传的文件数量必须与凭证 count 完全一致（不多不少），否则返回 400
+- 凭证消费时机：存储+入库成功后才消费，上传失败不浪费凭证
+- 路径规划：
+  - `/api/file/upload` — 前端直传（凭证鉴权），不走 M2M
+  - `/api/file/internal/**` — 机机接口（M2M 鉴权），由 app/admin 通过 Feign 调用
+  - `/static/**` — 静态资源，无鉴权
 - 支持的业务类型（`bizType` 参数）：
 
 | bizType | 说明 |
@@ -74,15 +83,15 @@ CREATE TABLE file_info (
 
 ### 3.5 文件删除
 
-- `DELETE /api/file/{fileId}` — M2M 接口（需 API Key 鉴权）
+- `DELETE /api/file/internal/{fileId}` — M2M 接口（需 API Key 鉴权）
 - 业务方（app/admin）在删除业务实体时，异步调用 file 服务删除关联文件
 - 文件删除采用软删除（`file_info.deleted = 1`），定时任务异步清理磁盘文件
 - 容忍删除失败：业务操作不受文件删除结果影响，失败时记录日志后续重试
 
 ### 3.6 文件查询（M2M）
 
-- `GET /api/file/{fileId}` — 验证文件存在 + 返回文件信息（M2M 接口）
-- `POST /api/file/batch-urls` — 批量查询文件 URL（请求体 `{ fileIds: [1,2,3] }`）
+- `GET /api/file/internal/{fileId}` — 验证文件存在 + 返回文件信息（M2M 接口）
+- `POST /api/file/internal/batch-urls` — 批量查询文件 URL（请求体 `{ fileIds: [1,2,3] }`）
 - app/admin 在业务写接口中调用验证文件存在性，同时获取 URL 冗余入库
 
 ### 3.7 存储抽象层

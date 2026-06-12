@@ -1,0 +1,41 @@
+server:
+  port: 8083
+
+cors:
+  allowed-origins: http://localhost:*
+
+spring:
+  application:
+    name: knowledge-game-file
+  config:
+    import:
+      - nacos:common.yml?refresh=true
+      - nacos:knowledge-game-file.yml?refresh=true
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848
+      discovery:
+        namespace: ${NACOS_NAMESPACE:}
+      config:
+        namespace: ${NACOS_NAMESPACE:}
+
+knowledgegame:
+  file:
+    storage:
+      type: local
+      local:
+        base-path: ./uploads
+    upload:
+      max-file-size: 10MB
+      allowed-types:
+        - image/jpeg
+        - image/png
+        - image/gif
+        - image/webp
+    credential:
+      expire-minutes: 5
+
+m2m:
+  auth:
+    enabled: true
+    protectedPaths: /api/file/internal/**

@@ -1,0 +1,42 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: knowledge-game-file
+  config:
+    import: "optional:nacos:"
+  cloud:
+    nacos:
+      discovery:
+        enabled: false
+      config:
+        enabled: false
+  datasource:
+    url: jdbc:mysql://localhost:3306/knowledge-game?useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: 123456
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+
+m2m:
+  auth:
+    enabled: false
+
+knowledgegame:
+  file:
+    storage:
+      type: local
+      local:
+        base-path: ./uploads
+    upload:
+      max-file-size: 10MB
+      allowed-types:
+        - image/jpeg
+        - image/png
+        - image/gif
+        - image/webp
+    credential:
+      expire-minutes: 5
