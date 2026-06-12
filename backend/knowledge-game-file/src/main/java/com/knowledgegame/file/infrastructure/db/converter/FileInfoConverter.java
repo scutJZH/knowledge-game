@@ -1,6 +1,5 @@
 package com.knowledgegame.file.infrastructure.db.converter;
 
-import com.knowledgegame.file.domain.model.BizType;
 import com.knowledgegame.file.domain.model.FileInfo;
 import com.knowledgegame.file.infrastructure.db.entity.FileInfoPO;
 import org.mapstruct.Mapper;
@@ -17,7 +16,7 @@ public interface FileInfoConverter {
 
     FileInfoConverter INSTANCE = Mappers.getMapper(FileInfoConverter.class);
 
-    @Mapping(target = "bizType", expression = "java(fileInfo.getBizType().name())")
+    @Mapping(target = "basePath", source = "basePath")
     @Mapping(target = "deleted", expression = "java(fileInfo.isDeleted())")
     FileInfoPO toPO(FileInfo fileInfo);
 
@@ -36,7 +35,7 @@ public interface FileInfoConverter {
                 po.getUrl(),
                 po.getContentType(),
                 po.getFileSize(),
-                BizType.valueOf(po.getBizType()),
+                po.getBasePath(),
                 po.getUploaderId(),
                 po.getCreatedAt(),
                 po.getDeleted()

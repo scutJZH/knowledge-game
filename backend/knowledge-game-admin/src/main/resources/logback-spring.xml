@@ -4,7 +4,9 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <!-- 从 Spring 配置读取应用名，动态生成日志文件名 -->
-    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="app"/>
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="admin"/>
+    <!-- 从 Spring 配置读取日志目录 -->
+    <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="logs"/>
 
     <!-- 自定义转换词：脱敏（不转义，给 FILE 人类可读格式用） -->
     <conversionRule conversionWord="maskedMsg" converterClass="com.knowledgegame.components.log.masking.SensitiveDataConverter"/>
@@ -24,9 +26,9 @@
 
     <!-- 文件输出：人类可读格式，按天滚动（使用不转义的 maskedMsg） -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/${APP_NAME}.log</file>
+        <file>${LOG_PATH}/${APP_NAME}.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>logs/${APP_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>200MB</maxFileSize>
             <maxHistory>30</maxHistory>
         </rollingPolicy>

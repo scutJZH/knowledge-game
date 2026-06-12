@@ -58,10 +58,22 @@
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
 
+        <!-- Spring Cloud LoadBalancer（Feign 负载均衡） -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
+        </dependency>
+
         <!-- Feign Client 共享模块 -->
         <dependency>
             <groupId>com.knowledgegame</groupId>
             <artifactId>component-feign</artifactId>
+        </dependency>
+
+        <!-- M2M 机机鉴权（Feign 拦截器注入 API Key） -->
+        <dependency>
+            <groupId>com.knowledgegame</groupId>
+            <artifactId>component-m2m-auth</artifactId>
         </dependency>
 
         <!-- Spring Web -->

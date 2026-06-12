@@ -51,10 +51,11 @@ class FileControllerTest {
     @Test
     @DisplayName("生成上传凭证应返回 token")
     void shouldGenerateCredential() throws Exception {
-        when(fileAppService.generateCredential(1L, 1)).thenReturn("test-token");
+        when(fileAppService.generateCredential(1L, 1, "ip-series")).thenReturn("test-token");
 
         mockMvc.perform(post("/api/file/internal/credential")
-                        .param("userId", "1"))
+                        .param("userId", "1")
+                        .param("basePath", "ip-series"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value("test-token"));
@@ -64,8 +65,8 @@ class FileControllerTest {
     @DisplayName("上传文件应返回 fileId 和 url")
     void shouldUploadFile() throws Exception {
         FileUploadResponse response = FileUploadResponse.builder()
-                .fileId(1L).url("/static/IP_SERIES/20260612/uuid.png").build();
-        when(fileAppService.uploadFile(anyLong(), anyString(), any(), anyString()))
+                .fileId(1L).url("/static/ip-series/20260612/uuid.png").build();
+        when(fileAppService.uploadFile(anyLong(), anyString(), any()))
                 .thenReturn(response);
 
         MockMultipartFile file = new MockMultipartFile("file", "test.png",
@@ -73,13 +74,12 @@ class FileControllerTest {
 
         mockMvc.perform(multipart("/api/file/upload")
                         .file(file)
-                        .param("bizType", "IP_SERIES")
                         .header("X-Upload-Token", "test-token")
                         .header("X-User-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.fileId").value(1))
-                .andExpect(jsonPath("$.data.url").value("/static/IP_SERIES/20260612/uuid.png"));
+                .andExpect(jsonPath("$.data.url").value("/static/ip-series/20260612/uuid.png"));
     }
 
     @Test
@@ -95,11 +95,11 @@ class FileControllerTest {
     void shouldGetFileInfo() throws Exception {
         FileInfoResponse response = FileInfoResponse.builder()
                 .fileId(1L)
-                .url("/static/IP_SERIES/20260612/uuid.png")
+                .url("/static/ip-series/20260612/uuid.png")
                 .originalName("test.png")
                 .contentType("image/png")
                 .fileSize(100L)
-                .bizType("IP_SERIES")
+                .basePath("ip-series")
                 .uploaderId(1L)
                 .createdAt(LocalDateTime.now())
                 .build();

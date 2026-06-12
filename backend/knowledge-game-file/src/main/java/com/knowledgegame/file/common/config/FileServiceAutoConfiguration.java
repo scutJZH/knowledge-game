@@ -25,7 +25,7 @@ public class FileServiceAutoConfiguration {
 
     @Bean
     public FileStorageProvider fileStorageProvider(FileProperties properties) {
-        return new LocalFileStorageProvider(properties.getStorage().getLocal().getBasePath());
+        return new LocalFileStorageProvider(properties.getStorage().getLocal().getStorageDir());
     }
 
     @Bean

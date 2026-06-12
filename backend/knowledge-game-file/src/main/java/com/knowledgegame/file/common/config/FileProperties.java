@@ -48,9 +48,9 @@ public class FileProperties {
     @Setter
     public static class Local {
         /**
-         * 本地磁盘根目录
+         * 本地磁盘存储根目录
          */
-        private String basePath = "./uploads";
+        private String storageDir = "./uploads";
     }
 
     @Getter

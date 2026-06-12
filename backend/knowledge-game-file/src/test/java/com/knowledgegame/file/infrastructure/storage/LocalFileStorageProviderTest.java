@@ -52,11 +52,11 @@ class LocalFileStorageProviderTest {
         byte[] data = "hello world".getBytes();
         InputStream input = new ByteArrayInputStream(data);
 
-        StoredFile result = provider.store("IP_SERIES", "test.png", input, data.length, "image/png");
+        StoredFile result = provider.store("ip-series", "test.png", input, data.length, "image/png");
 
         assertNotNull(result.storedName());
-        assertTrue(result.filePath().startsWith("IP_SERIES/"));
-        assertTrue(result.url().startsWith("/static/IP_SERIES/"));
+        assertTrue(result.filePath().startsWith("ip-series/"));
+        assertTrue(result.url().startsWith("/static/ip-series/"));
         assertEquals("image/png", result.contentType());
         assertEquals(data.length, result.fileSize());
 
@@ -69,7 +69,7 @@ class LocalFileStorageProviderTest {
     @DisplayName("应根据 contentType 推断扩展名")
     void shouldInferExtensionFromContentType() {
         InputStream input = new ByteArrayInputStream("data".getBytes());
-        StoredFile result = provider.store("AVATAR", "photo.jpeg", input, 4, "image/png");
+        StoredFile result = provider.store("avatar", "photo.jpeg", input, 4, "image/png");
         assertTrue(result.storedName().endsWith(".png"));
     }
 
@@ -77,7 +77,7 @@ class LocalFileStorageProviderTest {
     @DisplayName("未知 contentType 应无扩展名")
     void shouldStoreFileWithoutExtensionForUnknownType() {
         InputStream input = new ByteArrayInputStream("data".getBytes());
-        StoredFile result = provider.store("AVATAR", "noext", input, 4, "image/unknown");
+        StoredFile result = provider.store("avatar", "noext", input, 4, "image/unknown");
         assertFalse(result.storedName().contains("."));
     }
 
@@ -85,7 +85,7 @@ class LocalFileStorageProviderTest {
     @DisplayName("应正确删除已存在的文件")
     void shouldDeleteExistingFile() {
         InputStream input = new ByteArrayInputStream("data".getBytes());
-        StoredFile result = provider.store("IP_SERIES", "test.png", input, 4, "image/png");
+        StoredFile result = provider.store("ip-series", "test.png", input, 4, "image/png");
 
         Path storedPath = tempDir.resolve(result.filePath());
         assertTrue(Files.exists(storedPath));
@@ -106,7 +106,7 @@ class LocalFileStorageProviderTest {
     void shouldLoadFile() throws IOException {
         byte[] data = "hello world".getBytes();
         InputStream input = new ByteArrayInputStream(data);
-        StoredFile result = provider.store("IP_SERIES", "test.png", input, data.length, "image/png");
+        StoredFile result = provider.store("ip-series", "test.png", input, data.length, "image/png");
 
         try (InputStream loaded = provider.load(result.filePath())) {
             byte[] loadedData = loaded.readAllBytes();

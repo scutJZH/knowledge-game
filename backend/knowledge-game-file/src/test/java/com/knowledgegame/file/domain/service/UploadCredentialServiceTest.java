@@ -28,7 +28,7 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("应生成非空 token")
         void shouldGenerateNonNullToken() {
-            String token = service.generateCredential(1L, 1);
+            String token = service.generateCredential(1L, 1, "ip-series");
             assertNotNull(token);
             assertFalse(token.isEmpty());
         }
@@ -41,21 +41,21 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("有效凭证应通过验证")
         void shouldValidateValidCredential() {
-            String token = service.generateCredential(1L, 1);
+            String token = service.generateCredential(1L, 1, "ip-series");
             assertTrue(service.validate(1L, token));
         }
 
         @Test
         @DisplayName("错误的 userId 应验证失败")
         void shouldRejectWrongUserId() {
-            String token = service.generateCredential(1L, 1);
+            String token = service.generateCredential(1L, 1, "ip-series");
             assertFalse(service.validate(2L, token));
         }
 
         @Test
         @DisplayName("错误的 token 应验证失败")
         void shouldRejectWrongToken() {
-            service.generateCredential(1L, 1);
+            service.generateCredential(1L, 1, "ip-series");
             assertFalse(service.validate(1L, "wrong-token"));
         }
 
@@ -64,7 +64,7 @@ class UploadCredentialServiceTest {
         void shouldRejectExpiredCredential() {
             // 使用 -1 分钟过期，确保证券立即过期
             UploadCredentialService shortLived = new UploadCredentialService(-1);
-            String token = shortLived.generateCredential(1L, 1);
+            String token = shortLived.generateCredential(1L, 1, "ip-series");
             assertFalse(shortLived.validate(1L, token));
         }
     }
@@ -76,7 +76,7 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("tryConsume 消费后凭证应失效")
         void shouldInvalidateAfterTryConsume() {
-            String token = service.generateCredential(1L, 1);
+            String token = service.generateCredential(1L, 1, "ip-series");
             assertTrue(service.tryConsume(1L, token));
             assertFalse(service.validate(1L, token));
         }
@@ -84,7 +84,7 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("tryConsume 重复消费返回 false")
         void shouldReturnFalseOnDoubleTryConsume() {
-            String token = service.generateCredential(1L, 1);
+            String token = service.generateCredential(1L, 1, "ip-series");
             assertTrue(service.tryConsume(1L, token));
             assertFalse(service.tryConsume(1L, token));
         }
@@ -98,7 +98,7 @@ class UploadCredentialServiceTest {
         @DisplayName("应清理过期凭证")
         void shouldCleanExpiredCredentials() {
             UploadCredentialService shortLived = new UploadCredentialService(-1);
-            shortLived.generateCredential(1L, 1);
+            shortLived.generateCredential(1L, 1, "ip-series");
             int cleaned = shortLived.cleanupExpired();
             assertTrue(cleaned > 0);
         }
@@ -106,7 +106,7 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("未过期凭证不应被清理")
         void shouldNotCleanValidCredentials() {
-            service.generateCredential(1L, 1);
+            service.generateCredential(1L, 1, "ip-series");
             int cleaned = service.cleanupExpired();
             assertTrue(cleaned == 0);
         }

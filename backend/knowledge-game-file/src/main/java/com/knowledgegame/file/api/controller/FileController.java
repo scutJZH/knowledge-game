@@ -44,9 +44,8 @@ public class FileController {
     public Result<FileUploadResponse> uploadFile(
             @RequestHeader("X-Upload-Token") String token,
             @RequestHeader("X-User-Id") Long userId,
-            @RequestParam String bizType,
             @RequestParam("file") MultipartFile file) {
-        FileUploadResponse response = fileAppService.uploadFile(userId, token, file, bizType);
+        FileUploadResponse response = fileAppService.uploadFile(userId, token, file);
         return Result.success(response);
     }
 
@@ -58,9 +57,8 @@ public class FileController {
     public Result<List<FileUploadResponse>> batchUploadFiles(
             @RequestHeader("X-Upload-Token") String token,
             @RequestHeader("X-User-Id") Long userId,
-            @RequestParam String bizType,
             @RequestParam("files") List<MultipartFile> files) {
-        List<FileUploadResponse> responses = fileAppService.batchUploadFiles(userId, token, files, bizType);
+        List<FileUploadResponse> responses = fileAppService.batchUploadFiles(userId, token, files);
         return Result.success(responses);
     }
 
@@ -69,11 +67,13 @@ public class FileController {
     /**
      * 生成上传凭证（M2M，由 app/admin 通过 Feign 调用）
      * count 参数指定凭证允许上传的文件数量，默认 1
+     * basePath 指定文件存储目录路径
      */
     @PostMapping("/internal/credential")
     public Result<String> generateCredential(@RequestParam Long userId,
-                                              @RequestParam(defaultValue = "1") int count) {
-        String token = fileAppService.generateCredential(userId, count);
+                                              @RequestParam(defaultValue = "1") int count,
+                                              @RequestParam String basePath) {
+        String token = fileAppService.generateCredential(userId, count, basePath);
         return Result.success(token);
     }
 

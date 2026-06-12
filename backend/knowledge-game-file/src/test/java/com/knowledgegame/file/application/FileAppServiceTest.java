@@ -3,7 +3,6 @@ package com.knowledgegame.file.application;
 import com.knowledgegame.file.api.dto.FileInfoResponse;
 import com.knowledgegame.file.api.dto.FileUploadResponse;
 import com.knowledgegame.file.common.config.FileProperties;
-import com.knowledgegame.file.domain.model.BizType;
 import com.knowledgegame.file.domain.model.FileInfo;
 import com.knowledgegame.file.domain.model.StoredFile;
 import com.knowledgegame.file.domain.port.outbound.FileInfoRepository;
@@ -19,7 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -64,27 +62,27 @@ class FileAppServiceTest {
         @Test
         @DisplayName("成功上传文件")
         void shouldUploadFile() {
-            String token = credentialService.generateCredential(1L, 1);
+            String token = credentialService.generateCredential(1L, 1, "ip-series");
 
-            StoredFile storedFile = new StoredFile("uuid.png", "IP_SERIES/20260612/uuid.png",
-                    "/static/IP_SERIES/20260612/uuid.png", "image/png", 100);
+            StoredFile storedFile = new StoredFile("uuid.png", "ip-series/20260612/uuid.png",
+                    "/static/ip-series/20260612/uuid.png", "image/png", 100);
             when(storageProvider.store(anyString(), anyString(), any(), any(long.class), anyString()))
                     .thenReturn(storedFile);
 
             FileInfo savedFileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
-                    "IP_SERIES/20260612/uuid.png", "/static/IP_SERIES/20260612/uuid.png",
-                    "image/png", 100, BizType.IP_SERIES, 1L, LocalDateTime.now(), false);
+                    "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false);
             when(fileInfoRepository.save(any(FileInfo.class))).thenReturn(savedFileInfo);
 
             MockMultipartFile file = new MockMultipartFile("file", "test.png",
                     "image/png", "hello".getBytes());
 
-            FileUploadResponse response = fileAppService.uploadFile(1L, token, file, "IP_SERIES");
+            FileUploadResponse response = fileAppService.uploadFile(1L, token, file);
 
             assertNotNull(response);
             assertEquals(1L, response.getFileId());
             // 凭证应已消费
-            assertThrows(Exception.class, () -> fileAppService.uploadFile(1L, token, file, "IP_SERIES"));
+            assertThrows(Exception.class, () -> fileAppService.uploadFile(1L, token, file));
         }
 
         @Test
@@ -94,18 +92,18 @@ class FileAppServiceTest {
                     "image/png", "hello".getBytes());
 
             assertThrows(Exception.class,
-                    () -> fileAppService.uploadFile(1L, "invalid-token", file, "IP_SERIES"));
+                    () -> fileAppService.uploadFile(1L, "invalid-token", file));
         }
 
         @Test
         @DisplayName("不支持的文件类型应抛异常")
         void shouldRejectUnsupportedType() {
-            String token = credentialService.generateCredential(1L, 1);
+            String token = credentialService.generateCredential(1L, 1, "ip-series");
             MockMultipartFile file = new MockMultipartFile("file", "test.txt",
                     "text/plain", "hello".getBytes());
 
             assertThrows(Exception.class,
-                    () -> fileAppService.uploadFile(1L, token, file, "IP_SERIES"));
+                    () -> fileAppService.uploadFile(1L, token, file));
         }
     }
 
@@ -117,8 +115,8 @@ class FileAppServiceTest {
         @DisplayName("成功软删除文件")
         void shouldSoftDeleteFile() {
             FileInfo fileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
-                    "IP_SERIES/20260612/uuid.png", "/static/IP_SERIES/20260612/uuid.png",
-                    "image/png", 100, BizType.IP_SERIES, 1L, LocalDateTime.now(), false);
+                    "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false);
             when(fileInfoRepository.findById(1L)).thenReturn(Optional.of(fileInfo));
 
             fileAppService.deleteFile(1L);
@@ -142,23 +140,23 @@ class FileAppServiceTest {
         @DisplayName("成功查询单个文件")
         void shouldGetFileInfo() {
             FileInfo fileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
-                    "IP_SERIES/20260612/uuid.png", "/static/IP_SERIES/20260612/uuid.png",
-                    "image/png", 100, BizType.IP_SERIES, 1L, LocalDateTime.now(), false);
+                    "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false);
             when(fileInfoRepository.findById(1L)).thenReturn(Optional.of(fileInfo));
 
             FileInfoResponse response = fileAppService.getFileInfo(1L);
 
             assertNotNull(response);
             assertEquals(1L, response.getFileId());
-            assertEquals("IP_SERIES", response.getBizType());
+            assertEquals("ip-series", response.getBasePath());
         }
 
         @Test
         @DisplayName("成功批量查询")
         void shouldBatchGetUrls() {
             FileInfo fileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
-                    "IP_SERIES/20260612/uuid.png", "/static/IP_SERIES/20260612/uuid.png",
-                    "image/png", 100, BizType.IP_SERIES, 1L, LocalDateTime.now(), false);
+                    "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false);
             when(fileInfoRepository.findAllByIdIn(List.of(1L))).thenReturn(List.of(fileInfo));
 
             List<FileInfoResponse> responses = fileAppService.batchGetUrls(List.of(1L));

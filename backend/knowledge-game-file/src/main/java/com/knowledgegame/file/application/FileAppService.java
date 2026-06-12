@@ -1,11 +1,9 @@
 package com.knowledgegame.file.application;
 
 import com.knowledgegame.core.common.exception.BusinessException;
-import com.knowledgegame.core.common.util.EnumUtils;
 import com.knowledgegame.file.api.dto.FileInfoResponse;
 import com.knowledgegame.file.api.dto.FileUploadResponse;
 import com.knowledgegame.file.common.config.FileProperties;
-import com.knowledgegame.file.domain.model.BizType;
 import com.knowledgegame.file.domain.model.FileInfo;
 import com.knowledgegame.file.domain.model.StoredFile;
 import com.knowledgegame.file.domain.port.outbound.FileInfoRepository;
@@ -17,11 +15,17 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * 文件应用服务
  */
 public class FileAppService {
+
+    /**
+     * basePath 合法格式：小写字母/数字/短横线，不能以短横线开头
+     */
+    private static final Pattern BASE_PATH_PATTERN = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
 
     private final FileStorageProvider storageProvider;
     private final FileInfoRepository fileInfoRepository;
@@ -41,17 +45,22 @@ public class FileAppService {
     /**
      * 生成上传凭证
      */
-    public String generateCredential(long userId, int count) {
-        return credentialService.generateCredential(userId, count);
+    public String generateCredential(long userId, int count, String basePath) {
+        // 校验 basePath 格式
+        validateBasePath(basePath);
+        return credentialService.generateCredential(userId, count, basePath);
     }
 
     /**
      * 上传文件
      */
     @Transactional
-    public FileUploadResponse uploadFile(long userId, String token, MultipartFile file, String bizType) {
-        // 校验业务类型（EnumUtils 无效值直接抛 BusinessException）
-        BizType bizTypeEnum = EnumUtils.valueOf(BizType.class, bizType);
+    public FileUploadResponse uploadFile(long userId, String token, MultipartFile file) {
+        // 前置校验凭证有效性并提取 basePath
+        if (!credentialService.validate(userId, token)) {
+            throw new BusinessException(401, "上传凭证无效或已过期");
+        }
+        String basePath = credentialService.getBasePath(userId, token);
 
         // 校验文件类型
         String contentType = file.getContentType();
@@ -64,16 +73,11 @@ public class FileAppService {
             throw new BusinessException(400, "文件大小超过限制");
         }
 
-        // 前置校验凭证有效性（不扣减，防止上传失败浪费凭证）
-        if (!credentialService.validate(userId, token)) {
-            throw new BusinessException(401, "上传凭证无效或已过期");
-        }
-
         // 存储文件
         StoredFile storedFile;
         try {
             storedFile = storageProvider.store(
-                    bizType,
+                    basePath,
                     file.getOriginalFilename(),
                     file.getInputStream(),
                     file.getSize(),
@@ -87,7 +91,7 @@ public class FileAppService {
         FileInfo fileInfo = FileInfo.create(
                 file.getOriginalFilename(),
                 storedFile,
-                bizTypeEnum,
+                basePath,
                 userId
         );
         FileInfo saved = fileInfoRepository.save(fileInfo);
@@ -133,17 +137,18 @@ public class FileAppService {
     /**
      * 批量上传文件（原子性：全部成功或全部失败）
      * <p>
-     * 校验顺序：凭证有效性 → 文件数量与凭证次数一致 → 业务类型 → 每个文件类型+大小 → 存储+入库 → 一次性消费凭证
+     * 校验顺序：凭证有效性 → 文件数量与凭证次数一致 → 每个文件类型+大小 → 存储+入库 → 一次性消费凭证
      *
      * @return 每个文件的上传结果（fileId + url），顺序与传入文件列表一致
      */
     @Transactional
-    public List<FileUploadResponse> batchUploadFiles(long userId, String token, List<MultipartFile> files, String bizType) {
-        // 1. 校验凭证有效性
+    public List<FileUploadResponse> batchUploadFiles(long userId, String token, List<MultipartFile> files) {
+        // 1. 校验凭证有效性并提取 basePath
         int remainingCount = credentialService.getRemainingCount(userId, token);
         if (remainingCount < 0) {
             throw new BusinessException(401, "上传凭证无效或已过期");
         }
+        String basePath = credentialService.getBasePath(userId, token);
 
         // 2. 校验文件数量与凭证次数完全一致
         if (files == null || files.isEmpty()) {
@@ -153,10 +158,7 @@ public class FileAppService {
             throw new BusinessException(400, "文件数量(" + files.size() + ")与凭证允许次数(" + remainingCount + ")不一致");
         }
 
-        // 3. 校验业务类型
-        BizType bizTypeEnum = EnumUtils.valueOf(BizType.class, bizType);
-
-        // 4. 前置校验所有文件的类型和大小
+        // 3. 前置校验所有文件的类型和大小
         for (MultipartFile file : files) {
             String contentType = file.getContentType();
             if (contentType == null || !properties.getUpload().getAllowedTypes().contains(contentType)) {
@@ -167,13 +169,13 @@ public class FileAppService {
             }
         }
 
-        // 5. 全部校验通过，执行存储+入库
+        // 4. 全部校验通过，执行存储+入库
         List<FileUploadResponse> results = new ArrayList<>();
         for (MultipartFile file : files) {
             StoredFile storedFile;
             try {
                 storedFile = storageProvider.store(
-                        bizType,
+                        basePath,
                         file.getOriginalFilename(),
                         file.getInputStream(),
                         file.getSize(),
@@ -186,7 +188,7 @@ public class FileAppService {
             FileInfo fileInfo = FileInfo.create(
                     file.getOriginalFilename(),
                     storedFile,
-                    bizTypeEnum,
+                    basePath,
                     userId
             );
             FileInfo saved = fileInfoRepository.save(fileInfo);
@@ -197,7 +199,7 @@ public class FileAppService {
                     .build());
         }
 
-        // 6. 一次性消费全部凭证次数
+        // 5. 一次性消费全部凭证次数
         credentialService.consumeAll(userId, token);
 
         return results;
@@ -219,6 +221,15 @@ public class FileAppService {
             }
         }
         return cleaned;
+    }
+
+    /**
+     * 校验 basePath 格式
+     */
+    private void validateBasePath(String basePath) {
+        if (basePath == null || !BASE_PATH_PATTERN.matcher(basePath).matches()) {
+            throw new BusinessException(400, "basePath 格式无效: " + basePath + "，要求小写字母/数字/短横线，不能以短横线开头");
+        }
     }
 
     /**

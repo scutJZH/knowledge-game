@@ -1,6 +1,10 @@
 server:
   port: 8081
 
+logging:
+  file:
+    path: logs
+
 cors:
   allowed-origins: http://localhost:*
 
@@ -18,3 +22,13 @@ spring:
         namespace: ${NACOS_NAMESPACE:}
       config:
         namespace: ${NACOS_NAMESPACE:}
+
+m2m:
+  auth:
+    enabled: true
+    service-name: knowledge-game-admin
+    api-key: ${FILE_SERVICE_API_KEY:default-dev-key}
+
+knowledgegame:
+  file:
+    upload-base-url: http://localhost:8083

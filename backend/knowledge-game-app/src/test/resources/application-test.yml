@@ -29,6 +29,12 @@ jwt:
   access-token-expiration: 1800000
   refresh-token-expiration: 604800000
 
+m2m:
+  auth:
+    enabled: true
+    service-name: knowledge-game-app
+    api-key: test-api-key
+
 knowledgegame:
   log:
     masking-fields:
@@ -37,3 +43,5 @@ knowledgegame:
       - accessToken
       - refreshToken
       - secret
+  file:
+    upload-base-url: http://localhost:8083

@@ -42,8 +42,8 @@ public class FileInfoPO {
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
 
-    @Column(name = "biz_type", nullable = false, length = 50)
-    private String bizType;
+    @Column(name = "base_path", nullable = false, length = 50)
+    private String basePath;
 
     @Column(name = "uploader_id", nullable = false)
     private Long uploaderId;

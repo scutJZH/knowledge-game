@@ -4,7 +4,7 @@
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
     <!-- 从 Spring 配置读取应用名，动态生成日志文件名 -->
-    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="app"/>
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="file"/>
     <!-- 从 Spring 配置读取日志目录 -->
     <springProperty scope="context" name="LOG_PATH" source="logging.file.path" defaultValue="logs"/>
 

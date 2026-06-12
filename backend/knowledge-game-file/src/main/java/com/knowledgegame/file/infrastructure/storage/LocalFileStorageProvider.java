@@ -31,19 +31,19 @@ public class LocalFileStorageProvider implements FileStorageProvider {
             "image/webp", ".webp"
     );
 
-    private final String basePath;
+    private final String storageRoot;
 
-    public LocalFileStorageProvider(String basePath) {
-        this.basePath = basePath;
+    public LocalFileStorageProvider(String storageRoot) {
+        this.storageRoot = storageRoot;
     }
 
     @Override
-    public StoredFile store(String bizType, String originalName, InputStream content, long size, String contentType) {
+    public StoredFile store(String basePath, String originalName, InputStream content, long size, String contentType) {
         String dateDir = LocalDate.now().format(DATE_FMT);
         String storedName = UUID.randomUUID().toString() + extensionFromContentType(contentType);
-        String relativePath = bizType + "/" + dateDir + "/" + storedName;
+        String relativePath = basePath + "/" + dateDir + "/" + storedName;
 
-        Path fullPath = Paths.get(basePath, relativePath);
+        Path fullPath = Paths.get(storageRoot, relativePath);
         try {
             Files.createDirectories(fullPath.getParent());
             Files.copy(content, fullPath, StandardCopyOption.REPLACE_EXISTING);
@@ -59,7 +59,7 @@ public class LocalFileStorageProvider implements FileStorageProvider {
 
     @Override
     public void delete(String filePath) {
-        Path fullPath = Paths.get(basePath, filePath);
+        Path fullPath = Paths.get(storageRoot, filePath);
         try {
             Files.deleteIfExists(fullPath);
         } catch (IOException e) {
@@ -69,7 +69,7 @@ public class LocalFileStorageProvider implements FileStorageProvider {
 
     @Override
     public InputStream load(String filePath) {
-        Path fullPath = Paths.get(basePath, filePath);
+        Path fullPath = Paths.get(storageRoot, filePath);
         try {
             return Files.newInputStream(fullPath);
         } catch (IOException e) {

@@ -12,14 +12,14 @@ public interface FileStorageProvider {
     /**
      * 存储文件
      *
-     * @param bizType      业务类型
+     * @param basePath     目录路径
      * @param originalName 原始文件名
      * @param content      文件内容流
      * @param size         文件大小
      * @param contentType  MIME 类型
      * @return 存储结果
      */
-    StoredFile store(String bizType, String originalName, InputStream content, long size, String contentType);
+    StoredFile store(String basePath, String originalName, InputStream content, long size, String contentType);
 
     /**
      * 删除文件

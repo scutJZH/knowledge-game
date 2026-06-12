@@ -17,7 +17,7 @@ public interface FileInfoAssembler {
     FileInfoAssembler INSTANCE = Mappers.getMapper(FileInfoAssembler.class);
 
     @Mapping(target = "fileId", source = "id")
-    @Mapping(target = "bizType", expression = "java(fileInfo.getBizType().name())")
+    @Mapping(target = "basePath", source = "basePath")
     @Mapping(target = "uploaderId", source = "uploaderId")
     FileInfoResponse toResponse(FileInfo fileInfo);
 

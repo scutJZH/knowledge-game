@@ -1,6 +1,5 @@
 package com.knowledgegame.file.infrastructure.adapter;
 
-import com.knowledgegame.file.domain.model.BizType;
 import com.knowledgegame.file.domain.model.FileInfo;
 import com.knowledgegame.file.domain.model.StoredFile;
 import com.knowledgegame.file.infrastructure.adapter.repoadapter.FileInfoRepositoryAdapter;
@@ -46,18 +45,18 @@ class FileInfoRepositoryAdapterTest {
     @DisplayName("save 应正确转换并保存")
     void shouldSaveAndReturnDomain() {
         FileInfo fileInfo = FileInfo.create("test.png",
-                new StoredFile("uuid.png", "IP_SERIES/20260612/uuid.png", "/static/IP_SERIES/20260612/uuid.png", "image/png", 1024),
-                BizType.IP_SERIES, 1L);
+                new StoredFile("uuid.png", "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png", "image/png", 1024),
+                "ip-series", 1L);
 
         FileInfoPO savedPO = new FileInfoPO();
         savedPO.setId(1L);
         savedPO.setOriginalName("test.png");
         savedPO.setStoredName("uuid.png");
-        savedPO.setFilePath("IP_SERIES/20260612/uuid.png");
-        savedPO.setUrl("/static/IP_SERIES/20260612/uuid.png");
+        savedPO.setFilePath("ip-series/20260612/uuid.png");
+        savedPO.setUrl("/static/ip-series/20260612/uuid.png");
         savedPO.setContentType("image/png");
         savedPO.setFileSize(1024L);
-        savedPO.setBizType("IP_SERIES");
+        savedPO.setBasePath("ip-series");
         savedPO.setUploaderId(1L);
         savedPO.setCreatedAt(LocalDateTime.now());
         savedPO.setDeleted(false);
@@ -69,7 +68,7 @@ class FileInfoRepositoryAdapterTest {
         assertNotNull(result);
         assertEquals(1L, result.getId());
         assertEquals("test.png", result.getOriginalName());
-        assertEquals(BizType.IP_SERIES, result.getBizType());
+        assertEquals("ip-series", result.getBasePath());
         verify(jpaRepository).save(any(FileInfoPO.class));
     }
 

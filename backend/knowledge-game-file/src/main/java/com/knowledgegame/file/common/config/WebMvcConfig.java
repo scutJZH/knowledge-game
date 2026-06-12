@@ -23,9 +23,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        String basePath = fileProperties.getStorage().getLocal().getBasePath();
+        String storageDir = fileProperties.getStorage().getLocal().getStorageDir();
         registry.addResourceHandler("/static/**")
-                .addResourceLocations("file:" + basePath + "/");
+                .addResourceLocations("file:" + storageDir + "/");
     }
 
     @Override

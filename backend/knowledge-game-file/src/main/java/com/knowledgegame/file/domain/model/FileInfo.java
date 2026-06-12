@@ -14,7 +14,7 @@ public class FileInfo {
     private String url;
     private String contentType;
     private long fileSize;
-    private BizType bizType;
+    private String basePath;
     private long uploaderId;
     private LocalDateTime createdAt;
     private boolean deleted;
@@ -25,7 +25,7 @@ public class FileInfo {
     /**
      * 创建文件信息
      */
-    public static FileInfo create(String originalName, StoredFile storedFile, BizType bizType, long uploaderId) {
+    public static FileInfo create(String originalName, StoredFile storedFile, String basePath, long uploaderId) {
         FileInfo info = new FileInfo();
         info.originalName = originalName;
         info.storedName = storedFile.storedName();
@@ -33,7 +33,7 @@ public class FileInfo {
         info.url = storedFile.url();
         info.contentType = storedFile.contentType();
         info.fileSize = storedFile.fileSize();
-        info.bizType = bizType;
+        info.basePath = basePath;
         info.uploaderId = uploaderId;
         info.createdAt = LocalDateTime.now();
         info.deleted = false;
@@ -44,7 +44,7 @@ public class FileInfo {
      * 从持久化层重建领域对象（仅由 Converter 调用）
      */
     public static FileInfo reconstruct(Long id, String originalName, String storedName, String filePath,
-                                String url, String contentType, long fileSize, BizType bizType,
+                                String url, String contentType, long fileSize, String basePath,
                                 long uploaderId, LocalDateTime createdAt, boolean deleted) {
         FileInfo info = new FileInfo();
         info.id = id;
@@ -54,7 +54,7 @@ public class FileInfo {
         info.url = url;
         info.contentType = contentType;
         info.fileSize = fileSize;
-        info.bizType = bizType;
+        info.basePath = basePath;
         info.uploaderId = uploaderId;
         info.createdAt = createdAt;
         info.deleted = deleted;
@@ -96,8 +96,8 @@ public class FileInfo {
         return fileSize;
     }
 
-    public BizType getBizType() {
-        return bizType;
+    public String getBasePath() {
+        return basePath;
     }
 
     public long getUploaderId() {

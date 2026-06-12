@@ -1,6 +1,10 @@
 server:
   port: 8083
 
+logging:
+  file:
+    path: logs
+
 cors:
   allowed-origins: http://localhost:*
 
@@ -24,7 +28,7 @@ knowledgegame:
     storage:
       type: local
       local:
-        base-path: ./uploads
+        storage-dir: ./uploads
     upload:
       max-file-size: 10MB
       allowed-types:

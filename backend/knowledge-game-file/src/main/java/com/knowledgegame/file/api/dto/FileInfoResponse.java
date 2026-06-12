@@ -17,7 +17,7 @@ public class FileInfoResponse {
     private String originalName;
     private String contentType;
     private Long fileSize;
-    private String bizType;
+    private String basePath;
     private Long uploaderId;
     private LocalDateTime createdAt;
 }
