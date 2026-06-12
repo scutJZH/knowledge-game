@@ -35,6 +35,12 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Jackson（infrastructure 层 JSON 序列化/反序列化） -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
         <!-- MapStruct -->
         <dependency>
             <groupId>org.mapstruct</groupId>
