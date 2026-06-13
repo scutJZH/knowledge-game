@@ -46,3 +46,4 @@ m2m:
   auth:
     enabled: true
     protectedPaths: /api/file/internal/**
+    api-key: ${FILE_SERVICE_API_KEY:default-dev-key}

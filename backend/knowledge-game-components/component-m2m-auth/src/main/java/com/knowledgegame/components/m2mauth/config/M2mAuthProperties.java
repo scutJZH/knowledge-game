@@ -9,6 +9,10 @@ import java.util.Map;
 
 /**
  * 机机鉴权配置属性
+ * <p>
+ * 校验模型：调用方持有 {@code apiKey}，被调用方也持有 {@code apiKey}，
+ * 被调用方只校验 {@code X-Service-Key == apiKey}，不关心调用方是谁。
+ * 新增调用方只需在调用方配置文件中填被调用方的 key，被调用方无需改动。
  */
 @ConfigurationProperties(prefix = "m2m.auth")
 public class M2mAuthProperties {
@@ -19,22 +23,21 @@ public class M2mAuthProperties {
     private boolean enabled = false;
 
     /**
-     * 服务名 → API Key 映射（服务端使用，校验调用方身份）
-     */
-    private Map<String, String> keys = new HashMap<>();
-
-    /**
      * 需要机机鉴权的路径模式列表（Ant 风格，如 /internal/**）
      */
     private List<String> protectedPaths = new ArrayList<>();
 
     /**
-     * 当前服务名（客户端使用，标识自己）
+     * 当前服务名（可选，用于 Feign 拦截器标识调用方身份，便于日志追踪）
      */
     private String serviceName;
 
     /**
-     * 当前服务的 API Key（客户端使用）
+     * API Key（客户端和服务端共用）
+     * <ul>
+     *   <li>客户端：用于 Feign 拦截器注入 X-Service-Key 请求头</li>
+     *   <li>服务端：用于 Filter 校验 X-Service-Key 是否与自身配置一致</li>
+     * </ul>
      */
     private String apiKey;
 
@@ -44,14 +47,6 @@ public class M2mAuthProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public Map<String, String> getKeys() {
-        return keys;
-    }
-
-    public void setKeys(Map<String, String> keys) {
-        this.keys = keys;
     }
 
     public List<String> getProtectedPaths() {

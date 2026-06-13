@@ -19,11 +19,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 机机鉴权过滤器
- * 校验 X-Service-Name + X-Service-Key 绑定关系，防止服务冒充
+ * <p>
+ * 校验 X-Service-Key 是否与自身 apiKey 一致。调用方通过 X-Service-Name 标识身份
+ * （可选，仅用于日志），被调用方不关心调用方是谁，只校验密钥是否匹配。
  */
 public class M2mAuthFilter extends OncePerRequestFilter {
 
@@ -53,37 +54,36 @@ public class M2mAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 绑定校验：从 X-Service-Name 获取服务名 → keys.get(serviceName) → 与 X-Service-Key 比对
-        String serviceName = request.getHeader(HEADER_SERVICE_NAME);
+        // 简单密钥校验：调用方持有的 key 与被调用方的 apiKey 一致即通过
         String serviceKey = request.getHeader(HEADER_SERVICE_KEY);
-
-        if (!StringUtils.hasText(serviceName)) {
-            log.warn("M2M 鉴权失败：缺少 {} 头，路径={}, 来源IP={}", HEADER_SERVICE_NAME,
-                    requestPath, request.getRemoteAddr());
-            writeUnauthorized(response, "缺少服务名标识");
-            return;
-        }
+        String serviceName = request.getHeader(HEADER_SERVICE_NAME);
 
         if (!StringUtils.hasText(serviceKey)) {
-            log.warn("M2M 鉴权失败：缺少 {} 头，路径={}, 服务={}, 来源IP={}", HEADER_SERVICE_KEY,
-                    requestPath, serviceName, request.getRemoteAddr());
+            log.warn("M2M 鉴权失败：缺少 {} 头，路径={}, 来源IP={}", HEADER_SERVICE_KEY,
+                    requestPath, request.getRemoteAddr());
             writeUnauthorized(response, "缺少服务密钥");
             return;
         }
 
-        Map<String, String> keys = properties.getKeys();
-        String expectedKey = keys.get(serviceName);
+        String expectedKey = properties.getApiKey();
+        if (!StringUtils.hasText(expectedKey)) {
+            log.error("M2M 鉴权配置错误：服务端未配置 apiKey，路径={}", requestPath);
+            writeUnauthorized(response, "服务端密钥未配置");
+            return;
+        }
 
-        if (expectedKey == null || !expectedKey.equals(serviceKey)) {
-            log.warn("M2M 鉴权失败：服务名/密钥不匹配，路径={}, 服务={}, 来源IP={}",
+        if (!expectedKey.equals(serviceKey)) {
+            log.warn("M2M 鉴权失败：密钥不匹配，路径={}, 调用方={}, 来源IP={}",
                     requestPath, serviceName, request.getRemoteAddr());
             writeUnauthorized(response, "服务身份验证失败");
             return;
         }
 
-        // 校验通过，将服务名存入 request attribute
-        request.setAttribute(ATTR_SERVICE_NAME, serviceName);
-        log.debug("M2M 鉴权通过：服务={}, 路径={}", serviceName, requestPath);
+        // 校验通过，将调用方服务名存入 request attribute（可选，用于日志）
+        if (StringUtils.hasText(serviceName)) {
+            request.setAttribute(ATTR_SERVICE_NAME, serviceName);
+        }
+        log.debug("M2M 鉴权通过：调用方={}, 路径={}", serviceName, requestPath);
 
         filterChain.doFilter(request, response);
     }

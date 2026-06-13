@@ -15,9 +15,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,6 +24,9 @@ import static org.mockito.Mockito.verify;
 
 /**
  * M2mAuthFilter 单元测试
+ * <p>
+ * 新校验模型：调用方和被调用方持有同一个 apiKey，
+ * 被调用方只校验 X-Service-Key == apiKey，不关心调用方身份。
  */
 @ExtendWith(MockitoExtension.class)
 class M2mAuthFilterTest {
@@ -42,10 +43,7 @@ class M2mAuthFilterTest {
         properties = new M2mAuthProperties();
         properties.setEnabled(true);
         properties.setProtectedPaths(List.of("/internal/**"));
-        Map<String, String> keys = new HashMap<>();
-        keys.put("app", "app-secret-key");
-        keys.put("admin", "admin-secret-key");
-        properties.setKeys(keys);
+        properties.setApiKey("shared-api-key");
         filter = new M2mAuthFilter(properties);
     }
 
@@ -67,37 +65,37 @@ class M2mAuthFilterTest {
     }
 
     @Nested
-    @DisplayName("保护路径 - 绑定校验通过")
+    @DisplayName("保护路径 - 校验通过")
     class ProtectedPathSuccessTests {
 
         @Test
-        @DisplayName("正确的服务名+密钥绑定，校验通过")
-        void shouldPassWithCorrectBinding() throws ServletException, IOException {
+        @DisplayName("正确的密钥，校验通过")
+        void shouldPassWithCorrectKey() throws ServletException, IOException {
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/files/upload");
-            request.addHeader("X-Service-Name", "app");
-            request.addHeader("X-Service-Key", "app-secret-key");
+            request.addHeader("X-Service-Key", "shared-api-key");
+            request.addHeader("X-Service-Name", "knowledge-game-admin");
             MockHttpServletResponse response = new MockHttpServletResponse();
 
             filter.doFilterInternal(request, response, filterChain);
 
             verify(filterChain).doFilter(request, response);
             assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_OK);
-            // 验证 serviceName 存入 request attribute
-            assertThat(request.getAttribute("m2m.serviceName")).isEqualTo("app");
+            // 验证 serviceName 存入 request attribute（用于日志追踪）
+            assertThat(request.getAttribute("m2m.serviceName")).isEqualTo("knowledge-game-admin");
         }
 
         @Test
-        @DisplayName("多个服务的绑定密钥均可通过")
-        void shouldPassForMultipleServices() throws ServletException, IOException {
+        @DisplayName("X-Service-Name 可选，不传也能通过")
+        void shouldPassWithoutServiceName() throws ServletException, IOException {
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/files/upload");
-            request.addHeader("X-Service-Name", "admin");
-            request.addHeader("X-Service-Key", "admin-secret-key");
+            request.addHeader("X-Service-Key", "shared-api-key");
+            // 不传 X-Service-Name
             MockHttpServletResponse response = new MockHttpServletResponse();
 
             filter.doFilterInternal(request, response, filterChain);
 
             verify(filterChain).doFilter(request, response);
-            assertThat(request.getAttribute("m2m.serviceName")).isEqualTo("admin");
+            assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_OK);
         }
     }
 
@@ -106,24 +104,10 @@ class M2mAuthFilterTest {
     class ProtectedPathFailureTests {
 
         @Test
-        @DisplayName("缺少 X-Service-Name 头返回 401")
-        void shouldRejectMissingServiceName() throws ServletException, IOException {
-            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/files/upload");
-            request.addHeader("X-Service-Key", "app-secret-key");
-            MockHttpServletResponse response = new MockHttpServletResponse();
-
-            filter.doFilterInternal(request, response, filterChain);
-
-            assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
-            assertThat(response.getContentAsString()).contains("缺少服务名标识");
-            verify(filterChain, never()).doFilter(any(), any());
-        }
-
-        @Test
         @DisplayName("缺少 X-Service-Key 头返回 401")
         void shouldRejectMissingServiceKey() throws ServletException, IOException {
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/files/upload");
-            request.addHeader("X-Service-Name", "app");
+            request.addHeader("X-Service-Name", "knowledge-game-admin");
             MockHttpServletResponse response = new MockHttpServletResponse();
 
             filter.doFilterInternal(request, response, filterChain);
@@ -137,7 +121,6 @@ class M2mAuthFilterTest {
         @DisplayName("错误密钥返回 401")
         void shouldRejectWrongKey() throws ServletException, IOException {
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/files/upload");
-            request.addHeader("X-Service-Name", "app");
             request.addHeader("X-Service-Key", "wrong-key");
             MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -145,36 +128,6 @@ class M2mAuthFilterTest {
 
             assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
             assertThat(response.getContentAsString()).contains("服务身份验证失败");
-            verify(filterChain, never()).doFilter(any(), any());
-        }
-
-        @Test
-        @DisplayName("合法密钥 + 伪造服务名（冒充攻击）返回 401")
-        void shouldRejectImpersonation() throws ServletException, IOException {
-            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/files/upload");
-            // 用 app 的 key 但声称自己是 admin
-            request.addHeader("X-Service-Name", "admin");
-            request.addHeader("X-Service-Key", "app-secret-key");
-            MockHttpServletResponse response = new MockHttpServletResponse();
-
-            filter.doFilterInternal(request, response, filterChain);
-
-            assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
-            assertThat(response.getContentAsString()).contains("服务身份验证失败");
-            verify(filterChain, never()).doFilter(any(), any());
-        }
-
-        @Test
-        @DisplayName("未知服务名返回 401")
-        void shouldRejectUnknownService() throws ServletException, IOException {
-            MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/files/upload");
-            request.addHeader("X-Service-Name", "unknown-service");
-            request.addHeader("X-Service-Key", "some-key");
-            MockHttpServletResponse response = new MockHttpServletResponse();
-
-            filter.doFilterInternal(request, response, filterChain);
-
-            assertThat(response.getStatus()).isEqualTo(HttpServletResponse.SC_UNAUTHORIZED);
             verify(filterChain, never()).doFilter(any(), any());
         }
     }
@@ -197,13 +150,12 @@ class M2mAuthFilterTest {
         }
 
         @Test
-        @DisplayName("keys 为空时保护路径一律 401")
-        void shouldRejectWhenNoKeys() throws ServletException, IOException {
-            properties.setKeys(new HashMap<>());
+        @DisplayName("未配置 apiKey 时一律 401")
+        void shouldRejectWhenNoApiKey() throws ServletException, IOException {
+            properties.setApiKey(null);
 
             MockHttpServletRequest request = new MockHttpServletRequest("POST", "/internal/files/upload");
-            request.addHeader("X-Service-Name", "app");
-            request.addHeader("X-Service-Key", "app-secret-key");
+            request.addHeader("X-Service-Key", "shared-api-key");
             MockHttpServletResponse response = new MockHttpServletResponse();
 
             filter.doFilterInternal(request, response, filterChain);
@@ -227,8 +179,7 @@ class M2mAuthFilterTest {
         @DisplayName("Ant 风格路径匹配正常工作")
         void shouldMatchAntStylePaths() throws ServletException, IOException {
             MockHttpServletRequest request = new MockHttpServletRequest("GET", "/internal/api/v1/data");
-            request.addHeader("X-Service-Name", "app");
-            request.addHeader("X-Service-Key", "app-secret-key");
+            request.addHeader("X-Service-Key", "shared-api-key");
             MockHttpServletResponse response = new MockHttpServletResponse();
 
             filter.doFilterInternal(request, response, filterChain);

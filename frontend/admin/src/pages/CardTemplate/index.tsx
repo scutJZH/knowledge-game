@@ -24,10 +24,31 @@ import type {
   CardTemplateResponse,
   CardTemplateStatus,
   CreateCardTemplateRequest,
+  StarImageResponse,
   UpdateCardTemplateRequest,
 } from '@/services/cardTemplate';
 import { listIpSeries } from '@/services/ipSeries';
 import StarImageUpload from './components/StarImageUpload';
+
+/** 表单值类型（基础字段 + 5 个星级图片字段） */
+type CardTemplateFormValues = UpdateCardTemplateRequest & {
+  ipSeriesId?: number;
+  starImage_1?: string;
+  starImage_2?: string;
+  starImage_3?: string;
+  starImage_4?: string;
+  starImage_5?: string;
+};
+
+/** 将星级图片列表转换为 starImage_N 映射 */
+function buildStarImageMap(starImages?: StarImageResponse[]): Record<string, string | undefined> {
+  const map: Record<string, string | undefined> = {};
+  for (let level = 1; level <= 5; level++) {
+    const starImage = starImages?.find((s) => s.starLevel === level);
+    map[`starImage_${level}`] = starImage?.imageUrl;
+  }
+  return map;
+}
 
 /** 稀有度 Tag 颜色映射 */
 const RARITY_COLOR_MAP: Record<CardRarity, string> = {
@@ -137,8 +158,8 @@ const CardTemplate: React.FC = () => {
       await deleteCardTemplate(id);
       message.success('删除成功');
       actionRef.current?.reload();
-    } catch (e: any) {
-      // 错误已由 request 拦截器展示，仅需刷新列表（如果已软删除则更新视图）
+    } catch {
+      // 错误已由 request 拦截器展示，列表无需刷新
     }
   };
 
@@ -147,21 +168,15 @@ const CardTemplate: React.FC = () => {
     try {
       const detail = await getCardTemplateById(id);
       setEditingRecord(detail);
-      // 构建星级图片快照
-      const snapshot: Record<string, string | undefined> = {};
-      for (let level = 1; level <= 5; level++) {
-        const starImage = detail.starImages?.find((s) => s.starLevel === level);
-        snapshot[`starImage_${level}`] = starImage?.imageUrl;
-      }
-      initialStarImagesRef.current = snapshot;
+      initialStarImagesRef.current = buildStarImageMap(detail.starImages);
       setModalOpen(true);
-    } catch (e: any) {
+    } catch {
       // 错误已由 request 拦截器展示
     }
   };
 
   /** 创建/编辑提交 */
-  const handleFinish = async (values: any) => {
+  const handleFinish = async (values: CardTemplateFormValues) => {
     setSubmitLoading(true);
     try {
       if (editingRecord) {
@@ -233,8 +248,8 @@ const CardTemplate: React.FC = () => {
       setEditingRecord(null);
       actionRef.current?.reload();
       return true;
-    } catch (e: any) {
-      // 创建/编辑 PUT 的错误由 request 拦截器展示，仅需返回 false 保持弹窗打开
+    } catch {
+      // 错误已由 request 拦截器展示，仅需返回 false 保持弹窗打开
       return false;
     } finally {
       setSubmitLoading(false);
@@ -242,16 +257,17 @@ const CardTemplate: React.FC = () => {
   };
 
   /** 构建编辑模式下的初始值 */
-  const buildInitialValues = () => {
+  const buildInitialValues = (): CardTemplateFormValues => {
     if (!editingRecord) return { status: 'ACTIVE' };
-    const values: Record<string, any> = {
-      ...editingRecord,
+    return {
+      ipSeriesId: editingRecord.ipSeriesId,
+      code: editingRecord.code,
+      name: editingRecord.name,
+      rarity: editingRecord.rarity,
+      description: editingRecord.description,
+      status: editingRecord.status,
+      ...buildStarImageMap(editingRecord.starImages),
     };
-    for (let level = 1; level <= 5; level++) {
-      const starImage = editingRecord.starImages?.find((s) => s.starLevel === level);
-      values[`starImage_${level}`] = starImage?.imageUrl;
-    }
-    return values;
   };
 
   return (
@@ -269,7 +285,7 @@ const CardTemplate: React.FC = () => {
             name,
             ipSeriesId,
             rarity,
-            status: status || 'ACTIVE',
+            status: status && status !== 'ALL' ? status : undefined,
           });
           return {
             data: result.content,
