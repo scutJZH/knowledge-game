@@ -9,7 +9,8 @@
 - **REQ-40**：管理后台脚手架（已完成）
 - **REQ-41**：管理后台登录鉴权（已完成）
 - **REQ-16**：IP 系列 CRUD API（已完成）
-- **REQ-83**：通用文件上传 API（未完成，封面图上传依赖此需求。若未完成则暂用 URL 输入框替代）
+- **REQ-83**：文件服务模块（已完成）
+- **REQ-87**：Admin 对接文件服务（已完成，提供 `GET /api/admin/upload-credential` 凭证接口）
 
 ## 用户故事
 
@@ -40,7 +41,7 @@
 | 编码(code) | 必填，2~30 字符，输入框 |
 | 名称(name) | 必填，2~50 字符，输入框 |
 | 描述(description) | 可选，最大 500 字符，文本域 |
-| 封面图(coverImageUrl) | 可选，图片上传组件（REQ-83 完成后替换为上传；未完成前用 URL 输入框） |
+| 封面图(coverImageUrl) | 可选，图片上传组件（3 步凭证式上传，见下方上传流程） |
 | 状态(status) | 必填，下拉选择 ACTIVE / INACTIVE，默认 ACTIVE |
 | 提交 | POST `/api/admin/ip-series`，成功后刷新列表并关闭弹窗 |
 
@@ -69,6 +70,24 @@
 - 表格不支持列排序（后端 list API 未提供 sort 参数）
 - 状态列用 Tag 组件展示：ACTIVE 绿色、INACTIVE 灰色
 
+## 封面图上传流程（3 步凭证式）
+
+基于 REQ-87 提供的 admin 凭证接口 + REQ-83 文件服务：
+
+1. **获取凭证**：前端调用 `GET /api/admin/upload-credential?bizType=IP_SERIES&count=1`（需 JWT 鉴权），返回 `{ token, uploadUrl }`
+2. **直传文件**：前端携带凭证 `POST uploadUrl`，请求头 `X-Upload-Token: {token}` + `X-User-Id: {userId}`，body `multipart/form-data` 字段名 `file`
+3. **入库 URL**：上传成功返回 `{ fileId, url }`，其中 `url` 为相对路径（如 `/static/ip-series/20260612/uuid.png`）。前端拼接 file 服务地址得到完整 URL（如 `http://localhost:8083/static/ip-series/20260612/uuid.png`），将完整 URL 作为 `coverImageUrl` 提交到创建/编辑 IP 系列接口。file 服务地址从凭证响应的 `uploadUrl` 中提取（`${uploadUrl.split('/api/')[0]}`）
+
+上传组件交互：
+- 点击上传区域或拖拽图片触发上传
+- 上传中显示进度，上传成功显示缩略图预览
+- 支持删除已上传图片（仅前端清除，不调 file 删除接口）
+- 文件约束：仅允许 `image/jpeg`、`image/png`、`image/gif`、`image/webp`，单文件最大 10MB
+
+鉴权说明：
+- 凭证接口（`GET /api/admin/upload-credential`）需 JWT 鉴权，由全局 request 拦截器自动注入
+- 文件上传接口（`POST uploadUrl`）使用凭证 token 鉴权（`X-Upload-Token` 请求头），不走 JWT，需手动构造请求
+
 ## 技术实现
 
 ### 新增文件
@@ -76,8 +95,9 @@
 | 文件 | 说明 |
 |------|------|
 | `src/services/typing.ts` | 新增 | 共享分页类型 PageResult\<T\>，供所有管理页复用 |
+| `src/services/fileUpload.ts` | 新增 | 文件上传服务：获取凭证 + 上传函数，供所有管理页复用 |
 | `src/services/ipSeries.ts` | 新增 | API 服务层：类型定义 + 4 个请求函数 |
-| `src/pages/IpSeries/index.tsx` | 页面组件（替换现有占位符） |
+| `src/pages/IpSeries/index.tsx` | 重写 | 占位符替换为完整 CRUD 页面 |
 
 ### 类型定义
 
@@ -112,7 +132,7 @@ interface CreateIpSeriesRequest {
   status: 'ACTIVE' | 'INACTIVE';
 }
 
-// 更新请求（所有字段可选）
+// 更新请求（类型定义上字段可选，但编辑表单预填全部字段，提交时发送完整对象）
 interface UpdateIpSeriesRequest {
   code?: string;
   name?: string;
@@ -153,7 +173,9 @@ deleteIpSeries(id: number): Promise<void>
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
+| `admin/.../config/FilePathMapping.java` | 修改 | 添加 `IP_SERIES → ip-series` 映射 |
 | `src/services/typing.ts` | 新增 | 共享分页类型 PageResult\<T\> |
+| `src/services/fileUpload.ts` | 新增 | 文件上传服务（凭证 + 上传） |
 | `src/pages/IpSeries/index.tsx` | 重写 | 占位符替换为完整 CRUD 页面 |
 | `src/services/ipSeries.ts` | 新增 | API 服务层 |
 
@@ -163,7 +185,9 @@ deleteIpSeries(id: number): Promise<void>
 
 ### 受影响的现有功能
 
-无。独立页面，不影响其他模块。
+| 功能 | 影响 |
+|------|------|
+| admin FilePathMapping | 需添加 `IP_SERIES → ip-series` 映射。当前 map 为空，不添加则凭证接口返回 400 |
 
 ## Verification Plan
 

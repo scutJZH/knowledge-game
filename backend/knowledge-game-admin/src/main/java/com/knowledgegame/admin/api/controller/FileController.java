@@ -6,6 +6,8 @@ import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.components.feign.dto.UploadCredentialResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.common.result.Result;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,13 +30,15 @@ public class FileController {
         this.fileServiceClient = fileServiceClient;
     }
 
+    private static final Logger log = LoggerFactory.getLogger(FileController.class);
+
     /**
      * 获取上传凭证
      * <p>
      * 前端调用此接口获取一次性上传凭证（token）和对应的上传地址（uploadUrl），
      * 然后携带 token 直接向文件服务发起文件上传请求。
      *
-     * @param bizType 业务类型（如 ip-series、avatar），用于映射到文件服务的存储路径
+     * @param bizType 业务类型（如 IP_SERIES、CARD_TEMPLATE），用于映射到文件服务的存储路径
      * @param count   凭证允许上传的文件数量，默认 1
      * @return 上传凭证响应（含 token 和 uploadUrl）
      */
@@ -52,8 +56,20 @@ public class FileController {
         }
 
         // 通过 Feign 调用文件服务生成凭证
-        Result<String> credentialResult = fileServiceClient.generateCredential(userId, count, basePath);
-        String token = credentialResult.getData();
+        String token;
+        try {
+            Result<String> credentialResult = fileServiceClient.generateCredential(userId, count, basePath);
+            token = credentialResult.getData();
+            if (token == null || token.isBlank()) {
+                String errorMsg = credentialResult.getMessage() != null ? credentialResult.getMessage() : "文件服务返回空凭证";
+                throw new BusinessException(errorMsg);
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("调用文件服务生成凭证失败: bizType={}, basePath={}", bizType, basePath, e);
+            throw new BusinessException("文件服务暂不可用，请稍后重试");
+        }
 
         // 根据 count 决定上传地址：批量上传或单个上传
         String uploadUrl = count > 1

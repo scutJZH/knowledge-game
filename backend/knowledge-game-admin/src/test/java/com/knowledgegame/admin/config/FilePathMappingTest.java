@@ -4,7 +4,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * FilePathMapping 单元测试（管理端）
@@ -16,9 +18,15 @@ class FilePathMappingTest {
     class ToBasePathTests {
 
         @Test
-        @DisplayName("任意 bizType 均返回 null（当前映射为空）")
-        void shouldReturnNull_forAnyBizType() {
-            assertNull(FilePathMapping.toBasePath("ip-series"));
+        @DisplayName("已注册的 bizType 返回对应 basePath")
+        void shouldReturnBasePath_forRegisteredBizType() {
+            assertEquals("ip-series", FilePathMapping.toBasePath("IP_SERIES"));
+            assertEquals("card-template", FilePathMapping.toBasePath("CARD_TEMPLATE"));
+        }
+
+        @Test
+        @DisplayName("未注册的 bizType 返回 null")
+        void shouldReturnNull_forUnknownBizType() {
             assertNull(FilePathMapping.toBasePath("avatar"));
             assertNull(FilePathMapping.toBasePath("card-star-image"));
         }
@@ -26,7 +34,7 @@ class FilePathMappingTest {
         @Test
         @DisplayName("null 入参抛出 NullPointerException")
         void shouldThrowNPE_forNullBizType() {
-            org.junit.jupiter.api.Assertions.assertThrows(NullPointerException.class,
+            assertThrows(NullPointerException.class,
                     () -> FilePathMapping.toBasePath(null));
         }
 

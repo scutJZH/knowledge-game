@@ -22,6 +22,9 @@ spring:
         namespace: ${NACOS_NAMESPACE:}
       config:
         namespace: ${NACOS_NAMESPACE:}
+  jpa:
+    hibernate:
+      ddl-auto: update
 
 knowledgegame:
   file:
