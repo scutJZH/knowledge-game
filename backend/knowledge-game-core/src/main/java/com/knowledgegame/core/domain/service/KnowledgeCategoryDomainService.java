@@ -21,10 +21,11 @@ public class KnowledgeCategoryDomainService {
     /**
      * 校验并创建知识点分类
      * 校验规则：同名唯一性（含 INACTIVE）、父级必须 ACTIVE
+     * sortOrder 为 null 时自动计算（同级最大值 + 1，无同级时为 0）
      */
     public KnowledgeCategory validateAndCreate(String name, String description, Long parentId,
                                                String iconUrl, String color, String coverImageUrl,
-                                               int sortOrder) {
+                                               Integer sortOrder) {
         // 同一父级下名称唯一（包含 INACTIVE）
         if (categoryRepositoryPort.existsByNameAndParentId(name, parentId)) {
             throw new BusinessException("同一父级下已存在同名分类: " + name);
@@ -37,12 +38,28 @@ public class KnowledgeCategoryDomainService {
                 throw new BusinessException("父级分类未启用: " + parentId);
             }
         }
-        return KnowledgeCategory.create(name, description, parentId, iconUrl, color, coverImageUrl, sortOrder);
+        // 自动计算 sortOrder
+        int resolvedSortOrder = resolveSortOrder(parentId, sortOrder);
+        return KnowledgeCategory.create(name, description, parentId, iconUrl, color, coverImageUrl, resolvedSortOrder);
+    }
+
+    /**
+     * 解析排序号：如果 sortOrder 不为 null 则直接使用，否则查询同级最大值 + 1
+     */
+    private int resolveSortOrder(Long parentId, Integer sortOrder) {
+        if (sortOrder != null) {
+            return sortOrder;
+        }
+        // 根据是否有 parentId 查询不同的最大值
+        Integer maxSortOrder = parentId != null
+                ? categoryRepositoryPort.findMaxSortOrderByParentId(parentId)
+                : categoryRepositoryPort.findMaxSortOrderForRoot();
+        return maxSortOrder != null ? maxSortOrder + 1 : 0;
     }
 
     /**
      * 校验移动目标合法性
-     * 规则：不能移到自己、不能移到自己的后代下、目标必须 ACTIVE
+     * 规则：不能移到自己、不能移到自己的后代下、目标必须 ACTIVE、目标父级下不能存在同名分类
      */
     public void validateMove(Long categoryId, Long newParentId) {
         // 不能移到自己
@@ -61,6 +78,23 @@ public class KnowledgeCategoryDomainService {
             if (descendantIds.contains(newParentId)) {
                 throw new BusinessException("不能将分类移动到自己的后代分类下");
             }
+        }
+        // 目标父级下不能存在同名分类（跨级移动时）
+        KnowledgeCategory current = categoryRepositoryPort.findById(categoryId)
+                .orElseThrow(() -> new BusinessException("知识点分类不存在: " + categoryId));
+        if (!java.util.Objects.equals(current.getParentId(), newParentId)
+                && categoryRepositoryPort.existsByNameAndParentId(current.getName(), newParentId)) {
+            throw new BusinessException("目标父级下已存在同名分类: " + current.getName());
+        }
+    }
+
+    /**
+     * 校验删除合法性（有子分类时禁止删除）
+     */
+    public void validateDelete(Long categoryId) {
+        long childCount = categoryRepositoryPort.countByParentId(categoryId);
+        if (childCount > 0) {
+            throw new BusinessException("该分类下存在 " + childCount + " 个子分类（含已停用），无法删除");
         }
     }
 }

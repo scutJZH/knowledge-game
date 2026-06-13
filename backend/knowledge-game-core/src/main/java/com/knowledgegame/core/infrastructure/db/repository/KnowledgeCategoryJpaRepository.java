@@ -32,4 +32,21 @@ public interface KnowledgeCategoryJpaRepository extends JpaRepository<KnowledgeC
             SELECT id FROM descendants
             """, nativeQuery = true)
     List<Long> findDescendantIds(@Param("parentId") Long parentId);
+
+    /**
+     * 统计指定父级下的子分类数量
+     */
+    long countByParentId(Long parentId);
+
+    /**
+     * 查询指定父级下的最大排序号
+     */
+    @Query("SELECT MAX(c.sortOrder) FROM KnowledgeCategoryPO c WHERE c.parentId = :parentId")
+    Integer findMaxSortOrderByParentId(@Param("parentId") Long parentId);
+
+    /**
+     * 查询顶级分类的最大排序号
+     */
+    @Query("SELECT MAX(c.sortOrder) FROM KnowledgeCategoryPO c WHERE c.parentId IS NULL")
+    Integer findMaxSortOrderForRoot();
 }

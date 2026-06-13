@@ -115,8 +115,13 @@ class KnowledgeCategoryDomainServiceTest {
         KnowledgeCategory target = KnowledgeCategory.reconstruct(
                 5L, null, "目标", null, null, null, null, 0,
                 KnowledgeCategoryStatus.ACTIVE, null, null);
+        KnowledgeCategory current = KnowledgeCategory.reconstruct(
+                1L, 2L, "Java", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, null, null);
         when(categoryRepositoryPort.findById(5L)).thenReturn(Optional.of(target));
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(current));
         when(categoryRepositoryPort.findDescendantIds(1L)).thenReturn(Collections.emptyList());
+        when(categoryRepositoryPort.existsByNameAndParentId("Java", 5L)).thenReturn(false);
 
         KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
         service.validateMove(1L, 5L);
@@ -127,6 +132,12 @@ class KnowledgeCategoryDomainServiceTest {
      */
     @Test
     void validateMove_shouldSucceed_whenMovingToRoot() {
+        KnowledgeCategory current = KnowledgeCategory.reconstruct(
+                1L, 2L, "Java", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, null, null);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(current));
+        when(categoryRepositoryPort.existsByNameAndParentId("Java", null)).thenReturn(false);
+
         KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
         service.validateMove(1L, null);
     }
@@ -173,5 +184,123 @@ class KnowledgeCategoryDomainServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateMove(1L, 5L));
         assertEquals("目标分类未启用: 5", ex.getMessage());
+    }
+
+    /**
+     * 移动 - 目标父级下存在同名分类抛异常
+     */
+    @Test
+    void validateMove_shouldThrow_whenDuplicateNameInTargetParent() {
+        KnowledgeCategory target = KnowledgeCategory.reconstruct(
+                5L, null, "MySQL", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, null, null);
+        KnowledgeCategory current = KnowledgeCategory.reconstruct(
+                1L, 2L, "Java", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, null, null);
+        when(categoryRepositoryPort.findById(5L)).thenReturn(Optional.of(target));
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(current));
+        when(categoryRepositoryPort.existsByNameAndParentId("Java", 5L)).thenReturn(true);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.validateMove(1L, 5L));
+        assertEquals("目标父级下已存在同名分类: Java", ex.getMessage());
+    }
+
+    /**
+     * 删除校验 - 有子分类时抛异常
+     */
+    @Test
+    void validateDelete_shouldThrow_whenHasChildren() {
+        when(categoryRepositoryPort.countByParentId(1L)).thenReturn(3L);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.validateDelete(1L));
+        assertEquals("该分类下存在 3 个子分类（含已停用），无法删除", ex.getMessage());
+    }
+
+    /**
+     * 删除校验 - 无子分类时通过
+     */
+    @Test
+    void validateDelete_shouldPass_whenNoChildren() {
+        when(categoryRepositoryPort.countByParentId(1L)).thenReturn(0L);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
+        service.validateDelete(1L);
+        // 无异常即通过
+    }
+
+    /**
+     * 创建 - sortOrder 为 null 时自动计算（顶级分类，无同级）
+     */
+    @Test
+    void validateAndCreate_shouldAutoCalculateSortOrder_whenNullAndRootNoSiblings() {
+        when(categoryRepositoryPort.existsByNameAndParentId("编程", null)).thenReturn(false);
+        when(categoryRepositoryPort.findMaxSortOrderForRoot()).thenReturn(null);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
+        KnowledgeCategory result = service.validateAndCreate(
+                "编程", null, null, null, null, null, null);
+
+        assertNotNull(result);
+        assertEquals(0, result.getSortOrder());
+    }
+
+    /**
+     * 创建 - sortOrder 为 null 时自动计算（顶级分类，有同级）
+     */
+    @Test
+    void validateAndCreate_shouldAutoCalculateSortOrder_whenNullAndRootHasSiblings() {
+        when(categoryRepositoryPort.existsByNameAndParentId("数学", null)).thenReturn(false);
+        when(categoryRepositoryPort.findMaxSortOrderForRoot()).thenReturn(3);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
+        KnowledgeCategory result = service.validateAndCreate(
+                "数学", null, null, null, null, null, null);
+
+        assertNotNull(result);
+        assertEquals(4, result.getSortOrder());
+    }
+
+    /**
+     * 创建 - sortOrder 为 null 时自动计算（子分类，无同级）
+     */
+    @Test
+    void validateAndCreate_shouldAutoCalculateSortOrder_whenNullAndChildNoSiblings() {
+        KnowledgeCategory parent = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, null, null);
+        when(categoryRepositoryPort.existsByNameAndParentId("Java", 1L)).thenReturn(false);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(parent));
+        when(categoryRepositoryPort.findMaxSortOrderByParentId(1L)).thenReturn(null);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
+        KnowledgeCategory result = service.validateAndCreate(
+                "Java", null, 1L, null, null, null, null);
+
+        assertNotNull(result);
+        assertEquals(0, result.getSortOrder());
+    }
+
+    /**
+     * 创建 - sortOrder 为 null 时自动计算（子分类，有同级）
+     */
+    @Test
+    void validateAndCreate_shouldAutoCalculateSortOrder_whenNullAndChildHasSiblings() {
+        KnowledgeCategory parent = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, null, null);
+        when(categoryRepositoryPort.existsByNameAndParentId("Python", 1L)).thenReturn(false);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(parent));
+        when(categoryRepositoryPort.findMaxSortOrderByParentId(1L)).thenReturn(5);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort);
+        KnowledgeCategory result = service.validateAndCreate(
+                "Python", null, 1L, null, null, null, null);
+
+        assertNotNull(result);
+        assertEquals(6, result.getSortOrder());
     }
 }

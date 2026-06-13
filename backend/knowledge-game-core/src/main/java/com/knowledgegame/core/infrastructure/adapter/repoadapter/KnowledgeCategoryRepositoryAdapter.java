@@ -100,4 +100,19 @@ public class KnowledgeCategoryRepositoryAdapter implements KnowledgeCategoryRepo
     public List<Long> findDescendantIds(Long parentId) {
         return jpaRepository.findDescendantIds(parentId);
     }
+
+    @Override
+    public long countByParentId(Long parentId) {
+        return jpaRepository.countByParentId(parentId);
+    }
+
+    @Override
+    public Integer findMaxSortOrderByParentId(Long parentId) {
+        return jpaRepository.findMaxSortOrderByParentId(parentId);
+    }
+
+    @Override
+    public Integer findMaxSortOrderForRoot() {
+        return jpaRepository.findMaxSortOrderForRoot();
+    }
 }

@@ -42,4 +42,19 @@ public interface KnowledgeCategoryRepositoryPort {
      * 查询指定分类的所有后代分类 ID（递归）
      */
     List<Long> findDescendantIds(Long parentId);
+
+    /**
+     * 统计指定父级下的子分类数量（包含 ACTIVE 和 INACTIVE）
+     */
+    long countByParentId(Long parentId);
+
+    /**
+     * 查询指定父级下的最大排序号
+     */
+    Integer findMaxSortOrderByParentId(Long parentId);
+
+    /**
+     * 查询顶级分类的最大排序号
+     */
+    Integer findMaxSortOrderForRoot();
 }

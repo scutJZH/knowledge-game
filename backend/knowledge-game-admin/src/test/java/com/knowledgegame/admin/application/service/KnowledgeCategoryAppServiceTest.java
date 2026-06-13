@@ -1,5 +1,6 @@
 package com.knowledgegame.admin.application.service;
 
+import com.knowledgegame.admin.api.dto.request.BatchSortItem;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryTreeResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
@@ -12,9 +13,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -60,7 +63,7 @@ class KnowledgeCategoryAppServiceTest {
         when(categoryRepositoryPort.save(any())).thenReturn(saved);
 
         KnowledgeCategoryResponse result = appService.create(
-                "编程", null, null, null, null, null, 0);
+                "编程", null, null, null, null, null, Integer.valueOf(0));
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
@@ -185,7 +188,7 @@ class KnowledgeCategoryAppServiceTest {
     }
 
     /**
-     * 移动 - 正常移动
+     * 移动 - 正常移动并自动设置 sortOrder
      */
     @Test
     void move_shouldSucceed() {
@@ -193,16 +196,18 @@ class KnowledgeCategoryAppServiceTest {
                 2L, 1L, "Java", null, null, null, null, 0,
                 KnowledgeCategoryStatus.ACTIVE, now, now);
         when(categoryRepositoryPort.findById(2L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.findMaxSortOrderByParentId(5L)).thenReturn(3);
         when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         KnowledgeCategoryResponse result = appService.move(2L, 5L);
 
         assertNotNull(result);
-        verify(categoryRepositoryPort).save(argThat(cat -> cat.getParentId().equals(5L)));
+        verify(categoryRepositoryPort).save(argThat(cat ->
+                cat.getParentId().equals(5L) && cat.getSortOrder() == 4));
     }
 
     /**
-     * 移动 - 移到顶级（newParentId=null）
+     * 移动 - 移到顶级（newParentId=null）并自动设置 sortOrder
      */
     @Test
     void move_shouldSetParentIdToNull_whenMovingToRoot() {
@@ -210,11 +215,13 @@ class KnowledgeCategoryAppServiceTest {
                 2L, 1L, "Java", null, null, null, null, 0,
                 KnowledgeCategoryStatus.ACTIVE, now, now);
         when(categoryRepositoryPort.findById(2L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.findMaxSortOrderForRoot()).thenReturn(null);
         when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         appService.move(2L, null);
 
-        verify(categoryRepositoryPort).save(argThat(cat -> cat.getParentId() == null));
+        verify(categoryRepositoryPort).save(argThat(cat ->
+                cat.getParentId() == null && cat.getSortOrder() == 0));
     }
 
     /**
@@ -226,10 +233,12 @@ class KnowledgeCategoryAppServiceTest {
                 1L, null, "编程", null, null, null, null, 0,
                 KnowledgeCategoryStatus.ACTIVE, now, now);
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        Mockito.doNothing().when(categoryDomainService).validateDelete(1L);
         when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         appService.delete(1L);
 
+        verify(categoryDomainService).validateDelete(1L);
         verify(categoryRepositoryPort).save(argThat(cat ->
                 cat.getStatus() == KnowledgeCategoryStatus.INACTIVE
         ));
@@ -243,5 +252,97 @@ class KnowledgeCategoryAppServiceTest {
         when(categoryRepositoryPort.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(BusinessException.class, () -> appService.delete(999L));
+    }
+
+    /**
+     * 软删除 - 有子分类时抛异常
+     */
+    @Test
+    void delete_shouldThrow_whenHasChildren() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        Mockito.doThrow(new BusinessException("该分类下存在 2 个子分类（含已停用），无法删除"))
+                .when(categoryDomainService).validateDelete(1L);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appService.delete(1L));
+        assertEquals("该分类下存在 2 个子分类（含已停用），无法删除", ex.getMessage());
+    }
+
+    /**
+     * 批量排序 - 正常排序
+     */
+    @Test
+    void batchSort_shouldSucceed() {
+        KnowledgeCategory cat1 = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        KnowledgeCategory cat2 = KnowledgeCategory.reconstruct(
+                2L, null, "数学", null, null, null, null, 1,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(cat1));
+        when(categoryRepositoryPort.findById(2L)).thenReturn(Optional.of(cat2));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        List<BatchSortItem> items = new ArrayList<>();
+        BatchSortItem item1 = new BatchSortItem();
+        item1.setId(1L);
+        item1.setSortOrder(1);
+        BatchSortItem item2 = new BatchSortItem();
+        item2.setId(2L);
+        item2.setSortOrder(0);
+        items.add(item1);
+        items.add(item2);
+
+        appService.batchSort(items);
+
+        verify(categoryRepositoryPort).save(argThat(cat -> cat.getId().equals(1L) && cat.getSortOrder() == 1));
+        verify(categoryRepositoryPort).save(argThat(cat -> cat.getId().equals(2L) && cat.getSortOrder() == 0));
+    }
+
+    /**
+     * 批量排序 - ID 不存在抛异常
+     */
+    @Test
+    void batchSort_shouldThrow_whenIdNotFound() {
+        when(categoryRepositoryPort.findById(999L)).thenReturn(Optional.empty());
+
+        List<BatchSortItem> items = new ArrayList<>();
+        BatchSortItem item = new BatchSortItem();
+        item.setId(999L);
+        item.setSortOrder(0);
+        items.add(item);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appService.batchSort(items));
+        assertEquals("知识点分类不存在: 999", ex.getMessage());
+    }
+
+    /**
+     * 批量排序 - 非同父级抛异常
+     */
+    @Test
+    void batchSort_shouldThrow_whenDifferentParent() {
+        KnowledgeCategory cat1 = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        KnowledgeCategory cat2 = KnowledgeCategory.reconstruct(
+                2L, 10L, "数学", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(cat1));
+        when(categoryRepositoryPort.findById(2L)).thenReturn(Optional.of(cat2));
+
+        List<BatchSortItem> items = new ArrayList<>();
+        BatchSortItem item1 = new BatchSortItem();
+        item1.setId(1L);
+        item1.setSortOrder(0);
+        BatchSortItem item2 = new BatchSortItem();
+        item2.setId(2L);
+        item2.setSortOrder(1);
+        items.add(item1);
+        items.add(item2);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appService.batchSort(items));
+        assertEquals("所有分类必须属于同一父级", ex.getMessage());
     }
 }

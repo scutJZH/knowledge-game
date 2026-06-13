@@ -52,7 +52,7 @@ class KnowledgeCategoryControllerTest {
     void create_shouldReturn200() throws Exception {
         KnowledgeCategoryResponse response = KnowledgeCategoryResponse.builder()
                 .id(1L).name("编程").status("ACTIVE").createdAt(now).updatedAt(now).build();
-        when(appService.create(any(), any(), any(), any(), any(), any(), anyInt())).thenReturn(response);
+        when(appService.create(any(), any(), any(), any(), any(), any(), any())).thenReturn(response);
 
         mockMvc.perform(post("/api/admin/knowledge-categories")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -69,7 +69,7 @@ class KnowledgeCategoryControllerTest {
     void create_shouldReturn400_whenNameMissing() throws Exception {
         mockMvc.perform(post("/api/admin/knowledge-categories")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"sortOrder\":0}"))
+                        .content("{}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400));
     }
@@ -165,5 +165,19 @@ class KnowledgeCategoryControllerTest {
                 .andExpect(jsonPath("$.code").value(200));
 
         verify(appService).delete(1L);
+    }
+
+    /**
+     * 批量排序 - 正常返回 200
+     */
+    @Test
+    void batchSort_shouldReturn200() throws Exception {
+        mockMvc.perform(put("/api/admin/knowledge-categories/batch-sort")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"items\":[{\"id\":1,\"sortOrder\":0},{\"id\":2,\"sortOrder\":1}]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(appService).batchSort(any());
     }
 }

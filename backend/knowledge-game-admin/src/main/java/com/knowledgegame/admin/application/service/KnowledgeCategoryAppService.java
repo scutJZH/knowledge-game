@@ -1,6 +1,7 @@
 package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.assembler.KnowledgeCategoryAssembler;
+import com.knowledgegame.admin.api.dto.request.BatchSortItem;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryTreeResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
@@ -17,6 +18,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 知识点分类管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -39,7 +41,7 @@ public class KnowledgeCategoryAppService {
     @Transactional
     public KnowledgeCategoryResponse create(String name, String description, Long parentId,
                                             String iconUrl, String color, String coverImageUrl,
-                                            int sortOrder) {
+                                            Integer sortOrder) {
         KnowledgeCategory category = categoryDomainService.validateAndCreate(
                 name, description, parentId, iconUrl, color, coverImageUrl, sortOrder);
         KnowledgeCategory saved = categoryRepositoryPort.save(category);
@@ -102,7 +104,7 @@ public class KnowledgeCategoryAppService {
     }
 
     /**
-     * 移动知识点分类
+     * 移动知识点分类（自动设置目标父级下的 sortOrder）
      */
     @Transactional
     public KnowledgeCategoryResponse move(Long id, Long newParentId) {
@@ -110,8 +112,43 @@ public class KnowledgeCategoryAppService {
                 .orElseThrow(() -> new BusinessException("知识点分类不存在: " + id));
         categoryDomainService.validateMove(id, newParentId);
         category.moveTo(newParentId);
+        // 自动设置 sortOrder 为目标父级下最大值 + 1
+        Integer maxSortOrder = newParentId != null
+                ? categoryRepositoryPort.findMaxSortOrderByParentId(newParentId)
+                : categoryRepositoryPort.findMaxSortOrderForRoot();
+        int newSortOrder = maxSortOrder != null ? maxSortOrder + 1 : 0;
+        category.update(null, null, null, null, null, newSortOrder);
         KnowledgeCategory saved = categoryRepositoryPort.save(category);
         return KnowledgeCategoryAssembler.INSTANCE.toResponse(saved);
+    }
+
+    /**
+     * 批量排序知识点分类
+     * 校验所有 ID 存在且属于同一父级，逐个更新 sortOrder 并保存
+     */
+    @Transactional
+    public void batchSort(List<BatchSortItem> items) {
+        // 查询所有分类并校验 ID 存在
+        Map<Long, KnowledgeCategory> categoryMap = new LinkedHashMap<>();
+        for (BatchSortItem item : items) {
+            KnowledgeCategory category = categoryRepositoryPort.findById(item.getId())
+                    .orElseThrow(() -> new BusinessException("知识点分类不存在: " + item.getId()));
+            categoryMap.put(item.getId(), category);
+        }
+        // 校验所有分类属于同一父级
+        Long expectedParentId = categoryMap.get(items.getFirst().getId()).getParentId();
+        for (BatchSortItem item : items) {
+            KnowledgeCategory category = categoryMap.get(item.getId());
+            if (!Objects.equals(category.getParentId(), expectedParentId)) {
+                throw new BusinessException("所有分类必须属于同一父级");
+            }
+        }
+        // 逐个更新 sortOrder 并保存
+        for (BatchSortItem item : items) {
+            KnowledgeCategory category = categoryMap.get(item.getId());
+            category.update(null, null, null, null, null, item.getSortOrder());
+            categoryRepositoryPort.save(category);
+        }
     }
 
     /**
@@ -121,6 +158,7 @@ public class KnowledgeCategoryAppService {
     public void delete(Long id) {
         KnowledgeCategory category = categoryRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("知识点分类不存在: " + id));
+        categoryDomainService.validateDelete(id);
         category.deactivate();
         categoryRepositoryPort.save(category);
     }

@@ -1,5 +1,6 @@
 package com.knowledgegame.admin.api.controller;
 
+import com.knowledgegame.admin.api.dto.request.BatchSortRequest;
 import com.knowledgegame.admin.api.dto.request.CreateKnowledgeCategoryRequest;
 import com.knowledgegame.admin.api.dto.request.MoveKnowledgeCategoryRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeCategoryRequest;
@@ -109,6 +110,15 @@ public class KnowledgeCategoryController {
                                                    @Valid @RequestBody MoveKnowledgeCategoryRequest request) {
         KnowledgeCategoryResponse response = appService.move(id, request.getNewParentId());
         return Result.success(response);
+    }
+
+    /**
+     * 批量排序知识点分类
+     */
+    @PutMapping("/batch-sort")
+    public Result<Void> batchSort(@Valid @RequestBody BatchSortRequest request) {
+        appService.batchSort(request.getItems());
+        return Result.success();
     }
 
     /**

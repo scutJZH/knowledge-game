@@ -2,7 +2,7 @@
 
 > 状态：`designed`
 > 创建：2026-06-12
-> 前置依赖：REQ-07（知识点分类管理端 CRUD API）、REQ-40（管理后台脚手架）、REQ-83（文件服务）
+> 前置依赖：REQ-07（知识点分类管理端 CRUD API）、REQ-40（管理后台脚手架）、REQ-83（文件服务）、REQ-87（Admin 对接文件服务）
 
 ## 1. 概述
 
@@ -114,10 +114,10 @@ frontend/admin/src/
 | 封面图 | Upload | 图片类型，≤10MB | bizType=CATEGORY_COVER |
 | 排序号 | InputNumber | 必填，≥0 | |
 
-**文件上传流程（遵循 REQ-83）：**
-1. 点击上传 → 调用管理端 `POST /api/admin/upload-credential`（传 `bizType`）
-2. 管理端通过 Feign M2M 调用 file 服务获取凭证，返回 `{ token, fileId, uploadUrl }`（uploadUrl 由后端从 Nacos 配置获取 file 服务地址后拼接，如 `http://file-host:8083/api/file/upload`）
-3. 前端携带 `X-Upload-Token` + `X-User-Id` 请求头，直传 uploadUrl
+**文件上传流程（遵循 REQ-83 + REQ-87）：**
+1. 点击上传 → 调用 `GET /api/admin/upload-credential?bizType=CATEGORY_ICON`（或 `CATEGORY_COVER`）
+2. 后端通过 Feign M2M 调用 file 服务获取凭证，返回 `{ token, uploadUrl }`（uploadUrl 由后端从配置拼接，如 `http://localhost:8083/api/file/upload`）
+3. 前端携带 `X-Upload-Token: {token}` + `X-User-Id: {userId}` 请求头，直传 uploadUrl（`POST multipart/form-data`，字段名 `file`）
 4. 上传成功返回 `{ fileId, url }`，自动填入表单对应字段
 5. 提交表单时，URL 随新建/编辑请求入库
 
@@ -167,15 +167,11 @@ frontend/admin/src/
 
 **仓储端口新增方法：** `KnowledgeCategoryRepositoryPort.countByParentId(Long parentId)` → `long`
 
-### 5.2 管理端新增上传凭证接口
+### 5.2 上传凭证接口（已完成，REQ-87）
 
-**文件：** 新建 `admin/api/controller/FileController.java`（通用文件上传端点，不属于知识点分类领域）
-
-**新增端点：** `POST /api/admin/upload-credential`
-- 请求体：`{ bizType: string }`
-- 通过 Feign Client 调用 file 服务获取上传凭证
-- 从 Nacos 配置获取 file 服务地址，拼接 uploadUrl
-- 返回：`{ token: string, fileId: Long, uploadUrl: string }`
+管理端上传凭证接口 `GET /api/admin/upload-credential?bizType=xxx` 已由 REQ-87 完成，前端直接调用即可。bizType 映射：
+- `CATEGORY_ICON` → 知识点分类图标
+- `CATEGORY_COVER` → 知识点分类封面
 
 ### 5.3 批量排序接口
 
@@ -185,10 +181,14 @@ frontend/admin/src/
 - 请求体：`{ items: [{ id: Long, sortOrder: Integer }] }`
 - 一次事务内批量更新多个兄弟节点的 sortOrder
 - 用于拖拽排序后原子性更新所有受影响节点
+- **校验规则：**
+  - items 不能为空，数量上限 50
+  - 所有 id 必须存在
+  - 所有 id 必须属于同一父级（不同父级的节点不能一起排序）
 
 ### 5.4 sortOrder 默认值规则
 
-**改动：** `KnowledgeCategoryAppService.create()` — 如果前端未传 sortOrder（null），后端自动取同级最大 sortOrder + 1。前端表单中 sortOrder 字段默认不填（由后端自动计算），但允许手动输入覆盖。
+**改动：** `KnowledgeCategoryAppService.create()` — 如果前端未传 sortOrder（null），后端自动取同级最大 sortOrder + 1；同级无节点时默认为 0。前端表单中 sortOrder 字段默认不填（由后端自动计算），但允许手动输入覆盖。
 
 ### 5.5 题库关联检查（预留）
 
@@ -208,7 +208,7 @@ frontend/admin/src/
 | `update(id, data)` | PUT | `/api/admin/knowledge-categories/{id}` | 更新分类 |
 | `move(id, data)` | PUT | `/api/admin/knowledge-categories/{id}/move` | 移动分类 |
 | `deleteCategory(id)` | DELETE | `/api/admin/knowledge-categories/{id}` | 删除分类 |
-| `getUploadCredential(bizType)` | POST | `/api/admin/upload-credential` | 获取上传凭证（含 uploadUrl） |
+| `getUploadCredential(bizType)` | GET | `/api/admin/upload-credential?bizType={bizType}` | 获取上传凭证（含 uploadUrl） |
 
 ## 7. 依赖项
 
@@ -216,7 +216,8 @@ frontend/admin/src/
 |------|------|------|
 | REQ-07 知识点分类 CRUD API | 后端 7 个 CRUD 端点 | done |
 | REQ-40 管理后台脚手架 | Ant Design Pro + 路由 + 请求服务 | done |
-| REQ-83 文件服务 | 图片上传/下载，管理端需对接上传凭证接口 + Feign Client | designed |
+| REQ-83 文件服务 | 图片上传/下载 | done |
+| REQ-87 Admin 对接文件服务 | 上传凭证接口 + Feign Client | done |
 | REQ-84 Nacos 服务发现 | file 服务注册发现（上传凭证 Feign 调用依赖） | done |
 | REQ-85 机机鉴权 | file 服务 M2M 鉴权 | done |
 | `@dnd-kit/core` | npm 依赖，拖拽排序 | 待引入 |
@@ -225,22 +226,22 @@ frontend/admin/src/
 
 ## 8. 分阶段交付策略
 
-REQ-83（文件服务）可能未就绪，采用分阶段交付：
+REQ-83（文件服务）和 REQ-87（Admin 对接文件服务）均已完成，采用分阶段交付以降低前端集成风险：
 
-**阶段一（独立交付）：**
+**阶段一（核心功能）：**
 - 分类 CRUD（新建、编辑、查看详情、删除）
 - 左侧树形导航 + 搜索 + 停用开关
 - 拖拽排序 + 拖拽移动
 - 移动 Modal
 - 后端删除校验补充
+- 后端批量排序接口
 - 图标/封面图字段为 URL 文本输入（降级模式）
 
-**阶段二（REQ-83 就绪后）：**
+**阶段二（文件上传前端集成）：**
 - 图标/封面图字段升级为文件上传（Upload 组件 + 凭证 + 直传）
-- 管理端上传凭证接口（FileController + Feign Client）
 - 上传错误处理和重试
 
-**前端实现方式：** 上传组件封装为 `ImageUploadField`，内部判断文件服务是否可用。不可用时显示 URL 文本输入 + disabled 提示"文件服务未就绪"；可用时显示 Upload 组件。
+**前端实现方式：** 上传组件封装为 `ImageUploadField`，阶段一时该组件渲染为 URL 文本输入；阶段二升级为 Upload 组件，通过配置开关控制。上传凭证接口已由 REQ-87 完成，阶段二只需前端对接。
 
 ## 9. Verification Plan
 
@@ -279,4 +280,3 @@ REQ-83（文件服务）可能未就绪，采用分阶段交付：
 - 后端回滚 `KnowledgeCategoryAppService.delete()` 和 `KnowledgeCategoryDomainService` 改动
 - 回滚 `KnowledgeCategoryRepositoryPort.countByParentId` 新增方法及其实现
 - 删除新增的 `PUT /api/admin/knowledge-categories/batch-sort` 端点
-- 删除新增的 `FileController.java`（上传凭证接口）

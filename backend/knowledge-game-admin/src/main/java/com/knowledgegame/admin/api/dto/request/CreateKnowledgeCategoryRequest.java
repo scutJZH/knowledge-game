@@ -1,7 +1,6 @@
 package com.knowledgegame.admin.api.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,6 +30,8 @@ public class CreateKnowledgeCategoryRequest {
     @Size(max = 500, message = "封面图 URL 最长 500")
     private String coverImageUrl;
 
-    @NotNull(message = "排序号不能为空")
+    /**
+     * 排序号（可选，不传时后端自动计算）
+     */
     private Integer sortOrder;
 }
