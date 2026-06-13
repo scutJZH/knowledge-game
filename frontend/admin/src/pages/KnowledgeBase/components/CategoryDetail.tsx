@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { Card, Descriptions, Tag, Button, Empty, Image, Popconfirm, Space } from 'antd';
 import {
   EditOutlined,
@@ -129,10 +130,10 @@ const CategoryDetailPanel: React.FC<CategoryDetailProps> = ({
           )}
         </Descriptions.Item>
         <Descriptions.Item label="创建时间">
-          {detail.createdAt}
+          {detail.createdAt ? dayjs(detail.createdAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
         </Descriptions.Item>
         <Descriptions.Item label="更新时间">
-          {detail.updatedAt}
+          {detail.updatedAt ? dayjs(detail.updatedAt).format('YYYY-MM-DD HH:mm:ss') : '-'}
         </Descriptions.Item>
       </Descriptions>
     </Card>

@@ -91,8 +91,8 @@ class CardTemplateAppServiceTest {
         CardTemplateStatus status = CardTemplateStatus.ACTIVE;
         List<StarImageCommand> starImages = List.of(new StarImageCommand(1, "https://example.com/img.png"));
 
-        // code 不存在，返回 empty
-        when(cardTemplateRepositoryPort.findByCode(code)).thenReturn(Optional.empty());
+        // 编码在当前 IP 系列下不存在，返回 empty
+        when(cardTemplateRepositoryPort.findByIpSeriesIdAndCode(ipSeriesId, code)).thenReturn(Optional.empty());
         // 领域服务返回新创建的 CardTemplate（无 id）
         CardTemplate newTemplate = buildCardTemplate(null, code, name, rarity, status);
         when(cardTemplateDomainService.validateAndCreate(
@@ -116,7 +116,7 @@ class CardTemplateAppServiceTest {
         assertEquals("SR", result.getRarity());
         assertEquals("ACTIVE", result.getStatus());
         assertEquals("火影忍者", result.getIpSeriesName());
-        verify(cardTemplateRepositoryPort).findByCode(code);
+        verify(cardTemplateRepositoryPort).findByIpSeriesIdAndCode(ipSeriesId, code);
         verify(cardTemplateDomainService).validateAndCreate(
                 eq(ipSeriesId), eq(code), eq(name), eq(rarity), eq(description), eq(status), any());
         verify(cardTemplateRepositoryPort).save(any(CardTemplate.class));
@@ -137,9 +137,9 @@ class CardTemplateAppServiceTest {
         CardTemplateStatus status = CardTemplateStatus.ACTIVE;
         List<StarImageCommand> starImages = List.of(new StarImageCommand(1, "https://example.com/img.png"));
 
-        // 模拟 code 已存在
+        // 模拟同一 IP 系列下编码已存在
         CardTemplate existing = buildCardTemplate(2L, code, "其他卡牌", rarity, status);
-        when(cardTemplateRepositoryPort.findByCode(code)).thenReturn(Optional.of(existing));
+        when(cardTemplateRepositoryPort.findByIpSeriesIdAndCode(ipSeriesId, code)).thenReturn(Optional.of(existing));
 
         // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,
@@ -283,9 +283,10 @@ class CardTemplateAppServiceTest {
         CardTemplate existing = buildCardTemplate(id, "OLD_CODE", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
         when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
 
-        // 模拟 newCode 已被其他记录占用
+        // 模拟同一 IP 系列下 newCode 已被其他记录占用
         CardTemplate conflict = buildCardTemplate(2L, newCode, "其他卡牌", CardRarity.SR, CardTemplateStatus.ACTIVE);
-        when(cardTemplateRepositoryPort.findByCode(newCode)).thenReturn(Optional.of(conflict));
+        when(cardTemplateRepositoryPort.findByIpSeriesIdAndCode(existing.getIpSeriesId(), newCode))
+                .thenReturn(Optional.of(conflict));
 
         // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,

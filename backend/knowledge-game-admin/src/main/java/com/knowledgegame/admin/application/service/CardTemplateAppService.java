@@ -45,8 +45,8 @@ public class CardTemplateAppService {
                                                    CardRarity rarity, String description,
                                                    CardTemplateStatus status,
                                                    List<StarImageCommand> starImageCommands) {
-        // code 唯一性校验
-        cardTemplateRepositoryPort.findByCode(code).ifPresent(existing -> {
+        // 编码在同一 IP 系列下唯一
+        cardTemplateRepositoryPort.findByIpSeriesIdAndCode(ipSeriesId, code).ifPresent(existing -> {
             throw new BusinessException("卡牌编码已存在: " + code);
         });
         // 将应用层命令转换为领域值对象
@@ -63,6 +63,7 @@ public class CardTemplateAppService {
     /**
      * 根据 ID 查询详情（含星级图片 + IP 系列名称）
      */
+    @Transactional(readOnly = true)
     public CardTemplateResponse getCardTemplateById(Long id) {
         CardTemplate template = cardTemplateRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("卡牌模板不存在: " + id));
@@ -72,6 +73,7 @@ public class CardTemplateAppService {
     /**
      * 分页查询（列表不含星级图片）
      */
+    @Transactional(readOnly = true)
     public PageResult<CardTemplateListResponse> listCardTemplates(String name, Long ipSeriesId,
                                                                    String rarity, String status,
                                                                    int pageNumber, int pageSize) {
@@ -101,11 +103,12 @@ public class CardTemplateAppService {
                                                    CardTemplateStatus status) {
         CardTemplate template = cardTemplateRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("卡牌模板不存在: " + id));
-        // code 唯一性校验（排除自身）
+        // 编码在同一 IP 系列下唯一（排除自身）
         if (code != null && !code.equals(template.getCode())) {
-            cardTemplateRepositoryPort.findByCode(code).ifPresent(existing -> {
-                throw new BusinessException("卡牌编码已存在: " + code);
-            });
+            cardTemplateRepositoryPort.findByIpSeriesIdAndCode(template.getIpSeriesId(), code)
+                    .ifPresent(existing -> {
+                        throw new BusinessException("卡牌编码已存在: " + code);
+                    });
         }
         template.update(code, name, rarity, description, status);
         CardTemplate saved = cardTemplateRepositoryPort.save(template);

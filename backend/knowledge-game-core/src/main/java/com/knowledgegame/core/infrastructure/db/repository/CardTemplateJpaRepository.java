@@ -13,7 +13,7 @@ public interface CardTemplateJpaRepository extends JpaRepository<CardTemplatePO,
         JpaSpecificationExecutor<CardTemplatePO> {
 
     /**
-     * 根据 code 查询
+     * 根据 IP 系列 ID 和编码查询（编码在同一 IP 系列下唯一）
      */
-    Optional<CardTemplatePO> findByCode(String code);
+    Optional<CardTemplatePO> findByIpSeriesIdAndCode(Long ipSeriesId, String code);
 }

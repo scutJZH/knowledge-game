@@ -11,6 +11,9 @@ cors:
 spring:
   application:
     name: knowledge-game-admin
+  jackson:
+    serialization:
+      write-dates-as-timestamps: true
   config:
     import:
       - nacos:common.yml?refresh=true

@@ -301,6 +301,31 @@ class IpSeriesAppServiceTest {
     }
 
     /**
+     * 更新 IP 系列 - 仅大小写改名时不应抛异常（MySQL ci 排序规则会命中自身）
+     */
+    @Test
+    void updateIpSeries_shouldAllowCaseChangeOnName() {
+        Long id = 1L;
+        String code = "MARVEL";
+        String originalName = "pokemon";
+
+        IpSeries existing = IpSeries.reconstruct(id, code, originalName, "描述", "图片",
+                IpSeriesStatus.ACTIVE, LocalDateTime.now(), LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+
+        // MySQL ci 下 findByName("POKEMON") 命中自身
+        when(ipSeriesRepositoryPort.findByName("POKEMON")).thenReturn(Optional.of(existing));
+        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // 执行：大小写改名应成功，不抛异常
+        IpSeriesResponse result = ipSeriesAppService.updateIpSeries(
+                id, code, "POKEMON", "描述", "图片", IpSeriesStatus.ACTIVE);
+
+        assertNotNull(result);
+        verify(ipSeriesRepositoryPort).save(any(IpSeries.class));
+    }
+
+    /**
      * 软删除 - status 变为 INACTIVE
      */
     @Test

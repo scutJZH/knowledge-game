@@ -151,8 +151,8 @@ const IpSeries: React.FC = () => {
         </Tag>
       ),
     },
-    { title: '创建时间', dataIndex: 'createdAt', search: false },
-    { title: '更新时间', dataIndex: 'updatedAt', search: false },
+    { title: '创建时间', dataIndex: 'createdAt', search: false, valueType: 'dateTime' },
+    { title: '更新时间', dataIndex: 'updatedAt', search: false, valueType: 'dateTime' },
     {
       title: '操作',
       key: 'action',
@@ -171,7 +171,11 @@ const IpSeries: React.FC = () => {
             title={record.status === 'ACTIVE' ? '确定停用该 IP 系列吗？' : '确定启用该 IP 系列吗？'}
             onConfirm={() => handleToggleStatus(record)}
           >
-            <a>{record.status === 'ACTIVE' ? '停用' : '启用'}</a>
+            {record.status === 'ACTIVE' ? (
+              <a>停用</a>
+            ) : (
+              <a style={{ color: '#52c41a' }}>启用</a>
+            )}
           </Popconfirm>
         </Space>
       ),

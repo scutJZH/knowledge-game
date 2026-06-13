@@ -82,7 +82,7 @@ public interface CardTemplateConverter {
     }
 
     /**
-     * 用领域模型更新已有 PO（手动处理嵌套列表）
+     * 用领域模型更新已有 PO（原地更新 starImages，避免 clear+add 导致唯一约束冲突）
      */
     default void updatePO(@MappingTarget CardTemplatePO po, CardTemplate template) {
         if (template == null) {
@@ -94,10 +94,25 @@ public interface CardTemplateConverter {
         po.setDescription(template.getDescription());
         po.setStatus(template.getStatus());
         po.setUpdatedAt(template.getUpdatedAt());
-        // 全量替换 starImages
-        po.getStarImages().clear();
-        if (template.getStarImages() != null) {
-            for (CardStarImage img : template.getStarImages()) {
+
+        // 原地更新 starImages：匹配已有 PO 则更新，无匹配则新增，多余的删除
+        List<CardStarImage> domainImages = template.getStarImages();
+        if (domainImages == null) {
+            po.getStarImages().clear();
+            return;
+        }
+
+        // 第一步：更新已有、新增缺失
+        for (CardStarImage img : domainImages) {
+            CardStarImagePO existingPO = po.getStarImages().stream()
+                    .filter(existing -> existing.getStarLevel() == img.getStarLevel())
+                    .findFirst()
+                    .orElse(null);
+            if (existingPO != null) {
+                // 原地更新已有 PO 的 imageUrl
+                existingPO.setImageUrl(img.getImageUrl());
+            } else {
+                // 新增 starLevel 不在现有集合中的图片
                 CardStarImagePO imgPO = CardStarImagePO.builder()
                         .starLevel(img.getStarLevel())
                         .imageUrl(img.getImageUrl())
@@ -106,5 +121,10 @@ public interface CardTemplateConverter {
                 po.getStarImages().add(imgPO);
             }
         }
+
+        // 第二步：删除领域模型中已不存在的 starLevel
+        po.getStarImages().removeIf(existing ->
+                domainImages.stream().noneMatch(
+                        img -> img.getStarLevel() == existing.getStarLevel()));
     }
 }

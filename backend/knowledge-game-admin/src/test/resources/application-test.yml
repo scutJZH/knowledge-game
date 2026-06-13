@@ -7,6 +7,9 @@ cors:
 spring:
   config:
     import: "optional:nacos:"
+  jackson:
+    serialization:
+      write-dates-as-timestamps: true
   cloud:
     nacos:
       discovery:

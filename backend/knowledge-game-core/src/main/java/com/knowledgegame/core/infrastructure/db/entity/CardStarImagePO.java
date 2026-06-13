@@ -45,6 +45,6 @@ public class CardStarImagePO {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "card_template_id", nullable = false,
-            foreignKey = @ForeignKey(ConstraintMode.CONSTRAINT))
+            foreignKey = @ForeignKey(ConstraintMode.NO_CONSTRAINT))
     private CardTemplatePO cardTemplate;
 }

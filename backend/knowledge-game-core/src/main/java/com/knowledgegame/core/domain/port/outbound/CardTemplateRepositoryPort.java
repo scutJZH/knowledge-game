@@ -23,9 +23,9 @@ public interface CardTemplateRepositoryPort {
     Optional<CardTemplate> findById(Long id);
 
     /**
-     * 根据 code 查询
+     * 根据 IP 系列 ID 和编码查询（编码在同一 IP 系列下唯一）
      */
-    Optional<CardTemplate> findByCode(String code);
+    Optional<CardTemplate> findByIpSeriesIdAndCode(Long ipSeriesId, String code);
 
     /**
      * 分页查询（支持名称模糊 + IP 系列 + 稀有度 + 状态筛选）

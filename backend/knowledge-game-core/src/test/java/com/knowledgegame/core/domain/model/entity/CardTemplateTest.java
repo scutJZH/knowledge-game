@@ -231,8 +231,8 @@ class CardTemplateTest {
         assertEquals(CardRarity.SR, template.getRarity(), "rarity 传 null 时应保持原值");
         assertEquals(CardTemplateStatus.ACTIVE, template.getStatus(), "status 传 null 时应保持原值");
 
-        // description 无 null 守卫，传 null 会被覆盖
-        assertNull(template.getDescription(), "description 传 null 时会被覆盖为 null");
+        // description 也有 null 守卫，传 null 保持原值
+        assertEquals("原始描述", template.getDescription(), "description 传 null 时应保持原值");
     }
 
     /**

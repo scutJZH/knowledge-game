@@ -77,16 +77,20 @@ public class IpSeriesAppService {
                                             String coverImageUrl, IpSeriesStatus status) {
         IpSeries ipSeries = ipSeriesRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("IP 系列不存在: " + id));
-        // code 唯一性校验（排除自身）
+        // code 唯一性校验（排除自身，MySQL ci 排序规则下大小写不同会命中已有记录）
         if (code != null && !code.equals(ipSeries.getCode())) {
             ipSeriesRepositoryPort.findByCode(code).ifPresent(existing -> {
-                throw new BusinessException("IP 系列编码已存在: " + code);
+                if (!existing.getId().equals(id)) {
+                    throw new BusinessException("IP 系列编码已存在: " + code);
+                }
             });
         }
-        // name 唯一性校验（排除自身）
+        // name 唯一性校验（排除自身，同上）
         if (name != null && !name.equals(ipSeries.getName())) {
             ipSeriesRepositoryPort.findByName(name).ifPresent(existing -> {
-                throw new BusinessException("IP 系列名称已存在: " + name);
+                if (!existing.getId().equals(id)) {
+                    throw new BusinessException("IP 系列名称已存在: " + name);
+                }
             });
         }
         ipSeries.update(code, name, description, coverImageUrl, status);

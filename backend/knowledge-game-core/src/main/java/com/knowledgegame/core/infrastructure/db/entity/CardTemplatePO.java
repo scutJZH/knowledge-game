@@ -13,6 +13,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -27,7 +28,9 @@ import java.util.List;
  * 卡牌模板持久化对象（JPA Entity，仅在 infrastructure 层）
  */
 @Entity
-@Table(name = "card_template")
+@Table(name = "card_template", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"ip_series_id", "code"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -42,7 +45,7 @@ public class CardTemplatePO {
     @Column(name = "ip_series_id", nullable = false)
     private Long ipSeriesId;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, length = 50)
     private String code;
 
     @Column(nullable = false, length = 50)

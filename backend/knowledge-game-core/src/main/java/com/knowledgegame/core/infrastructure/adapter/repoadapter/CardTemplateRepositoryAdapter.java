@@ -52,8 +52,8 @@ public class CardTemplateRepositoryAdapter implements CardTemplateRepositoryPort
     }
 
     @Override
-    public Optional<CardTemplate> findByCode(String code) {
-        return cardTemplateJpaRepository.findByCode(code)
+    public Optional<CardTemplate> findByIpSeriesIdAndCode(Long ipSeriesId, String code) {
+        return cardTemplateJpaRepository.findByIpSeriesIdAndCode(ipSeriesId, code)
                 .map(CardTemplateConverter.INSTANCE::toDomain);
     }
 

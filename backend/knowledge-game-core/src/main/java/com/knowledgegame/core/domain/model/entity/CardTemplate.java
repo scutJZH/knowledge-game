@@ -94,7 +94,9 @@ public class CardTemplate {
         if (rarity != null) {
             this.rarity = rarity;
         }
-        this.description = description;
+        if (description != null) {
+            this.description = description;
+        }
         if (status != null) {
             this.status = status;
         }

@@ -12,7 +12,6 @@ import {
 
 import {
   createCardTemplate,
-  deleteCardTemplate,
   getCardTemplateById,
   listCardTemplates,
   updateCardTemplate,
@@ -56,7 +55,16 @@ const RARITY_COLOR_MAP: Record<CardRarity, string> = {
   R: 'blue',
   SR: 'purple',
   SSR: 'gold',
-  SP: 'red',
+  SP: 'cyan',
+};
+
+/** SP 稀有度钻石白样式：蓝白渐变 + 微光 */
+const SP_TAG_STYLE: React.CSSProperties = {
+  background: 'linear-gradient(135deg, #ffffff 0%, #e8f4fc 25%, #d0e3f0 50%, #f8fbff 75%, #e6f0f8 100%)',
+  border: '1px solid #b8d0e2',
+  color: '#1a2b3c',
+  fontWeight: 600,
+  boxShadow: '0 0 4px rgba(180, 210, 240, 0.4), inset 0 0 3px rgba(255,255,255,0.8)',
 };
 
 /** 稀有度下拉选项 */
@@ -106,9 +114,12 @@ const CardTemplate: React.FC = () => {
       valueEnum: Object.fromEntries(
         RARITY_OPTIONS.map((r) => [r, { text: r }]),
       ),
-      render: (_, record) => (
-        <Tag color={RARITY_COLOR_MAP[record.rarity]}>{record.rarity}</Tag>
-      ),
+      render: (_, record) =>
+        record.rarity === 'SP' ? (
+          <Tag style={SP_TAG_STYLE}>{record.rarity}</Tag>
+        ) : (
+          <Tag color={RARITY_COLOR_MAP[record.rarity]}>{record.rarity}</Tag>
+        ),
     },
     {
       title: '状态',
@@ -126,8 +137,8 @@ const CardTemplate: React.FC = () => {
         </Tag>
       ),
     },
-    { title: '创建时间', dataIndex: 'createdAt', search: false },
-    { title: '更新时间', dataIndex: 'updatedAt', search: false },
+    { title: '创建时间', dataIndex: 'createdAt', search: false, valueType: 'dateTime' },
+    { title: '更新时间', dataIndex: 'updatedAt', search: false, valueType: 'dateTime' },
     {
       title: '操作',
       key: 'action',
@@ -141,25 +152,34 @@ const CardTemplate: React.FC = () => {
           >
             编辑
           </a>
-          <Popconfirm
-            title="确定删除该卡牌模板吗？"
-            onConfirm={() => handleDelete(record.id)}
-          >
-            <a>删除</a>
-          </Popconfirm>
+          {record.status === 'ACTIVE' ? (
+            <Popconfirm
+              title="确定停用该卡牌模板吗？"
+              onConfirm={() => handleToggleStatus(record.id, 'INACTIVE')}
+            >
+              <a>停用</a>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="确定启用该卡牌模板吗？"
+              onConfirm={() => handleToggleStatus(record.id, 'ACTIVE')}
+            >
+              <a style={{ color: '#52c41a' }}>启用</a>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
   ];
 
-  /** 删除卡牌模板 */
-  const handleDelete = async (id: number) => {
+  /** 切换卡牌模板启用/停用状态 */
+  const handleToggleStatus = async (id: number, status: CardTemplateStatus) => {
     try {
-      await deleteCardTemplate(id);
-      message.success('删除成功');
+      await updateCardTemplate(id, { status });
+      message.success(status === 'ACTIVE' ? '已启用' : '已停用');
       actionRef.current?.reload();
     } catch {
-      // 错误已由 request 拦截器展示，列表无需刷新
+      // 错误已由 request 拦截器展示
     }
   };
 
