@@ -31,7 +31,7 @@ m2m:
     enabled: true
     service-name: knowledge-game-app
     services:
-      knowledge-game-file: ${FILE_SERVICE_API_KEY:default-dev-key}
+      knowledge-game-file: bde80eb7-e90c-4192-a5fd-ecbcfece488e
 
 knowledgegame:
   file:
