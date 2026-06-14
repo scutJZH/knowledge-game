@@ -51,4 +51,3 @@ m2m:
     enabled: true
     protectedPaths: /api/file/internal/**
     api-key: bde80eb7-e90c-4192-a5fd-ecbcfece488e
-}

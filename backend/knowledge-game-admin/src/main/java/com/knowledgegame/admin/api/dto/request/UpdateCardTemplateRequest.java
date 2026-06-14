@@ -25,4 +25,7 @@ public class UpdateCardTemplateRequest {
     private String description;
 
     private CardTemplateStatus status;
+
+    @Size(max = 500, message = "图片 URL 最长 500")
+    private String imageUrl;
 }

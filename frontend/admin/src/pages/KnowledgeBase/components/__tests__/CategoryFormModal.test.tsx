@@ -42,8 +42,8 @@ const mockEditingCategory = {
   coverImageUrl: null,
   sortOrder: 0,
   status: 'ACTIVE',
-  createdAt: '2026-01-01T00:00:00',
-  updatedAt: '2026-01-01T00:00:00',
+  createdAt: 1767225600000,
+  updatedAt: 1767225600000,
 };
 
 describe('CategoryFormModal', () => {

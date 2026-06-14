@@ -240,10 +240,10 @@ describe('ImageUploadField', () => {
         />,
       );
 
-      const listItem = document.querySelector('.ant-upload-list-item') as HTMLElement;
-      expect(listItem).toBeInTheDocument();
+      const thumbnail = document.querySelector('.ant-upload-list-item-thumbnail') as HTMLElement;
+      expect(thumbnail).toBeInTheDocument();
 
-      fireEvent.click(listItem);
+      fireEvent.click(thumbnail);
 
       await waitFor(() => {
         // Image 组件的 preview mask 会渲染
