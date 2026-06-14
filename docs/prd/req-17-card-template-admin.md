@@ -1,5 +1,7 @@
 # REQ-17 卡牌模板 — 管理端 CRUD API
 
+> ⚠ 本 PRD 已被 REQ-92 部分废弃（card_star_image 模型简化为单图），卡牌模板相关 API/数据结构以最新 overview.md 和 req-92 PRD 为准。
+>
 > 日期：2026-06-08
 > 状态：设计中
 

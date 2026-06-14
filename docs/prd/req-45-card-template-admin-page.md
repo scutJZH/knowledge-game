@@ -1,5 +1,7 @@
 # REQ-45 管理后台 — 卡牌管理页
 
+> ⚠ 本 PRD 已被 REQ-92 部分废弃（card_star_image 模型简化为单图），卡牌模板相关 API/数据结构以最新 overview.md 和 req-92 PRD 为准。
+
 ## 产品定位
 
 在管理后台（Ant Design Pro）中实现卡牌模板的完整 CRUD 管理页面，对接 REQ-17 后端 API。卡牌模板是盲盒抽卡池的核心实体，每个模板可配置 1~5 星级图片。
