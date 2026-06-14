@@ -22,8 +22,8 @@ export interface QuestionResponse {
   tags: string[];
   status: 'ACTIVE' | 'INACTIVE';
   categoryIds: number[];
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** 创建题目请求（含 categoryIds，一次性提交） */

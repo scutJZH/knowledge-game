@@ -3,6 +3,7 @@ package com.knowledgegame.core.infrastructure.db.converter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.knowledgegame.core.domain.model.domainenum.QuestionType;
 import com.knowledgegame.core.domain.model.entity.Question;
 import com.knowledgegame.core.domain.model.vo.QuestionOption;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionPO;
@@ -39,7 +40,7 @@ public interface QuestionConverter {
                 po.getType(),
                 po.getContent(),
                 parseOptions(po.getOptions()),
-                po.getAnswer(),
+                unwrapSingleChoiceAnswer(po.getType(), po.getAnswer()),
                 po.getDifficulty(),
                 po.getExplanation(),
                 parseTags(po.getTags()),
@@ -61,7 +62,7 @@ public interface QuestionConverter {
         po.setType(question.getType());
         po.setContent(question.getContent());
         po.setOptions(serializeOptions(question.getOptions()));
-        po.setAnswer(question.getAnswer());
+        po.setAnswer(wrapSingleChoiceAnswer(question.getType(), question.getAnswer()));
         po.setDifficulty(question.getDifficulty());
         po.setExplanation(question.getExplanation());
         po.setTags(serializeTags(question.getTags()));
@@ -78,7 +79,7 @@ public interface QuestionConverter {
         if (question.getType() != null) po.setType(question.getType());
         if (question.getContent() != null) po.setContent(question.getContent());
         po.setOptions(serializeOptions(question.getOptions()));
-        po.setAnswer(question.getAnswer());
+        po.setAnswer(wrapSingleChoiceAnswer(po.getType(), question.getAnswer()));
         if (question.getDifficulty() != null) po.setDifficulty(question.getDifficulty());
         po.setExplanation(question.getExplanation());
         po.setTags(serializeTags(question.getTags()));
@@ -155,4 +156,36 @@ public interface QuestionConverter {
      * JSON 反序列化中间结构
      */
     record QuestionOptionData(String key, String content) {}
+
+    /**
+     * 将单选题答案包装为 JSON 字符串值以存入 MySQL json 列
+     * （多选/填空已是 JSON 数组，判断已是 JSON 布尔，无需处理）
+     */
+    private String wrapSingleChoiceAnswer(QuestionType type, String answer) {
+        if (type == QuestionType.SINGLE_CHOICE && answer != null) {
+            try {
+                return OBJECT_MAPPER.writeValueAsString(answer);
+            } catch (JsonProcessingException e) {
+                log.error("单选题答案 JSON 序列化失败: {}", answer, e);
+                throw new IllegalStateException("单选题答案序列化失败", e);
+            }
+        }
+        return answer;
+    }
+
+    /**
+     * 将单选题答案从 JSON 字符串值解包为原始字符串
+     * 兼容旧数据：解析失败时返回原始值
+     */
+    private String unwrapSingleChoiceAnswer(QuestionType type, String answer) {
+        if (type == QuestionType.SINGLE_CHOICE && answer != null) {
+            try {
+                return OBJECT_MAPPER.readValue(answer, String.class);
+            } catch (JsonProcessingException e) {
+                // 兼容旧数据（存储为非 JSON 格式的原始字符串）
+                return answer;
+            }
+        }
+        return answer;
+    }
 }

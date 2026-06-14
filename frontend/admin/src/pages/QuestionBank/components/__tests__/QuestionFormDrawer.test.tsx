@@ -105,7 +105,7 @@ describe('QuestionFormDrawer — 提交编排', () => {
     jest.clearAllMocks();
   });
 
-  it('编辑提交应调用 updateQuestion + updateQuestionCategories', async () => {
+  it('编辑提交应调用 updateQuestion，分类未变时跳过 updateQuestionCategories', async () => {
     mockUpdateQuestion.mockResolvedValue({ id: 1 });
     mockUpdateQuestionCategories.mockResolvedValue(undefined);
     const user = userEvent.setup();
@@ -135,17 +135,16 @@ describe('QuestionFormDrawer — 提交编排', () => {
       />,
     );
 
-    // 判断题：没有选项区域，直接有对/错 Radio
     await waitFor(() => {
       expect(screen.getByText('对')).toBeInTheDocument();
     });
 
-    // 点击提交
     await user.click(screen.getByText('提 交'));
 
     await waitFor(() => {
       expect(mockUpdateQuestion).toHaveBeenCalledTimes(1);
-      expect(mockUpdateQuestionCategories).toHaveBeenCalledTimes(1);
+      // 分类未变更，不应调用 updateQuestionCategories
+      expect(mockUpdateQuestionCategories).not.toHaveBeenCalled();
     });
     expect(onSubmit).toHaveBeenCalled();
   });

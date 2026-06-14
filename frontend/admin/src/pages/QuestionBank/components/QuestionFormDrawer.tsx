@@ -9,6 +9,7 @@ import {
   Radio,
   Select,
   Space,
+  Tag,
   TreeSelect,
 } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
@@ -154,6 +155,10 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
   const [form] = Form.useForm<QuestionFormValues>();
   const [submitting, setSubmitting] = React.useState(false);
   const prevTypeRef = useRef<string | undefined>(undefined);
+  /** 区分 × 按钮删除（true）和 toggle 删除（false） */
+  const tagCloseRef = useRef(false);
+  /** 缓存上一次标签值，用于检测 toggle 行为 */
+  const prevTagsRef = useRef<string[]>([]);
 
   const isEdit = mode === 'edit';
   const drawerTitle = isEdit ? '编辑题目' : '新建题目';
@@ -223,6 +228,12 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
         message.error('至少需要 2 个非空选项');
         return false;
       }
+      // 校验选项内容不重复
+      const contents = filledOptions.map((o) => o.content.trim());
+      if (new Set(contents).size < contents.length) {
+        message.error('选项内容不能重复');
+        return false;
+      }
     }
 
     // 校验多选答案
@@ -279,7 +290,17 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
         }
 
         await updateQuestion(initialValues.id, body);
-        await updateQuestionCategories(initialValues.id, values.categoryIds || []);
+
+        // 仅当分类变更时才调 updateQuestionCategories，避免后端重复插入
+        const newIds = values.categoryIds || [];
+        const oldIds = initialValues.categoryIds || [];
+        const idsChanged =
+          newIds.length !== oldIds.length ||
+          !newIds.every((id) => oldIds.includes(id));
+        if (idsChanged) {
+          await updateQuestionCategories(initialValues.id, newIds);
+        }
+
         message.success('更新成功');
       } else {
         // 创建模式：一次性提交
@@ -571,6 +592,46 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
             placeholder="请输入标签后回车（选填）"
             maxTagCount={10}
             tokenSeparators={[',']}
+            tagRender={(props) => {
+              const { label, closable, onClose } = props;
+              const handleClose = () => {
+                tagCloseRef.current = true;
+                onClose();
+              };
+              return (
+                <Tag
+                  closable={closable}
+                  onClose={handleClose}
+                  style={{ marginRight: 3 }}
+                >
+                  {label}
+                </Tag>
+              );
+            }}
+            onChange={(value: string[]) => {
+              const cleaned = value.filter((v) => v.trim());
+              const deduped = Array.from(new Set(cleaned));
+              // 点击 × 删除：允许（tagCloseRef 已在 tagRender.onClose 中置位）
+              if (tagCloseRef.current) {
+                tagCloseRef.current = false;
+                prevTagsRef.current = deduped;
+                if (deduped.length !== value.length) {
+                  form.setFieldValue('tags', deduped);
+                }
+                return;
+              }
+              // 输入已有标签触发 toggle 删除：恢复被删的标签
+              const prev = prevTagsRef.current;
+              if (value.length < prev.length) {
+                form.setFieldValue('tags', prev);
+                return;
+              }
+              // 正常新增：去重后写入
+              prevTagsRef.current = deduped;
+              if (deduped.length !== value.length) {
+                form.setFieldValue('tags', deduped);
+              }
+            }}
           />
         </Form.Item>
 

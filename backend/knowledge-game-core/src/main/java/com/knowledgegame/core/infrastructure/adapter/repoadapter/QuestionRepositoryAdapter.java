@@ -161,7 +161,7 @@ public class QuestionRepositoryAdapter implements QuestionRepository {
 
     @Override
     public void batchUpdateStatus(List<Long> ids, QuestionStatus status) {
-        questionJpaRepository.batchUpdateStatus(ids, status.name());
+        questionJpaRepository.batchUpdateStatus(ids, status);
     }
 
     /**

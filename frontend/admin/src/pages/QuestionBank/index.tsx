@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, message, Modal, Popconfirm, Select, Space, Tag, Tooltip, TreeSelect, Upload } from 'antd';
-import { ReloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { Button, message, Modal, Popconfirm, Space, Tag, Tooltip, TreeSelect, Upload } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 
@@ -36,13 +36,6 @@ function flattenTree(nodes: CategoryTreeNode[]): Map<number, string> {
   return map;
 }
 
-/** 排序字段选项 */
-const SORT_OPTIONS = [
-  { label: '更新时间', value: 'updatedAt' },
-  { label: '创建时间', value: 'createdAt' },
-  { label: '难度', value: 'difficulty' },
-];
-
 /** 题库管理页 */
 const QuestionBank: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -60,10 +53,6 @@ const QuestionBank: React.FC = () => {
   /** 批量选中 */
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
-  /** 排序/筛选状态 */
-  const [sortField, setSortField] = useState<string>('updatedAt');
-  const [sortOrder, setSortOrder] = useState<string>('desc');
-
   /** 页面挂载时一次性加载分类树 */
   useEffect(() => {
     if (treeLoadedRef.current) return;
@@ -80,7 +69,7 @@ const QuestionBank: React.FC = () => {
 
   /** 列定义 */
   const columns: ProColumns<QuestionResponse>[] = [
-      { title: 'ID', dataIndex: 'id', search: false, width: 80 },
+      { title: 'ID', dataIndex: 'id', search: false, width: 80, sorter: true },
       {
         title: '题型',
         dataIndex: 'type',
@@ -112,6 +101,7 @@ const QuestionBank: React.FC = () => {
         title: '难度',
         dataIndex: 'difficulty',
         width: 80,
+        sorter: true,
         valueType: 'select',
         valueEnum: Object.fromEntries(
           DIFFICULTY_OPTIONS.map((o) => [String(o.value), { text: o.label }]),
@@ -158,7 +148,7 @@ const QuestionBank: React.FC = () => {
         title: '状态',
         dataIndex: 'status',
         width: 80,
-        initialValue: 'ALL',
+        initialValue: 'ACTIVE',
         valueType: 'select',
         valueEnum: {
           ALL: { text: '全部' },
@@ -176,6 +166,8 @@ const QuestionBank: React.FC = () => {
         dataIndex: 'updatedAt',
         search: false,
         width: 120,
+        sorter: true,
+        defaultSortOrder: 'descend',
         valueType: 'dateTime',
       },
       {
@@ -365,9 +357,17 @@ const QuestionBank: React.FC = () => {
             </Popconfirm>
           </Space>
         )}
-        request={async (params) => {
+        request={async (params, sort) => {
           const { current, pageSize, keyword, type, difficulty, status, categoryId } =
             params;
+          // 从 ProTable 列头排序中提取 sort/order
+          let sortField: string | undefined;
+          let sortOrder: string | undefined;
+          if (sort && typeof sort === 'object' && Object.keys(sort).length > 0) {
+            const key = Object.keys(sort)[0];
+            sortField = key;
+            sortOrder = (sort as Record<string, string>)[key] === 'ascend' ? 'asc' : 'desc';
+          }
           const result = await listQuestions({
             page: (current ?? 1) - 1,
             size: pageSize,
@@ -387,35 +387,19 @@ const QuestionBank: React.FC = () => {
             success: true,
           };
         }}
+        toolbar={{
+          actions: [
+            <Button
+              key="create"
+              type="primary"
+              className="btn-create-question"
+              onClick={handleCreate}
+            >
+              新建题目
+            </Button>,
+          ],
+        }}
         toolBarRender={() => [
-          <Button
-            key="create"
-            type="primary"
-            className="btn-create-question"
-            onClick={handleCreate}
-          >
-            新建题目
-          </Button>,
-          <Select
-            key="sort"
-            value={sortField}
-            onChange={(val) => {
-              setSortField(val);
-              setTimeout(() => actionRef.current?.reload(), 0);
-            }}
-            options={SORT_OPTIONS}
-            style={{ width: 120 }}
-          />,
-          <Button
-            key="order"
-            onClick={() => {
-              setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-              setTimeout(() => actionRef.current?.reload(), 0);
-            }}
-            icon={<ReloadOutlined rotate={sortOrder === 'desc' ? 0 : 180} />}
-          >
-            {sortOrder === 'asc' ? '升序' : '降序'}
-          </Button>,
           <Button key="download-template" onClick={handleDownloadTemplate}>
             下载模板
           </Button>,

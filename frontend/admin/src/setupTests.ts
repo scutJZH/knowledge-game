@@ -15,7 +15,7 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-/** jsdom 缺少 window.getComputedStyle，Ant Design Modal/Drawer 依赖它 */
+/** jsdom 的 getComputedStyle 在读取伪元素或不存在样式时抛错，Ant Design Modal/Drawer 受影响，捕获异常时返回空 CSSStyleDeclaration */
 const originalGetComputedStyle = window.getComputedStyle;
 window.getComputedStyle = (elt: Element, pseudoElt?: string | null) => {
   try {

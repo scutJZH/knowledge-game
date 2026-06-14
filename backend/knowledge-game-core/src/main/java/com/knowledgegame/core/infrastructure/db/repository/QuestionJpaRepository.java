@@ -1,5 +1,6 @@
 package com.knowledgegame.core.infrastructure.db.repository;
 
+import com.knowledgegame.core.domain.model.domainenum.QuestionStatus;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionPO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -20,7 +21,7 @@ public interface QuestionJpaRepository extends JpaRepository<QuestionPO, Long>,
      */
     @Modifying
     @Query("UPDATE QuestionPO q SET q.status = :status, q.updatedAt = CURRENT_TIMESTAMP WHERE q.id IN :ids")
-    void batchUpdateStatus(@Param("ids") List<Long> ids, @Param("status") String status);
+    void batchUpdateStatus(@Param("ids") List<Long> ids, @Param("status") QuestionStatus status);
 
     /**
      * 根据题目 ID 查询关联的 ACTIVE 分类 ID 列表（过滤已停用分类）
