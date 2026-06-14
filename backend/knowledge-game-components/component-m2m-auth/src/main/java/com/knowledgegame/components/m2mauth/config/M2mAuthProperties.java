@@ -10,9 +10,9 @@ import java.util.Map;
 /**
  * 机机鉴权配置属性
  * <p>
- * 校验模型：调用方持有 {@code apiKey}，被调用方也持有 {@code apiKey}，
+ * 校验模型（V2）：调用方通过 {@code services} Map 按目标服务名注入对应 apiKey，
  * 被调用方只校验 {@code X-Service-Key == apiKey}，不关心调用方是谁。
- * 新增调用方只需在调用方配置文件中填被调用方的 key，被调用方无需改动。
+ * 新增调用方只需在调用方配置文件中添加目标服务的 key 映射，被调用方无需改动。
  */
 @ConfigurationProperties(prefix = "m2m.auth")
 public class M2mAuthProperties {
@@ -33,13 +33,19 @@ public class M2mAuthProperties {
     private String serviceName;
 
     /**
-     * API Key（客户端和服务端共用）
-     * <ul>
-     *   <li>客户端：用于 Feign 拦截器注入 X-Service-Key 请求头</li>
-     *   <li>服务端：用于 Filter 校验 X-Service-Key 是否与自身配置一致</li>
-     * </ul>
+     * API Key（被调用方持有，用于 Filter 校验 X-Service-Key 是否与自身配置一致）
      */
     private String apiKey;
+
+    /**
+     * 多目标服务密钥映射（调用方持有）
+     * <ul>
+     *   <li>key 必须等于 {@code @FeignClient(name = "...")} 的值，与目标服务 {@code spring.application.name} 一致</li>
+     *   <li>value 为目标服务的 apiKey</li>
+     *   <li>Feign 拦截器按目标服务名查找对应 Key，未命中抛 {@link IllegalStateException}</li>
+     * </ul>
+     */
+    private Map<String, String> services = new HashMap<>();
 
     public boolean isEnabled() {
         return enabled;
@@ -71,5 +77,13 @@ public class M2mAuthProperties {
 
     public void setApiKey(String apiKey) {
         this.apiKey = apiKey;
+    }
+
+    public Map<String, String> getServices() {
+        return services;
+    }
+
+    public void setServices(Map<String, String> services) {
+        this.services = services;
     }
 }

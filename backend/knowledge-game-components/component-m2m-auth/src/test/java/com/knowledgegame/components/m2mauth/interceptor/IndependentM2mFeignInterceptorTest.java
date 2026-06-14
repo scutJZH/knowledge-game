@@ -2,28 +2,32 @@ package com.knowledgegame.components.m2mauth.interceptor;
 
 import com.knowledgegame.components.m2mauth.config.M2mAuthProperties;
 import feign.RequestTemplate;
+import feign.Target;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
- * M2mFeignInterceptor 独立单元测试
- * 以独立测试工程师视角，全面覆盖 PRD 验收标准中的所有行为规格
+ * M2mFeignInterceptor 独立黑盒测试（脱离 Spring 上下文）。
+ * 按 PRD 6.1 节行为规格覆盖场景 1-7。
  */
-@ExtendWith(MockitoExtension.class)
 class IndependentM2mFeignInterceptorTest {
 
     private M2mAuthProperties properties;
-
     private M2mFeignInterceptor interceptor;
 
     @BeforeEach
@@ -32,276 +36,397 @@ class IndependentM2mFeignInterceptorTest {
         interceptor = new M2mFeignInterceptor(properties);
     }
 
-    // ==================== 正常注入 ====================
-
-    @Nested
-    @DisplayName("规格1-2：配置完整时注入 X-Service-Name 和 X-Service-Key")
-    class NormalInjectionTests {
-
-        @Test
-        @DisplayName("serviceName 和 apiKey 都有值时注入两个请求头")
-        void shouldInjectBothHeadersWhenFullyConfigured() {
-            properties.setServiceName("my-app");
-            properties.setApiKey("my-secret-key");
-
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers().get("X-Service-Name")).containsExactly("my-app");
-            assertThat(template.headers().get("X-Service-Key")).containsExactly("my-secret-key");
-        }
-
-        @Test
-        @DisplayName("注入的请求头名称精确为 X-Service-Name 和 X-Service-Key")
-        void shouldUseExactHeaderNames() {
-            properties.setServiceName("svc");
-            properties.setApiKey("key");
-
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            // 确认头名称存在（区分大小写）
-            assertThat(template.headers()).containsKey("X-Service-Name");
-            assertThat(template.headers()).containsKey("X-Service-Key");
-        }
-
-        @Test
-        @DisplayName("多次调用 apply 每次都注入头（幂等行为）")
-        void shouldInjectHeadersOnEveryApply() {
-            properties.setServiceName("svc");
-            properties.setApiKey("key");
-
-            RequestTemplate template1 = new RequestTemplate();
-            RequestTemplate template2 = new RequestTemplate();
-            interceptor.apply(template1);
-            interceptor.apply(template2);
-
-            assertThat(template1.headers().get("X-Service-Name")).containsExactly("svc");
-            assertThat(template2.headers().get("X-Service-Name")).containsExactly("svc");
-        }
-
-        @Test
-        @DisplayName("注入值与配置值完全一致，无额外处理")
-        void shouldInjectExactConfigValues() {
-            String serviceName = "order-service-v2";
-            String apiKey = "sk-prod-abc123xyz!@#";
-            properties.setServiceName(serviceName);
-            properties.setApiKey(apiKey);
-
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            Collection<String> names = template.headers().get("X-Service-Name");
-            Collection<String> keys = template.headers().get("X-Service-Key");
-            assertThat(names).hasSize(1);
-            assertThat(names.iterator().next()).isEqualTo(serviceName);
-            assertThat(keys).hasSize(1);
-            assertThat(keys.iterator().next()).isEqualTo(apiKey);
-        }
+    /**
+     * 辅助方法：构建一个已设置 feignTarget 的 RequestTemplate。
+     *
+     * @param targetName 模拟的目标服务名（Target.name() 返回值）
+     */
+    private RequestTemplate templateWithTarget(String targetName) {
+        Target<?> target = mock(Target.class);
+        when(target.name()).thenReturn(targetName);
+        RequestTemplate template = new RequestTemplate();
+        template.feignTarget(target);
+        return template;
     }
 
-    // ==================== 空配置保护 ====================
+    // ==================== 场景 1：serviceName 未配置 ====================
 
     @Nested
-    @DisplayName("规格3：任一为空/null 时跳过注入")
-    class EmptyConfigProtectionTests {
+    @DisplayName("场景1：serviceName 未配置时抛 IllegalStateException")
+    class ServiceNameNotConfigured {
 
         @Test
-        @DisplayName("serviceName 为 null 时跳过注入")
-        void shouldSkipWhenServiceNameNull() {
-            properties.setServiceName(null);
-            properties.setApiKey("some-key");
+        @DisplayName("serviceName 为 null 时抛异常，消息含「service-name 未配置」")
+        void shouldThrowWhenServiceNameIsNull() {
+            properties.setServices(Map.of("svc", "key"));
+            RequestTemplate template = templateWithTarget("svc");
 
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("service-name 未配置");
         }
 
         @Test
-        @DisplayName("serviceName 为空字符串时跳过注入")
-        void shouldSkipWhenServiceNameEmpty() {
+        @DisplayName("serviceName 为空字符串时抛异常")
+        void shouldThrowWhenServiceNameIsEmpty() {
             properties.setServiceName("");
-            properties.setApiKey("some-key");
+            properties.setServices(Map.of("svc", "key"));
+            RequestTemplate template = templateWithTarget("svc");
 
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("service-name 未配置");
         }
 
         @Test
-        @DisplayName("serviceName 为纯空格时跳过注入")
-        void shouldSkipWhenServiceNameBlank() {
+        @DisplayName("serviceName 为纯空格时抛异常")
+        void shouldThrowWhenServiceNameIsBlank() {
             properties.setServiceName("   ");
-            properties.setApiKey("some-key");
+            properties.setServices(Map.of("svc", "key"));
+            RequestTemplate template = templateWithTarget("svc");
 
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("service-name 未配置");
         }
 
         @Test
-        @DisplayName("apiKey 为 null 时跳过注入")
-        void shouldSkipWhenApiKeyNull() {
-            properties.setServiceName("my-service");
-            properties.setApiKey(null);
+        @DisplayName("serviceName 未配置时不会尝试读取 feignTarget（短路行为）")
+        void shouldShortCircuitBeforeReadingFeignTarget() {
+            // serviceName 为 null，即使 feignTarget 也为 null，也应按 serviceName 报错
+            RequestTemplate template = new RequestTemplate(); // feignTarget 未设置
 
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
-        }
-
-        @Test
-        @DisplayName("apiKey 为空字符串时跳过注入")
-        void shouldSkipWhenApiKeyEmpty() {
-            properties.setServiceName("my-service");
-            properties.setApiKey("");
-
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
-        }
-
-        @Test
-        @DisplayName("apiKey 为纯空格时跳过注入")
-        void shouldSkipWhenApiKeyBlank() {
-            properties.setServiceName("my-service");
-            properties.setApiKey("   ");
-
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
-        }
-
-        @Test
-        @DisplayName("两者均为 null 时跳过注入")
-        void shouldSkipWhenBothNull() {
-            properties.setServiceName(null);
-            properties.setApiKey(null);
-
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
-        }
-
-        @Test
-        @DisplayName("两者均为空字符串时跳过注入")
-        void shouldSkipWhenBothEmpty() {
-            properties.setServiceName("");
-            properties.setApiKey("");
-
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
-        }
-
-        /**
-         * 参数化测试：覆盖所有空/null 组合
-         */
-        @ParameterizedTest(name = "serviceName={0}, apiKey={1} → 不注入头")
-        @DisplayName("各种空值组合均不注入头")
-        @CsvSource({
-                "null, some-key",
-                "'', some-key",
-                "'   ', some-key",
-                "my-service, null",
-                "my-service, ''",
-                "my-service, '   '",
-                "null, null",
-                "'', ''",
-                "null, ''",
-                "'', null"
-        })
-        void shouldSkipInjectionForVariousEmptyCombinations(String serviceName, String apiKey) {
-            // CSVSource 会把 "null" 字符串传进来，需要转换为真正的 null
-            properties.setServiceName("null".equals(serviceName) ? null : serviceName);
-            properties.setApiKey("null".equals(apiKey) ? null : apiKey);
-
-            RequestTemplate template = new RequestTemplate();
-            interceptor.apply(template);
-
-            assertThat(template.headers()).isEmpty();
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("service-name 未配置");
         }
     }
 
-    // ==================== 配置动态变更 ====================
+    // ==================== 场景 2：feignTarget 为空 ====================
 
     @Nested
-    @DisplayName("配置动态变更")
-    class DynamicConfigChangeTests {
+    @DisplayName("场景2：feignTarget 为空时抛 IllegalStateException")
+    class FeignTargetMissing {
 
         @Test
-        @DisplayName("修改 properties 后 apply 反映最新值")
-        void shouldReflectLatestConfigAfterChange() {
-            // 第一次：未配置，不注入
-            properties.setServiceName(null);
-            properties.setApiKey(null);
+        @DisplayName("feignTarget 未设置（为 null）时抛异常，消息含「feignTarget() 为空」")
+        void shouldThrowWhenFeignTargetIsNull() {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of("svc", "key"));
+            RequestTemplate template = new RequestTemplate(); // 未调用 feignTarget()
 
-            RequestTemplate template1 = new RequestTemplate();
-            interceptor.apply(template1);
-            assertThat(template1.headers()).isEmpty();
-
-            // 修改配置
-            properties.setServiceName("new-service");
-            properties.setApiKey("new-key");
-
-            RequestTemplate template2 = new RequestTemplate();
-            interceptor.apply(template2);
-            assertThat(template2.headers().get("X-Service-Name")).containsExactly("new-service");
-            assertThat(template2.headers().get("X-Service-Key")).containsExactly("new-key");
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("feignTarget() 为空");
         }
 
         @Test
-        @DisplayName("从有值改为空值后不再注入")
-        void shouldStopInjectionAfterConfigCleared() {
-            // 先配置有效值
-            properties.setServiceName("svc");
-            properties.setApiKey("key");
+        @DisplayName("target.name() 返回 null 时抛异常")
+        void shouldThrowWhenTargetNameIsNull() {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of("svc", "key"));
+            Target<?> target = mock(Target.class);
+            when(target.name()).thenReturn(null);
+            RequestTemplate template = new RequestTemplate();
+            template.feignTarget(target);
 
-            RequestTemplate template1 = new RequestTemplate();
-            interceptor.apply(template1);
-            assertThat(template1.headers()).hasSize(2);
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("feignTarget() 为空");
+        }
 
-            // 清除 apiKey
-            properties.setApiKey(null);
+        @Test
+        @DisplayName("target.name() 返回空字符串时抛异常")
+        void shouldThrowWhenTargetNameIsEmpty() {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of("svc", "key"));
+            RequestTemplate template = templateWithTarget("");
 
-            RequestTemplate template2 = new RequestTemplate();
-            interceptor.apply(template2);
-            assertThat(template2.headers()).isEmpty();
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("feignTarget() 为空");
+        }
+
+        @Test
+        @DisplayName("target.name() 返回纯空格时抛异常")
+        void shouldThrowWhenTargetNameIsBlank() {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of("svc", "key"));
+            RequestTemplate template = templateWithTarget("   ");
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("feignTarget() 为空");
         }
     }
 
-    // ==================== 不修改已有请求头 ====================
+    // ==================== 场景 3：services Map 命中 ====================
 
     @Nested
-    @DisplayName("不覆盖已有请求头")
-    class ExistingHeadersTests {
+    @DisplayName("场景3：services Map 命中时注入请求头")
+    class ServiceMapHit {
 
         @Test
-        @DisplayName("apply 不影响 RequestTemplate 中已存在的其他头")
-        void shouldNotRemoveExistingHeaders() {
-            properties.setServiceName("svc");
-            properties.setApiKey("key");
-
-            RequestTemplate template = new RequestTemplate();
-            template.header("Content-Type", "application/json");
-            template.header("Authorization", "Bearer token");
+        @DisplayName("目标服务在 services 中时注入 X-Service-Name 和 X-Service-Key")
+        void shouldInjectHeadersWhenServiceInMap() {
+            properties.setServiceName("knowledge-game-admin");
+            properties.setServices(Map.of("knowledge-game-file", "file-api-key"));
+            RequestTemplate template = templateWithTarget("knowledge-game-file");
 
             interceptor.apply(template);
 
-            // 验证原有头仍然存在
-            assertThat(template.headers().get("Content-Type")).containsExactly("application/json");
-            assertThat(template.headers().get("Authorization")).containsExactly("Bearer token");
-            // 验证新注入的头也存在
-            assertThat(template.headers().get("X-Service-Name")).containsExactly("svc");
-            assertThat(template.headers().get("X-Service-Key")).containsExactly("key");
+            assertThat(template.headers().get("X-Service-Name"))
+                    .containsExactly("knowledge-game-admin");
+            assertThat(template.headers().get("X-Service-Key"))
+                    .containsExactly("file-api-key");
+        }
+
+        @Test
+        @DisplayName("X-Service-Name 的值必须等于 properties.serviceName")
+        void shouldSetXServiceNameEqualToCallerServiceName() {
+            properties.setServiceName("my-caller-service");
+            properties.setServices(Map.of("target-svc", "target-key"));
+            RequestTemplate template = templateWithTarget("target-svc");
+
+            interceptor.apply(template);
+
+            assertThat(template.headers().get("X-Service-Name"))
+                    .containsExactly("my-caller-service");
+        }
+
+        @Test
+        @DisplayName("服务名包含特殊字符时也能正确注入")
+        void shouldHandleSpecialCharactersInServiceName() {
+            properties.setServiceName("svc-with-dash_AND.upper");
+            properties.setServices(Map.of("target", "key-123!@#"));
+            RequestTemplate template = templateWithTarget("target");
+
+            interceptor.apply(template);
+
+            assertThat(template.headers().get("X-Service-Name"))
+                    .containsExactly("svc-with-dash_AND.upper");
+            assertThat(template.headers().get("X-Service-Key"))
+                    .containsExactly("key-123!@#");
+        }
+    }
+
+    // ==================== 场景 4：services Map 未命中 ====================
+
+    @Nested
+    @DisplayName("场景4：services Map 未命中时抛异常")
+    class ServiceMapMiss {
+
+        @Test
+        @DisplayName("目标服务不在 services 中时抛异常，消息含目标服务名")
+        void shouldThrowWhenTargetNotInServices() {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of("other-svc", "other-key"));
+            RequestTemplate template = templateWithTarget("unknown-svc");
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("unknown-svc")
+                    .hasMessageContaining("未在 m2m.auth.services 中配置 apiKey");
+        }
+
+        @Test
+        @DisplayName("目标服务在 services 中但值为空字符串时抛异常")
+        void shouldThrowWhenServiceKeyIsEmpty() {
+            properties.setServiceName("caller");
+            properties.setServices(new HashMap<>(Map.of("svc", "")));
+            RequestTemplate template = templateWithTarget("svc");
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("svc")
+                    .hasMessageContaining("未在 m2m.auth.services 中配置 apiKey");
+        }
+
+        @Test
+        @DisplayName("目标服务在 services 中但值为纯空格时抛异常")
+        void shouldThrowWhenServiceKeyIsBlank() {
+            properties.setServiceName("caller");
+            properties.setServices(new HashMap<>(Map.of("svc", "   ")));
+            RequestTemplate template = templateWithTarget("svc");
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("svc")
+                    .hasMessageContaining("未在 m2m.auth.services 中配置 apiKey");
+        }
+
+        @Test
+        @DisplayName("目标服务在 services 中但值为 null 时抛异常（key 存在但 value=null）")
+        void shouldThrowWhenServiceKeyIsNull() {
+            properties.setServiceName("caller");
+            HashMap<String, String> map = new HashMap<>();
+            map.put("svc", null);
+            properties.setServices(map);
+            RequestTemplate template = templateWithTarget("svc");
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("svc")
+                    .hasMessageContaining("未在 m2m.auth.services 中配置 apiKey");
+        }
+
+        @Test
+        @DisplayName("services 为 null 时抛 IllegalStateException（防御性校验）")
+        void shouldThrowWhenServicesIsNull() {
+            properties.setServiceName("caller");
+            properties.setServices(null);
+            RequestTemplate template = templateWithTarget("svc");
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("services 未配置");
+        }
+    }
+
+    // ==================== 场景 5：services 为空 + apiKey 有旧值 ====================
+
+    @Nested
+    @DisplayName("场景5：services 为空时即使 apiKey 有旧值也不回落")
+    class NoFallbackToOldApiKey {
+
+        @Test
+        @DisplayName("services 为空 Map + apiKey 有值 → 抛异常，不回落旧字段")
+        void shouldNotFallbackWhenServicesIsEmpty() {
+            properties.setServiceName("caller");
+            properties.setApiKey("old-api-key-value"); // 旧配置字段
+            // services 保持默认空 HashMap
+            RequestTemplate template = templateWithTarget("any-svc");
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("未在 m2m.auth.services 中配置 apiKey");
+        }
+
+        @Test
+        @DisplayName("services 为空 + apiKey 为 null → 同样抛异常")
+        void shouldThrowWhenServicesIsEmptyAndApiKeyIsNull() {
+            properties.setServiceName("caller");
+            // services 默认空，apiKey 默认 null
+            RequestTemplate template = templateWithTarget("any-svc");
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("未在 m2m.auth.services 中配置 apiKey");
+        }
+    }
+
+    // ==================== 场景 6：多目标服务映射 ====================
+
+    @Nested
+    @DisplayName("场景6：多目标服务映射 - 不同 target 注入不同 apiKey")
+    class MultiTargetMapping {
+
+        @Test
+        @DisplayName("两个不同目标服务各自注入对应的 apiKey")
+        void shouldInjectDifferentKeysForDifferentTargets() {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of(
+                    "service-a", "key-for-a",
+                    "service-b", "key-for-b"
+            ));
+
+            RequestTemplate templateA = templateWithTarget("service-a");
+            RequestTemplate templateB = templateWithTarget("service-b");
+
+            interceptor.apply(templateA);
+            interceptor.apply(templateB);
+
+            assertThat(templateA.headers().get("X-Service-Name")).containsExactly("caller");
+            assertThat(templateA.headers().get("X-Service-Key")).containsExactly("key-for-a");
+            assertThat(templateB.headers().get("X-Service-Name")).containsExactly("caller");
+            assertThat(templateB.headers().get("X-Service-Key")).containsExactly("key-for-b");
+        }
+
+        @Test
+        @DisplayName("三个目标服务各自获取正确 apiKey")
+        void shouldInjectCorrectKeysForThreeTargets() {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of(
+                    "svc-1", "key-1",
+                    "svc-2", "key-2",
+                    "svc-3", "key-3"
+            ));
+
+            RequestTemplate t1 = templateWithTarget("svc-1");
+            RequestTemplate t2 = templateWithTarget("svc-2");
+            RequestTemplate t3 = templateWithTarget("svc-3");
+
+            interceptor.apply(t1);
+            interceptor.apply(t2);
+            interceptor.apply(t3);
+
+            assertThat(t1.headers().get("X-Service-Key")).containsExactly("key-1");
+            assertThat(t2.headers().get("X-Service-Key")).containsExactly("key-2");
+            assertThat(t3.headers().get("X-Service-Key")).containsExactly("key-3");
+        }
+
+        @Test
+        @DisplayName("多个目标但其中一个未配置时抛异常")
+        void shouldThrowWhenOneTargetNotConfigured() {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of("svc-a", "key-a"));
+            RequestTemplate template = templateWithTarget("svc-b"); // 未配置
+
+            assertThatThrownBy(() -> interceptor.apply(template))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("svc-b");
+        }
+    }
+
+    // ==================== 场景 7：多线程并发 ====================
+
+    @Nested
+    @DisplayName("场景7：多线程并发安全 - 无共享可变状态")
+    class ThreadSafety {
+
+        @Test
+        @DisplayName("16 线程并发调用 apply 不会互相干扰，各自获得正确头部")
+        void shouldBeThreadSafe() throws Exception {
+            properties.setServiceName("caller");
+            properties.setServices(Map.of(
+                    "svc-a", "key-a",
+                    "svc-b", "key-b"
+            ));
+
+            int threadCount = 16;
+            ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+            CountDownLatch latch = new CountDownLatch(threadCount);
+            AtomicInteger errorCount = new AtomicInteger(0);
+
+            for (int i = 0; i < threadCount; i++) {
+                final String svc = i % 2 == 0 ? "svc-a" : "svc-b";
+                final String expectedKey = i % 2 == 0 ? "key-a" : "key-b";
+                executor.submit(() -> {
+                    try {
+                        Target<?> target = mock(Target.class);
+                        when(target.name()).thenReturn(svc);
+                        RequestTemplate template = new RequestTemplate();
+                        template.feignTarget(target);
+
+                        interceptor.apply(template);
+
+                        assertThat(template.headers().get("X-Service-Name"))
+                                .containsExactly("caller");
+                        assertThat(template.headers().get("X-Service-Key"))
+                                .containsExactly(expectedKey);
+                    } catch (AssertionError e) {
+                        errorCount.incrementAndGet();
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
+
+            boolean finished = latch.await(5, TimeUnit.SECONDS);
+            executor.shutdown();
+
+            assertThat(finished).isTrue();
+            assertThat(errorCount.get()).isZero();
         }
     }
 }

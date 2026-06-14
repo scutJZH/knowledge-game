@@ -36,7 +36,8 @@ m2m:
   auth:
     enabled: true
     service-name: knowledge-game-admin
-    api-key: test-api-key
+    services:
+      knowledge-game-file: test-api-key
 
 knowledgegame:
   log:
