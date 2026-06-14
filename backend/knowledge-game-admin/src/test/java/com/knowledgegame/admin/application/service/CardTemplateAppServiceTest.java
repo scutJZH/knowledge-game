@@ -1,15 +1,13 @@
 package com.knowledgegame.admin.application.service;
 
-import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
-import com.knowledgegame.admin.application.command.StarImageCommand;
+import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
-import com.knowledgegame.core.domain.model.vo.CardStarImage;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
@@ -27,6 +25,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -36,7 +35,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * CardTemplateAppService 单元测试
- * 使用 Mockito mock 三个依赖，验证应用服务的业务编排逻辑
+ * <p>
+ * 使用 Mockito mock 三个依赖，验证应用服务的业务编排逻辑。
+ * REQ-92 简化后：imageUrl 替代 starImages，移除 addOrUpdateStarImage。
  */
 @ExtendWith(MockitoExtension.class)
 class CardTemplateAppServiceTest {
@@ -58,8 +59,19 @@ class CardTemplateAppServiceTest {
      */
     private CardTemplate buildCardTemplate(Long id, String code, String name, CardRarity rarity,
                                             CardTemplateStatus status) {
-        return CardTemplate.reconstruct(id, 1L, code, name, rarity, "测试卡牌",
-                status, List.of(CardStarImage.create(1, "https://example.com/img.png")),
+        return CardTemplate.reconstruct(id, 1L, code, name, rarity, "测试描述",
+                status, "https://example.com/card.png",
+                LocalDateTime.of(2026, 1, 1, 0, 0, 0),
+                LocalDateTime.of(2026, 1, 1, 0, 0, 0));
+    }
+
+    /**
+     * 构建测试用的 CardTemplate（含自定义 imageUrl）
+     */
+    private CardTemplate buildCardTemplateWithImage(Long id, String code, String name, CardRarity rarity,
+                                                     CardTemplateStatus status, String imageUrl) {
+        return CardTemplate.reconstruct(id, 1L, code, name, rarity, "测试描述",
+                status, imageUrl,
                 LocalDateTime.of(2026, 1, 1, 0, 0, 0),
                 LocalDateTime.of(2026, 1, 1, 0, 0, 0));
     }
@@ -77,10 +89,10 @@ class CardTemplateAppServiceTest {
     // ========== 创建卡牌模板测试 ==========
 
     /**
-     * 创建卡牌模板 - code 唯一性校验通过，正常创建成功
+     * 创建卡牌模板 - code 唯一性校验通过，正常创建成功（含 imageUrl）
      */
     @Test
-    @DisplayName("创建卡牌模板 - 正常创建成功")
+    @DisplayName("创建卡牌模板 - 正常创建成功（含 imageUrl）")
     void createCardTemplate_shouldSucceed_whenCodeIsUnique() {
         // 准备参数
         Long ipSeriesId = 1L;
@@ -89,24 +101,25 @@ class CardTemplateAppServiceTest {
         CardRarity rarity = CardRarity.SR;
         String description = "电气鼠";
         CardTemplateStatus status = CardTemplateStatus.ACTIVE;
-        List<StarImageCommand> starImages = List.of(new StarImageCommand(1, "https://example.com/img.png"));
+        String imageUrl = "https://example.com/card.png";
 
         // 编码在当前 IP 系列下不存在，返回 empty
-        when(cardTemplateRepositoryPort.findByIpSeriesIdAndCode(ipSeriesId, code)).thenReturn(Optional.empty());
+        when(cardTemplateRepositoryPort.findByIpSeriesIdAndCode(ipSeriesId, code))
+                .thenReturn(Optional.empty());
         // 领域服务返回新创建的 CardTemplate（无 id）
-        CardTemplate newTemplate = buildCardTemplate(null, code, name, rarity, status);
+        CardTemplate newTemplate = buildCardTemplateWithImage(null, code, name, rarity, status, imageUrl);
         when(cardTemplateDomainService.validateAndCreate(
-                eq(ipSeriesId), eq(code), eq(name), eq(rarity), eq(description), eq(status), any()))
+                eq(ipSeriesId), eq(code), eq(name), eq(rarity), eq(description), eq(status), eq(imageUrl)))
                 .thenReturn(newTemplate);
         // save 返回带 id 的领域对象
-        CardTemplate saved = buildCardTemplate(1L, code, name, rarity, status);
+        CardTemplate saved = buildCardTemplateWithImage(1L, code, name, rarity, status, imageUrl);
         when(cardTemplateRepositoryPort.save(any(CardTemplate.class))).thenReturn(saved);
         // 查询 IpSeries 名称
         when(ipSeriesRepositoryPort.findById(ipSeriesId)).thenReturn(Optional.of(buildIpSeries(1L, "火影忍者")));
 
         // 执行
         CardTemplateResponse result = cardTemplateAppService.createCardTemplate(
-                ipSeriesId, code, name, rarity, description, status, starImages);
+                ipSeriesId, code, name, rarity, description, status, imageUrl);
 
         // 验证返回的 DTO 字段
         assertNotNull(result);
@@ -116,9 +129,10 @@ class CardTemplateAppServiceTest {
         assertEquals("SR", result.getRarity());
         assertEquals("ACTIVE", result.getStatus());
         assertEquals("火影忍者", result.getIpSeriesName());
+        assertEquals(imageUrl, result.getImageUrl());
         verify(cardTemplateRepositoryPort).findByIpSeriesIdAndCode(ipSeriesId, code);
         verify(cardTemplateDomainService).validateAndCreate(
-                eq(ipSeriesId), eq(code), eq(name), eq(rarity), eq(description), eq(status), any());
+                eq(ipSeriesId), eq(code), eq(name), eq(rarity), eq(description), eq(status), eq(imageUrl));
         verify(cardTemplateRepositoryPort).save(any(CardTemplate.class));
     }
 
@@ -135,30 +149,32 @@ class CardTemplateAppServiceTest {
         CardRarity rarity = CardRarity.SR;
         String description = "电气鼠";
         CardTemplateStatus status = CardTemplateStatus.ACTIVE;
-        List<StarImageCommand> starImages = List.of(new StarImageCommand(1, "https://example.com/img.png"));
+        String imageUrl = "https://example.com/card.png";
 
         // 模拟同一 IP 系列下编码已存在
         CardTemplate existing = buildCardTemplate(2L, code, "其他卡牌", rarity, status);
-        when(cardTemplateRepositoryPort.findByIpSeriesIdAndCode(ipSeriesId, code)).thenReturn(Optional.of(existing));
+        when(cardTemplateRepositoryPort.findByIpSeriesIdAndCode(ipSeriesId, code))
+                .thenReturn(Optional.of(existing));
 
         // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> cardTemplateAppService.createCardTemplate(
-                        ipSeriesId, code, name, rarity, description, status, starImages));
+                        ipSeriesId, code, name, rarity, description, status, imageUrl));
         assertEquals("卡牌编码已存在: " + code, exception.getMessage());
     }
 
     // ========== 查询详情测试 ==========
 
     /**
-     * 根据 ID 查询 - 存在时返回 DTO（含 ipSeriesName）
+     * 根据 ID 查询 - 存在时返回 DTO（含 ipSeriesName 和 imageUrl）
      */
     @Test
-    @DisplayName("查询卡牌模板详情 - 存在时返回 DTO")
+    @DisplayName("查询卡牌模板详情 - 存在时返回 DTO（含 imageUrl）")
     void getCardTemplateById_shouldReturn_whenExists() {
         // 准备数据
         Long id = 1L;
-        CardTemplate template = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
+        CardTemplate template = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR,
+                CardTemplateStatus.ACTIVE);
         when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(template));
         when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影忍者")));
 
@@ -172,6 +188,7 @@ class CardTemplateAppServiceTest {
         assertEquals("皮卡丘", result.getName());
         assertNotNull(result.getIpSeriesName());
         assertEquals("火影忍者", result.getIpSeriesName());
+        assertEquals("https://example.com/card.png", result.getImageUrl());
         verify(cardTemplateRepositoryPort).findById(id);
     }
 
@@ -208,7 +225,8 @@ class CardTemplateAppServiceTest {
         int pageSize = 20;
 
         // 构建领域分页结果
-        CardTemplate template1 = buildCardTemplate(1L, "PIKACHU", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
+        CardTemplate template1 = buildCardTemplate(1L, "PIKACHU", "皮卡丘", CardRarity.SR,
+                CardTemplateStatus.ACTIVE);
         PageResult<CardTemplate> mockPageResult = PageResult.<CardTemplate>builder()
                 .content(List.of(template1))
                 .totalElements(1)
@@ -239,10 +257,10 @@ class CardTemplateAppServiceTest {
     // ========== 更新卡牌模板测试 ==========
 
     /**
-     * 更新卡牌模板 - 正常更新
+     * 更新卡牌模板 - 正常更新（含 imageUrl）
      */
     @Test
-    @DisplayName("更新卡牌模板 - 正常更新")
+    @DisplayName("更新卡牌模板 - 正常更新（含 imageUrl）")
     void updateCardTemplate_shouldSucceed_whenValidRequest() {
         // 准备数据
         Long id = 1L;
@@ -251,21 +269,24 @@ class CardTemplateAppServiceTest {
         CardRarity newRarity = CardRarity.SSR;
         String newDescription = "进化后的电气鼠";
         CardTemplateStatus newStatus = CardTemplateStatus.ACTIVE;
+        String newImageUrl = "https://example.com/evo.png";
 
-        CardTemplate existing = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
+        CardTemplate existing = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR,
+                CardTemplateStatus.ACTIVE);
         when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
 
-        CardTemplate saved = buildCardTemplate(id, newCode, newName, newRarity, newStatus);
+        CardTemplate saved = buildCardTemplateWithImage(id, newCode, newName, newRarity, newStatus, newImageUrl);
         when(cardTemplateRepositoryPort.save(any(CardTemplate.class))).thenReturn(saved);
         when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影忍者")));
 
         // 执行
         CardTemplateResponse result = cardTemplateAppService.updateCardTemplate(
-                id, newCode, newName, newRarity, newDescription, newStatus);
+                id, newCode, newName, newRarity, newDescription, newStatus, newImageUrl);
 
         // 验证
         assertNotNull(result);
         assertEquals(id, result.getId());
+        assertEquals(newImageUrl, result.getImageUrl());
         verify(cardTemplateRepositoryPort).findById(id);
         verify(cardTemplateRepositoryPort).save(any(CardTemplate.class));
     }
@@ -280,46 +301,40 @@ class CardTemplateAppServiceTest {
         Long id = 1L;
         String newCode = "NEW_CODE";
 
-        CardTemplate existing = buildCardTemplate(id, "OLD_CODE", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
+        CardTemplate existing = buildCardTemplate(id, "OLD_CODE", "皮卡丘", CardRarity.SR,
+                CardTemplateStatus.ACTIVE);
         when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
 
         // 模拟同一 IP 系列下 newCode 已被其他记录占用
-        CardTemplate conflict = buildCardTemplate(2L, newCode, "其他卡牌", CardRarity.SR, CardTemplateStatus.ACTIVE);
+        CardTemplate conflict = buildCardTemplate(2L, newCode, "其他卡牌", CardRarity.SR,
+                CardTemplateStatus.ACTIVE);
         when(cardTemplateRepositoryPort.findByIpSeriesIdAndCode(existing.getIpSeriesId(), newCode))
                 .thenReturn(Optional.of(conflict));
 
         // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> cardTemplateAppService.updateCardTemplate(
-                        id, newCode, "皮卡丘", CardRarity.SR, "描述", CardTemplateStatus.ACTIVE));
+                        id, newCode, "皮卡丘", CardRarity.SR, "描述",
+                        CardTemplateStatus.ACTIVE, null));
         assertEquals("卡牌编码已存在: " + newCode, exception.getMessage());
     }
 
-    // ========== 星级图片测试 ==========
-
     /**
-     * 添加/替换星级图片 - 正常操作
+     * 更新卡牌模板 - 模板不存在抛异常
      */
     @Test
-    @DisplayName("添加/替换星级图片 - 正常操作")
-    void addOrUpdateStarImage_shouldSucceed() {
+    @DisplayName("更新卡牌模板 - 模板不存在抛异常")
+    void updateCardTemplate_shouldThrow_whenNotFound() {
         // 准备数据
-        Long id = 1L;
-        int starLevel = 2;
-        String imageUrl = "https://example.com/star2.png";
+        Long id = 999L;
+        when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.empty());
 
-        CardTemplate existing = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
-        when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-        when(cardTemplateRepositoryPort.save(any(CardTemplate.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影忍者")));
-
-        // 执行
-        CardTemplateResponse result = cardTemplateAppService.addOrUpdateStarImage(id, starLevel, imageUrl);
-
-        // 验证 save 被调用
-        assertNotNull(result);
-        verify(cardTemplateRepositoryPort).findById(id);
-        verify(cardTemplateRepositoryPort).save(any(CardTemplate.class));
+        // 执行并验证异常
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> cardTemplateAppService.updateCardTemplate(
+                        id, "CODE", "名称", CardRarity.N, "描述",
+                        CardTemplateStatus.ACTIVE, null));
+        assertEquals("卡牌模板不存在: " + id, exception.getMessage());
     }
 
     // ========== 软删除测试 ==========
@@ -332,9 +347,11 @@ class CardTemplateAppServiceTest {
     void deleteCardTemplate_shouldDeactivate() {
         // 准备数据
         Long id = 1L;
-        CardTemplate existing = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
+        CardTemplate existing = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR,
+                CardTemplateStatus.ACTIVE);
         when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-        when(cardTemplateRepositoryPort.save(any(CardTemplate.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(cardTemplateRepositoryPort.save(any(CardTemplate.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // 执行
         cardTemplateAppService.deleteCardTemplate(id);

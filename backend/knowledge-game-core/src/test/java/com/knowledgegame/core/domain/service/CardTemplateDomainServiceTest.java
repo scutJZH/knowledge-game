@@ -6,7 +6,6 @@ import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
-import com.knowledgegame.core.domain.model.vo.CardStarImage;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,12 +15,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +27,7 @@ import static org.mockito.Mockito.when;
  * CardTemplateDomainService 领域服务单元测试
  * <p>
  * 覆盖 validateAndCreate() 的成功路径和异常路径（IpSeries 不存在、未启用）。
+ * REQ-92 简化后：imageUrl 替代 starImages 列表。
  */
 @ExtendWith(MockitoExtension.class)
 class CardTemplateDomainServiceTest {
@@ -54,23 +53,48 @@ class CardTemplateDomainServiceTest {
         );
         when(ipSeriesRepositoryPort.findById(10L)).thenReturn(Optional.of(activeIpSeries));
 
-        // 准备参数
-        List<CardStarImage> images = new ArrayList<>();
-        images.add(CardStarImage.create(1, "https://example.com/1.png"));
-
         // 执行
         CardTemplate result = cardTemplateDomainService.validateAndCreate(
                 10L, "CARD_001", "测试卡牌", CardRarity.SR,
-                "测试描述", CardTemplateStatus.ACTIVE, images
+                "测试描述", CardTemplateStatus.ACTIVE, "https://example.com/card.png"
         );
 
         // 断言
         assertNotNull(result, "返回的 CardTemplate 不应为 null");
+        assertNull(result.getId(), "新创建的模板 id 应为 null");
         assertEquals(10L, result.getIpSeriesId(), "ipSeriesId 应为 10");
         assertEquals("CARD_001", result.getCode(), "code 应为 CARD_001");
         assertEquals("测试卡牌", result.getName(), "name 应为 测试卡牌");
         assertEquals(CardRarity.SR, result.getRarity(), "rarity 应为 SR");
         assertEquals(CardTemplateStatus.ACTIVE, result.getStatus(), "status 应为 ACTIVE");
+        assertEquals("https://example.com/card.png", result.getImageUrl(),
+                "imageUrl 应正确设置");
+    }
+
+    /**
+     * 验证 validateAndCreate() 传入 null imageUrl 也能成功创建
+     */
+    @Test
+    @DisplayName("validateAndCreate() 传入 null imageUrl 也应成功创建")
+    void validateAndCreate_shouldAllowNullImageUrl() {
+        // 准备
+        IpSeries activeIpSeries = IpSeries.reconstruct(
+                10L, "MARVEL", "漫威宇宙", "描述",
+                "https://cover.jpg", IpSeriesStatus.ACTIVE,
+                LocalDateTime.of(2025, 1, 1, 0, 0),
+                LocalDateTime.of(2025, 1, 1, 0, 0)
+        );
+        when(ipSeriesRepositoryPort.findById(10L)).thenReturn(Optional.of(activeIpSeries));
+
+        // 执行
+        CardTemplate result = cardTemplateDomainService.validateAndCreate(
+                10L, "CODE", "名称", CardRarity.N, "描述",
+                CardTemplateStatus.ACTIVE, null
+        );
+
+        // 断言
+        assertNotNull(result, "返回的 CardTemplate 不应为 null");
+        assertNull(result.getImageUrl(), "imageUrl 应为 null");
     }
 
     /**
@@ -116,7 +140,7 @@ class CardTemplateDomainServiceTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 cardTemplateDomainService.validateAndCreate(
                         20L, "CODE", "名称", CardRarity.R,
-                        "描述", CardTemplateStatus.ACTIVE, null
+                        "描述", CardTemplateStatus.ACTIVE, "https://example.com/img.png"
                 ),
                 "IpSeries 为 INACTIVE 时应抛出 BusinessException"
         );

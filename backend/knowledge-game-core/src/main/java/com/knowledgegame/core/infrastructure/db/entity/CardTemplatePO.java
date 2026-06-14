@@ -2,16 +2,13 @@ package com.knowledgegame.core.infrastructure.db.entity;
 
 import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -21,8 +18,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * 卡牌模板持久化对象（JPA Entity，仅在 infrastructure 层）
@@ -62,10 +57,8 @@ public class CardTemplatePO {
     @Column(nullable = false, length = 20)
     private CardTemplateStatus status;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true,
-            mappedBy = "cardTemplate", fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<CardStarImagePO> starImages = new ArrayList<>();
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

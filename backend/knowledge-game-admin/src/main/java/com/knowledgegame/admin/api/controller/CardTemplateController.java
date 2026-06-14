@@ -1,12 +1,9 @@
 package com.knowledgegame.admin.api.controller;
 
-import com.knowledgegame.admin.api.dto.request.AddStarImageRequest;
 import com.knowledgegame.admin.api.dto.request.CreateCardTemplateRequest;
-import com.knowledgegame.admin.api.dto.request.StarImageRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
-import com.knowledgegame.admin.application.command.StarImageCommand;
 import com.knowledgegame.admin.application.service.CardTemplateAppService;
 import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.domain.model.vo.PageResult;
@@ -20,9 +17,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.Collections;
-import java.util.List;
 
 /**
  * 卡牌模板管理端 Controller（仅参数接收 + 结果返回，无业务逻辑）
@@ -42,7 +36,6 @@ public class CardTemplateController {
      */
     @PostMapping
     public Result<CardTemplateResponse> create(@Valid @RequestBody CreateCardTemplateRequest request) {
-        List<StarImageCommand> starImages = toStarImageCommands(request.getStarImages());
         CardTemplateResponse response = cardTemplateAppService.createCardTemplate(
                 request.getIpSeriesId(),
                 request.getCode(),
@@ -50,7 +43,7 @@ public class CardTemplateController {
                 request.getRarity(),
                 request.getDescription(),
                 request.getStatus(),
-                starImages
+                request.getImageUrl()
         );
         return Result.success(response);
     }
@@ -92,19 +85,9 @@ public class CardTemplateController {
                 request.getName(),
                 request.getRarity(),
                 request.getDescription(),
-                request.getStatus()
+                request.getStatus(),
+                request.getImageUrl()
         );
-        return Result.success(response);
-    }
-
-    /**
-     * 添加/替换单张星级图片
-     */
-    @PostMapping("/{id}/star-images")
-    public Result<CardTemplateResponse> addStarImage(@PathVariable Long id,
-                                                      @Valid @RequestBody AddStarImageRequest request) {
-        CardTemplateResponse response = cardTemplateAppService.addOrUpdateStarImage(
-                id, request.getStarLevel(), request.getImageUrl());
         return Result.success(response);
     }
 
@@ -115,17 +98,5 @@ public class CardTemplateController {
     public Result<Void> delete(@PathVariable Long id) {
         cardTemplateAppService.deleteCardTemplate(id);
         return Result.success();
-    }
-
-    /**
-     * 将请求 DTO 列表转换为应用层命令列表
-     */
-    private List<StarImageCommand> toStarImageCommands(List<StarImageRequest> requests) {
-        if (requests == null || requests.isEmpty()) {
-            return Collections.emptyList();
-        }
-        return requests.stream()
-                .map(req -> new StarImageCommand(req.getStarLevel(), req.getImageUrl()))
-                .toList();
     }
 }

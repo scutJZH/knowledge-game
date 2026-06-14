@@ -2,14 +2,11 @@ package com.knowledgegame.admin.api.dto.request;
 
 import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.List;
 
 /**
  * 创建卡牌模板请求 DTO
@@ -38,6 +35,6 @@ public class CreateCardTemplateRequest {
     @NotNull(message = "状态不能为空")
     private CardTemplateStatus status;
 
-    @Valid
-    private List<StarImageRequest> starImages;
+    @Size(max = 500, message = "图片 URL 最长 500")
+    private String imageUrl;
 }

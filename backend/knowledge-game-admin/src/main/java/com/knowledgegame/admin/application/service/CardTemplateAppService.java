@@ -3,21 +3,17 @@ package com.knowledgegame.admin.application.service;
 import com.knowledgegame.admin.api.assembler.CardTemplateAssembler;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
-import com.knowledgegame.admin.application.command.StarImageCommand;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.common.util.EnumUtils;
 import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
-import com.knowledgegame.core.domain.model.vo.CardStarImage;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /**
  * 卡牌模板管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -43,25 +39,20 @@ public class CardTemplateAppService {
     @Transactional
     public CardTemplateResponse createCardTemplate(Long ipSeriesId, String code, String name,
                                                    CardRarity rarity, String description,
-                                                   CardTemplateStatus status,
-                                                   List<StarImageCommand> starImageCommands) {
+                                                   CardTemplateStatus status, String imageUrl) {
         // 编码在同一 IP 系列下唯一
         cardTemplateRepositoryPort.findByIpSeriesIdAndCode(ipSeriesId, code).ifPresent(existing -> {
             throw new BusinessException("卡牌编码已存在: " + code);
         });
-        // 将应用层命令转换为领域值对象
-        List<CardStarImage> starImages = starImageCommands.stream()
-                .map(cmd -> CardStarImage.create(cmd.getStarLevel(), cmd.getImageUrl()))
-                .toList();
         // 领域服务校验 IpSeries + 创建聚合根
         CardTemplate template = cardTemplateDomainService.validateAndCreate(
-                ipSeriesId, code, name, rarity, description, status, starImages);
+                ipSeriesId, code, name, rarity, description, status, imageUrl);
         CardTemplate saved = cardTemplateRepositoryPort.save(template);
         return assembleDetailResponse(saved);
     }
 
     /**
-     * 根据 ID 查询详情（含星级图片 + IP 系列名称）
+     * 根据 ID 查询详情（含 IP 系列名称）
      */
     @Transactional(readOnly = true)
     public CardTemplateResponse getCardTemplateById(Long id) {
@@ -71,7 +62,7 @@ public class CardTemplateAppService {
     }
 
     /**
-     * 分页查询（列表不含星级图片）
+     * 分页查询（列表不含图片）
      */
     @Transactional(readOnly = true)
     public PageResult<CardTemplateListResponse> listCardTemplates(String name, Long ipSeriesId,
@@ -100,7 +91,7 @@ public class CardTemplateAppService {
     @Transactional
     public CardTemplateResponse updateCardTemplate(Long id, String code, String name,
                                                    CardRarity rarity, String description,
-                                                   CardTemplateStatus status) {
+                                                   CardTemplateStatus status, String imageUrl) {
         CardTemplate template = cardTemplateRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("卡牌模板不存在: " + id));
         // 编码在同一 IP 系列下唯一（排除自身）
@@ -110,19 +101,7 @@ public class CardTemplateAppService {
                         throw new BusinessException("卡牌编码已存在: " + code);
                     });
         }
-        template.update(code, name, rarity, description, status);
-        CardTemplate saved = cardTemplateRepositoryPort.save(template);
-        return assembleDetailResponse(saved);
-    }
-
-    /**
-     * 添加/替换单张星级图片
-     */
-    @Transactional
-    public CardTemplateResponse addOrUpdateStarImage(Long id, int starLevel, String imageUrl) {
-        CardTemplate template = cardTemplateRepositoryPort.findById(id)
-                .orElseThrow(() -> new BusinessException("卡牌模板不存在: " + id));
-        template.addOrUpdateStarImage(CardStarImage.create(starLevel, imageUrl));
+        template.update(code, name, rarity, description, status, imageUrl);
         CardTemplate saved = cardTemplateRepositoryPort.save(template);
         return assembleDetailResponse(saved);
     }

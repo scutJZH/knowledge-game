@@ -4,7 +4,6 @@ import {
   getCardTemplateById,
   listCardTemplates,
   updateCardTemplate,
-  addOrUpdateStarImage,
 } from '../cardTemplate';
 
 /** 模拟 umi 的 request 函数 */
@@ -65,7 +64,7 @@ describe('listCardTemplates', () => {
 
 describe('getCardTemplateById', () => {
   it('应以 GET 方法调用带 ID 的详情接口', async () => {
-    const mockData = { id: 1, code: 'CT001', name: '测试卡牌', starImages: [] };
+    const mockData = { id: 1, code: 'CT001', name: '测试卡牌', imageUrl: 'https://example.com/card.png' };
     request.mockResolvedValue(mockData);
 
     const result = await getCardTemplateById(1);
@@ -84,7 +83,7 @@ describe('getCardTemplateById', () => {
 });
 
 describe('createCardTemplate', () => {
-  it('应以 POST 方法提交完整创建数据（含星级图片）', async () => {
+  it('应以 POST 方法提交完整创建数据（含图片 URL）', async () => {
     const data = {
       ipSeriesId: 1,
       code: 'CT001',
@@ -92,7 +91,7 @@ describe('createCardTemplate', () => {
       rarity: 'SSR' as const,
       description: '描述',
       status: 'ACTIVE' as const,
-      starImages: [{ starLevel: 1, imageUrl: 'http://example.com/star1.png' }],
+      imageUrl: 'https://example.com/card.png',
     };
     const mockResponse = { id: 1, ...data };
     request.mockResolvedValue(mockResponse);
@@ -106,7 +105,7 @@ describe('createCardTemplate', () => {
     expect(result).toEqual(mockResponse);
   });
 
-  it('不带星级图片时也应能正常创建', async () => {
+  it('不带图片时也应能正常创建', async () => {
     const data = {
       ipSeriesId: 1,
       code: 'CT002',
@@ -157,32 +156,21 @@ describe('updateCardTemplate', () => {
     });
   });
 
+  it('应支持更新图片 URL', async () => {
+    request.mockResolvedValue({ id: 1, imageUrl: 'https://example.com/new-card.png' });
+
+    await updateCardTemplate(1, { imageUrl: 'https://example.com/new-card.png' });
+
+    expect(request).toHaveBeenCalledWith('/api/admin/card-templates/1', {
+      method: 'PUT',
+      data: { imageUrl: 'https://example.com/new-card.png' },
+    });
+  });
+
   it('更新不存在的记录应抛出异常', async () => {
     request.mockRejectedValue(new Error('卡牌模板不存在'));
 
     await expect(updateCardTemplate(999, { name: '不存在' })).rejects.toThrow('卡牌模板不存在');
-  });
-});
-
-describe('addOrUpdateStarImage', () => {
-  it('应以 POST 方法提交星级图片更新', async () => {
-    const data = { starLevel: 3, imageUrl: 'http://example.com/star3.png' };
-    request.mockResolvedValue({ id: 1 });
-
-    await addOrUpdateStarImage(1, data);
-
-    expect(request).toHaveBeenCalledWith('/api/admin/card-templates/1/star-images', {
-      method: 'POST',
-      data,
-    });
-  });
-
-  it('上传失败时应抛出异常', async () => {
-    request.mockRejectedValue(new Error('图片上传失败'));
-
-    await expect(
-      addOrUpdateStarImage(1, { starLevel: 1, imageUrl: 'http://example.com/img.png' }),
-    ).rejects.toThrow('图片上传失败');
   });
 });
 
