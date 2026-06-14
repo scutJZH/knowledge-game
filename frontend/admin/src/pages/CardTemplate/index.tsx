@@ -15,7 +15,6 @@ import {
   getCardTemplateById,
   listCardTemplates,
   updateCardTemplate,
-  addOrUpdateStarImage,
 } from '@/services/cardTemplate';
 import type {
   CardRarity,
@@ -23,31 +22,15 @@ import type {
   CardTemplateResponse,
   CardTemplateStatus,
   CreateCardTemplateRequest,
-  StarImageResponse,
   UpdateCardTemplateRequest,
 } from '@/services/cardTemplate';
 import { listIpSeries } from '@/services/ipSeries';
-import StarImageUpload from './components/StarImageUpload';
+import ImageUploadField from '@/components/ImageUploadField';
 
-/** 表单值类型（基础字段 + 5 个星级图片字段） */
+/** 表单值类型（基础字段 + 图片） */
 type CardTemplateFormValues = UpdateCardTemplateRequest & {
   ipSeriesId?: number;
-  starImage_1?: string;
-  starImage_2?: string;
-  starImage_3?: string;
-  starImage_4?: string;
-  starImage_5?: string;
 };
-
-/** 将星级图片列表转换为 starImage_N 映射 */
-function buildStarImageMap(starImages?: StarImageResponse[]): Record<string, string | undefined> {
-  const map: Record<string, string | undefined> = {};
-  for (let level = 1; level <= 5; level++) {
-    const starImage = starImages?.find((s) => s.starLevel === level);
-    map[`starImage_${level}`] = starImage?.imageUrl;
-  }
-  return map;
-}
 
 /** 稀有度 Tag 颜色映射 */
 const RARITY_COLOR_MAP: Record<CardRarity, string> = {
@@ -82,8 +65,6 @@ const CardTemplate: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<CardTemplateResponse | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
-  /** 编辑模式下记录初始星级图片快照，用于变更比对 */
-  const initialStarImagesRef = useRef<Record<string, string | undefined>>({});
 
   const columns: ProColumns<CardTemplateListResponse>[] = [
     { title: 'ID', dataIndex: 'id', search: false, width: 80 },
@@ -183,12 +164,11 @@ const CardTemplate: React.FC = () => {
     }
   };
 
-  /** 打开编辑弹窗：拉取详情 → 预填表单 + 记录初始星级快照 */
+  /** 打开编辑弹窗：拉取详情 → 预填表单 */
   const handleEdit = async (id: number) => {
     try {
       const detail = await getCardTemplateById(id);
       setEditingRecord(detail);
-      initialStarImagesRef.current = buildStarImageMap(detail.starImages);
       setModalOpen(true);
     } catch {
       // 错误已由 request 拦截器展示
@@ -199,68 +179,13 @@ const CardTemplate: React.FC = () => {
   const handleFinish = async (values: CardTemplateFormValues) => {
     setSubmitLoading(true);
     try {
+      const { ipSeriesId, ...payload } = values;
+
       if (editingRecord) {
-        // ---- 编辑模式 ----
-        const {
-          starImage_1, starImage_2, starImage_3, starImage_4, starImage_5,
-          ipSeriesId, ...baseFields
-        } = values;
-
-        // 第一步：PUT 更新基础字段
-        await updateCardTemplate(editingRecord.id, baseFields as UpdateCardTemplateRequest);
-
-        // 第二步：比对星级图片变更，对变更项调用 addOrUpdateStarImage
-        const errors: string[] = [];
-        const currentStars: Record<string, string | undefined> = {
-          starImage_1, starImage_2, starImage_3, starImage_4, starImage_5,
-        };
-
-        for (let level = 1; level <= 5; level++) {
-          const key = `starImage_${level}`;
-          const currentUrl = currentStars[key];
-          const initialUrl = initialStarImagesRef.current[key];
-
-          if (currentUrl && currentUrl !== initialUrl) {
-            try {
-              await addOrUpdateStarImage(editingRecord.id, {
-                starLevel: level,
-                imageUrl: currentUrl,
-              });
-            } catch (e: any) {
-              errors.push(`★${level}: ${e.message || '更新失败'}`);
-            }
-          }
-        }
-
-        if (errors.length > 0) {
-          message.error(`星级图片更新失败：${errors.join('；')}`);
-          return false; // 保持弹窗打开，允许用户重试
-        }
-
+        await updateCardTemplate(editingRecord.id, payload as UpdateCardTemplateRequest);
         message.success('更新成功');
       } else {
-        // ---- 创建模式 ----
-        const {
-          starImage_1, starImage_2, starImage_3, starImage_4, starImage_5,
-          ...baseFields
-        } = values;
-
-        // 收集已上传的星级图片
-        const starImages: { starLevel: number; imageUrl: string }[] = [];
-        const starMap: Record<string, string | undefined> = {
-          starImage_1, starImage_2, starImage_3, starImage_4, starImage_5,
-        };
-        for (let level = 1; level <= 5; level++) {
-          const url = starMap[`starImage_${level}`];
-          if (url) {
-            starImages.push({ starLevel: level, imageUrl: url });
-          }
-        }
-
-        await createCardTemplate({
-          ...baseFields,
-          starImages,
-        } as CreateCardTemplateRequest);
+        await createCardTemplate({ ...payload, ipSeriesId } as CreateCardTemplateRequest);
         message.success('创建成功');
       }
 
@@ -269,7 +194,6 @@ const CardTemplate: React.FC = () => {
       actionRef.current?.reload();
       return true;
     } catch {
-      // 错误已由 request 拦截器展示，仅需返回 false 保持弹窗打开
       return false;
     } finally {
       setSubmitLoading(false);
@@ -286,7 +210,7 @@ const CardTemplate: React.FC = () => {
       rarity: editingRecord.rarity,
       description: editingRecord.description,
       status: editingRecord.status,
-      ...buildStarImageMap(editingRecord.starImages),
+      imageUrl: editingRecord.imageUrl,
     };
   };
 
@@ -320,7 +244,6 @@ const CardTemplate: React.FC = () => {
             className="btn-create-card-template"
             onClick={() => {
               setEditingRecord(null);
-              initialStarImagesRef.current = {};
               setModalOpen(true);
             }}
           >
@@ -394,13 +317,9 @@ const CardTemplate: React.FC = () => {
             valueEnum={{ ACTIVE: '启用', INACTIVE: '停用' }}
             rules={[{ required: true, message: '请选择状态' }]}
           />
-          <ProForm.Group title="星级图片">
-            {[1, 2, 3, 4, 5].map((level) => (
-              <ProForm.Item key={level} name={`starImage_${level}`} label={`★${level}`}>
-                <StarImageUpload starLevel={level} />
-              </ProForm.Item>
-            ))}
-          </ProForm.Group>
+          <ProForm.Item name="imageUrl" label="卡面图">
+            <ImageUploadField bizType="CARD_TEMPLATE" placeholder="上传卡面图" />
+          </ProForm.Item>
         </ModalForm>
       )}
     </>

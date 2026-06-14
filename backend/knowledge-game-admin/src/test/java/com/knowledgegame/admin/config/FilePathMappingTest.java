@@ -22,6 +22,8 @@ class FilePathMappingTest {
         void shouldReturnBasePath_forRegisteredBizType() {
             assertEquals("ip-series", FilePathMapping.toBasePath("IP_SERIES"));
             assertEquals("card-template", FilePathMapping.toBasePath("CARD_TEMPLATE"));
+            assertEquals("category-icon", FilePathMapping.toBasePath("CATEGORY_ICON"));
+            assertEquals("category-cover", FilePathMapping.toBasePath("CATEGORY_COVER"));
         }
 
         @Test

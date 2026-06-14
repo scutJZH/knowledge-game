@@ -1,6 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Button, Image, message, Popconfirm, Space, Tag, Upload } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Button, Image, message, Popconfirm, Space, Tag } from 'antd';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -10,7 +9,6 @@ import {
   ProFormTextArea,
   ProTable,
 } from '@ant-design/pro-components';
-import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
 
 import {
   createIpSeries,
@@ -23,85 +21,7 @@ import type {
   IpSeriesResponse,
   UpdateIpSeriesRequest,
 } from '@/services/ipSeries';
-import { getUploadCredential, uploadFile } from '@/services/fileUpload';
-import { getUserInfo } from '@/utils/token';
-
-/** 封面图上传组件（3 步凭证式上传） */
-const CoverImageUpload: React.FC<{
-  value?: string;
-  onChange?: (value: string | undefined) => void;
-}> = ({ value, onChange }) => {
-  const [uploading, setUploading] = useState(false);
-
-  const fileList: UploadFile[] = value
-    ? [{ uid: '-1', name: 'cover', status: 'done', url: value }]
-    : [];
-
-  /** 上传前校验文件类型和大小 */
-  const handleBeforeUpload = (file: File) => {
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      message.error('仅支持 JPG、PNG、GIF、WebP 格式');
-      return false;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      message.error('文件大小不能超过 10MB');
-      return false;
-    }
-    return true;
-  };
-
-  /** 凭证式上传：获取凭证 → 直传文件服务 → 拼接完整 URL */
-  const handleCustomRequest: UploadProps['customRequest'] = async (options) => {
-    const { file, onSuccess, onError } = options;
-    setUploading(true);
-    try {
-      const credential = await getUploadCredential('IP_SERIES');
-      const userInfo = getUserInfo();
-      if (!userInfo) {
-        throw new Error('用户信息获取失败，请重新登录');
-      }
-      const fullUrl = await uploadFile(
-        credential.token,
-        credential.uploadUrl,
-        file as File,
-        userInfo.id,
-      );
-      onChange?.(fullUrl);
-      onSuccess?.({ url: fullUrl });
-    } catch (e: any) {
-      onError?.(e);
-      message.error(e.message || '上传失败');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  /** 删除已上传的封面图 */
-  const handleRemove = () => {
-    onChange?.(undefined);
-    return true;
-  };
-
-  return (
-    <Upload
-      accept="image/jpeg,image/png,image/gif,image/webp"
-      maxCount={1}
-      listType="picture-card"
-      fileList={fileList}
-      beforeUpload={handleBeforeUpload}
-      customRequest={handleCustomRequest}
-      onRemove={handleRemove}
-    >
-      {!value && !uploading && (
-        <div>
-          <PlusOutlined style={{ fontSize: 20 }} />
-          <div style={{ marginTop: 8 }}>上传封面图</div>
-        </div>
-      )}
-    </Upload>
-  );
-};
+import ImageUploadField from '@/components/ImageUploadField';
 
 /** IP 系列管理页 */
 const IpSeries: React.FC = () => {
@@ -295,7 +215,7 @@ const IpSeries: React.FC = () => {
             rules={[{ max: 500, message: '描述不能超过 500 字符' }]}
           />
           <ProForm.Item name="coverImageUrl" label="封面图">
-            <CoverImageUpload />
+            <ImageUploadField bizType="IP_SERIES" placeholder="上传封面图" />
           </ProForm.Item>
           <ProFormSelect
             name="status"

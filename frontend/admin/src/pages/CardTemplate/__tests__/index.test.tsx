@@ -14,21 +14,27 @@ jest.mock('@/services/ipSeries', () => ({
   listIpSeries: jest.fn(),
 }));
 
-/** Mock StarImageUpload 为可控 input，便于测试星级图片变更比对 */
-jest.mock('../components/StarImageUpload', () => ({
+/** Mock ImageUploadField 为可控 input，便于测试星级图片变更比对 */
+jest.mock('@/components/ImageUploadField', () => ({
   __esModule: true,
-  default: ({ starLevel, value, onChange }: {
-    starLevel: number;
+  default: ({ bizType, placeholder, value, onChange }: {
+    bizType: string;
+    placeholder?: string;
+    preview?: boolean;
+    allowRemove?: boolean;
     value?: string;
-    onChange?: (url: string | undefined) => void;
-  }) => (
-    <input
-      data-testid={`star-image-upload-${starLevel}`}
-      type="text"
-      value={value || ''}
-      onChange={(e) => onChange?.(e.target.value || undefined)}
-    />
-  ),
+    onChange?: (value: string | undefined) => void;
+  }) => {
+    const level = (placeholder || '').replace('★', '');
+    return (
+      <input
+        data-testid={`star-image-upload-${level}`}
+        type="text"
+        value={value || ''}
+        onChange={(e) => onChange?.(e.target.value || undefined)}
+      />
+    );
+  },
 }));
 
 /** 模拟 antd message */
@@ -382,7 +388,7 @@ describe('编辑卡牌模板', () => {
       expect(screen.getByText('编辑卡牌模板')).toBeInTheDocument();
     });
 
-    // StarImageUpload 被 mock 为可控 input，直接修改 starImage_1 为新 URL
+    // ImageUploadField 被 mock 为可控 input，直接修改 starImage_1 为新 URL
     const star1Input = screen.getByTestId('star-image-upload-1') as HTMLInputElement;
     // 验证预填了初始值
     expect(star1Input.value).toBe('http://example.com/old-star1.png');

@@ -476,7 +476,7 @@ describe('封面图上传', () => {
     fireEvent.change(fileInput, { target: { files: [invalidFile] } });
 
     await waitFor(() => {
-      expect(message.error).toHaveBeenCalledWith('仅支持 JPG、PNG、GIF、WebP 格式');
+      expect(message.warning).toHaveBeenCalledWith('仅支持 JPG、PNG、GIF、WebP 格式');
     });
     // 不应调用上传凭证接口
     expect(getUploadCredential).not.toHaveBeenCalled();
@@ -505,7 +505,7 @@ describe('封面图上传', () => {
     fireEvent.change(fileInput, { target: { files: [hugeFile] } });
 
     await waitFor(() => {
-      expect(message.error).toHaveBeenCalledWith('文件大小不能超过 10MB');
+      expect(message.warning).toHaveBeenCalledWith('文件大小不能超过 10MB');
     });
     expect(getUploadCredential).not.toHaveBeenCalled();
   });

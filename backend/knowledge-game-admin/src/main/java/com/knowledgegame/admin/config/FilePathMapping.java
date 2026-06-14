@@ -16,7 +16,9 @@ public final class FilePathMapping {
 
     private static final Map<String, String> MAPPING = Map.of(
             "IP_SERIES", "ip-series",
-            "CARD_TEMPLATE", "card-template"
+            "CARD_TEMPLATE", "card-template",
+            "CATEGORY_ICON", "category-icon",
+            "CATEGORY_COVER", "category-cover"
     );
 
     /**

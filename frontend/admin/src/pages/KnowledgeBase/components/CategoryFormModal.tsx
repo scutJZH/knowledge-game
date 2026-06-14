@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
-import { ModalForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormTreeSelect } from '@ant-design/pro-components';
+import { ModalForm, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormTreeSelect } from '@ant-design/pro-components';
 import { message } from 'antd';
 import type { CategoryDetail, CategoryTreeNode, CategoryFormData } from '@/services/knowledge-category';
 import { create, update } from '@/services/knowledge-category';
+import ImageUploadField from '@/components/ImageUploadField';
 
 interface CategoryFormModalProps {
   visible: boolean;
@@ -122,17 +123,13 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
         fieldProps={{ rows: 3 }}
       />
 
-      <ProFormText
-        name="iconUrl"
-        label="图标 URL"
-        placeholder="请输入图标图片地址"
-      />
+      <ProForm.Item name="iconUrl" label="图标">
+        <ImageUploadField bizType="CATEGORY_ICON" placeholder="上传图标" />
+      </ProForm.Item>
 
-      <ProFormText
-        name="coverImageUrl"
-        label="封面图 URL"
-        placeholder="请输入封面图片地址"
-      />
+      <ProForm.Item name="coverImageUrl" label="封面图">
+        <ImageUploadField bizType="CATEGORY_COVER" placeholder="上传封面图" />
+      </ProForm.Item>
 
       <ProFormText
         name="color"

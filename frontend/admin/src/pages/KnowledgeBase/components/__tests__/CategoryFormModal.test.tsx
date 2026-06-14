@@ -16,6 +16,14 @@ jest.mock('@/services/knowledge-category', () => ({
   update: jest.fn(),
 }));
 
+/** 模拟 ImageUploadField 为可控展示组件 */
+jest.mock('@/components/ImageUploadField', () => ({
+  __esModule: true,
+  default: ({ bizType, placeholder }: { bizType: string; placeholder?: string }) => (
+    <div data-testid={`image-upload-${bizType}`}>{placeholder}</div>
+  ),
+}));
+
 import CategoryFormModal from '../CategoryFormModal';
 
 /** 模拟分类树数据 */
@@ -102,5 +110,33 @@ describe('CategoryFormModal', () => {
       />,
     );
     expect(screen.getByText('父级分类')).toBeInTheDocument();
+  });
+
+  it('图标字段应使用 ImageUploadField 组件并传入 bizType=CATEGORY_ICON', () => {
+    render(
+      <CategoryFormModal
+        visible={true}
+        editingCategory={null}
+        treeData={mockTreeData}
+        onSuccess={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    const el = screen.getByTestId('image-upload-CATEGORY_ICON');
+    expect(el).toBeInTheDocument();
+  });
+
+  it('封面图字段应使用 ImageUploadField 组件并传入 bizType=CATEGORY_COVER', () => {
+    render(
+      <CategoryFormModal
+        visible={true}
+        editingCategory={null}
+        treeData={mockTreeData}
+        onSuccess={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    const el = screen.getByTestId('image-upload-CATEGORY_COVER');
+    expect(el).toBeInTheDocument();
   });
 });
