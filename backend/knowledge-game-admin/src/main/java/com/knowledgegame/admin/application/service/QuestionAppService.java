@@ -12,6 +12,7 @@ import com.knowledgegame.core.domain.model.domainenum.Difficulty;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.domainenum.QuestionStatus;
 import com.knowledgegame.core.domain.model.domainenum.QuestionType;
+import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.entity.Question;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.QuestionOption;
@@ -24,6 +25,7 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,7 +34,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 题目管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -252,24 +256,68 @@ public class QuestionAppService {
             Sheet sheet = workbook.createSheet("题目导入");
 
             String[] headers = {"题型", "题目内容", "选项A", "选项B", "选项C", "选项D",
-                    "正确答案", "难度", "解析", "标签", "分类ID"};
+                    "选项E", "选项F", "正确答案", "难度", "解析", "标签", "分类路径(可选)"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 headerRow.createCell(i).setCellValue(headers[i]);
             }
 
-            Row exampleRow = sheet.createRow(1);
-            exampleRow.createCell(0).setCellValue("单选");
-            exampleRow.createCell(1).setCellValue("Java中哪个关键字用于继承？");
-            exampleRow.createCell(2).setCellValue("extends");
-            exampleRow.createCell(3).setCellValue("implements");
-            exampleRow.createCell(4).setCellValue("inherits");
-            exampleRow.createCell(5).setCellValue("super");
-            exampleRow.createCell(6).setCellValue("A");
-            exampleRow.createCell(7).setCellValue("中等");
-            exampleRow.createCell(8).setCellValue("extends用于类继承");
-            exampleRow.createCell(9).setCellValue("Java,面向对象");
-            exampleRow.createCell(10).setCellValue("1,3");
+            // 单选示例
+            Row row1 = sheet.createRow(1);
+            row1.createCell(0).setCellValue("单选");
+            row1.createCell(1).setCellValue("Java中哪个关键字用于继承？");
+            row1.createCell(2).setCellValue("extends");
+            row1.createCell(3).setCellValue("implements");
+            row1.createCell(4).setCellValue("inherits");
+            row1.createCell(5).setCellValue("super");
+            row1.createCell(8).setCellValue("A");
+            row1.createCell(9).setCellValue("中等");
+            row1.createCell(10).setCellValue("extends用于类继承");
+            row1.createCell(11).setCellValue("Java,面向对象");
+            row1.createCell(12).setCellValue("编程语言/Java");
+
+            // 多选示例
+            Row row2 = sheet.createRow(2);
+            row2.createCell(0).setCellValue("多选");
+            row2.createCell(1).setCellValue("以下哪些是Java的基本数据类型？");
+            row2.createCell(2).setCellValue("int");
+            row2.createCell(3).setCellValue("String");
+            row2.createCell(4).setCellValue("boolean");
+            row2.createCell(5).setCellValue("Array");
+            row2.createCell(6).setCellValue("float");
+            row2.createCell(8).setCellValue("A,C,E");
+            row2.createCell(9).setCellValue("简单");
+            row2.createCell(10).setCellValue("int、boolean和float是基本类型，String和Array是引用类型");
+            row2.createCell(11).setCellValue("Java,基础");
+            row2.createCell(12).setCellValue("编程语言/Java");
+
+            // 判断示例
+            Row row3 = sheet.createRow(3);
+            row3.createCell(0).setCellValue("判断");
+            row3.createCell(1).setCellValue("Java是一种纯编译型语言。");
+            row3.createCell(8).setCellValue("错");
+            row3.createCell(9).setCellValue("简单");
+            row3.createCell(10).setCellValue("Java是先编译后解释执行的，不是纯编译型");
+            row3.createCell(11).setCellValue("Java,基础");
+            row3.createCell(12).setCellValue("编程语言");
+
+            // 填空示例
+            Row row4 = sheet.createRow(4);
+            row4.createCell(0).setCellValue("填空");
+            row4.createCell(1).setCellValue("Java的创始人全名是？");
+            row4.createCell(8).setCellValue("James");
+            row4.createCell(9).setCellValue("简单");
+            row4.createCell(10).setCellValue("James Gosling（詹姆斯·高斯林）");
+            row4.createCell(11).setCellValue("Java,人物");
+            row4.createCell(12).setCellValue("编程语言");
+
+            // 填写说明
+            Row tipRow = sheet.createRow(5);
+            tipRow.createCell(0).setCellValue("【填写说明】");
+            tipRow.createCell(1).setCellValue("题型：单选/多选/判断/填空；答案：单选填选项字母(A)，多选填选项字母逗号分隔(A,C)，判断填对/错，填空填关键词逗号分隔；难度：简单/中等/困难；分类路径：从顶级分类起用/分隔，多个分类用逗号分隔，如无分类可留空");
+
+            // 合并填写说明单元格使其可读
+            sheet.addMergedRegion(new CellRangeAddress(5, 5, 1, 12));
 
             workbook.write(response.getOutputStream());
         }
@@ -283,6 +331,9 @@ public class QuestionAppService {
         List<ImportFailDetail> failDetails = new ArrayList<>();
         int successCount = 0;
 
+        // 一次性构建分类路径→ID映射，避免逐行查库
+        Map<String, Long> pathToIdMap = buildCategoryPathMap();
+
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
             int totalCount = sheet.getLastRowNum();
@@ -291,8 +342,12 @@ public class QuestionAppService {
                 Row row = sheet.getRow(i);
                 if (row == null) continue;
 
+                // 跳过填写说明行（首列为提示文本）
+                String firstCellValue = getCellStringValue(row, 0);
+                if (firstCellValue != null && firstCellValue.startsWith("【")) continue;
+
                 try {
-                    ImportRowData data = parseRow(row);
+                    ImportRowData data = parseRow(row, pathToIdMap);
                     importOneQuestion(data);
                     successCount++;
                 } catch (BusinessException e) {
@@ -313,18 +368,20 @@ public class QuestionAppService {
     /**
      * 解析一行导入数据
      */
-    private ImportRowData parseRow(Row row) {
+    private ImportRowData parseRow(Row row, Map<String, Long> pathToIdMap) {
         String typeStr = getCellStringValue(row, 0);
         String content = getCellStringValue(row, 1);
         String optionA = getCellStringValue(row, 2);
         String optionB = getCellStringValue(row, 3);
         String optionC = getCellStringValue(row, 4);
         String optionD = getCellStringValue(row, 5);
-        String answer = getCellStringValue(row, 6);
-        String difficultyStr = getCellStringValue(row, 7);
-        String explanation = getCellStringValue(row, 8);
-        String tagsStr = getCellStringValue(row, 9);
-        String categoryIdsStr = getCellStringValue(row, 10);
+        String optionE = getCellStringValue(row, 6);
+        String optionF = getCellStringValue(row, 7);
+        String answer = getCellStringValue(row, 8);
+        String difficultyStr = getCellStringValue(row, 9);
+        String explanation = getCellStringValue(row, 10);
+        String tagsStr = getCellStringValue(row, 11);
+        String categoryPathsStr = getCellStringValue(row, 12);
 
         if (typeStr == null || typeStr.isBlank()) throw new BusinessException("题型不能为空");
         if (content == null || content.isBlank()) throw new BusinessException("题目内容不能为空");
@@ -353,6 +410,8 @@ public class QuestionAppService {
             if (optionB != null && !optionB.isBlank()) optList.add(QuestionOption.of("B", optionB));
             if (optionC != null && !optionC.isBlank()) optList.add(QuestionOption.of("C", optionC));
             if (optionD != null && !optionD.isBlank()) optList.add(QuestionOption.of("D", optionD));
+            if (optionE != null && !optionE.isBlank()) optList.add(QuestionOption.of("E", optionE));
+            if (optionF != null && !optionF.isBlank()) optList.add(QuestionOption.of("F", optionF));
             options = optList;
         }
 
@@ -392,18 +451,59 @@ public class QuestionAppService {
         }
 
         List<Long> categoryIds = null;
-        if (categoryIdsStr != null && !categoryIdsStr.isBlank()) {
-            try {
-                categoryIds = Arrays.stream(categoryIdsStr.split(","))
-                        .map(String::trim).filter(s -> !s.isEmpty())
-                        .map(Long::parseLong).toList();
-            } catch (NumberFormatException e) {
-                throw new BusinessException("分类ID格式错误: " + categoryIdsStr);
+        if (categoryPathsStr != null && !categoryPathsStr.isBlank()) {
+            categoryIds = new ArrayList<>();
+            String[] paths = categoryPathsStr.split(",");
+            for (String path : paths) {
+                String trimmedPath = path.trim();
+                if (trimmedPath.isEmpty()) continue;
+                Long categoryId = pathToIdMap.get(trimmedPath);
+                if (categoryId == null) {
+                    throw new BusinessException("分类路径不存在: " + trimmedPath);
+                }
+                categoryIds.add(categoryId);
             }
         }
 
         return new ImportRowData(type, content, options, finalAnswer, difficulty,
                 explanation, tags, categoryIds);
+    }
+
+    /**
+     * 构建分类路径到ID的映射（全路径 → 分类ID）
+     * <p>
+     * 路径格式：从顶级分类起，用"/"分隔各级名称。例如"编程语言/Java"对应id=5。
+     * 加载所有ACTIVE分类后按parentId递归构建路径。
+     */
+    private Map<String, Long> buildCategoryPathMap() {
+        List<KnowledgeCategory> allCategories = categoryRepositoryPort.findAll();
+        Map<Long, KnowledgeCategory> idToCategory = new HashMap<>();
+        for (KnowledgeCategory c : allCategories) {
+            idToCategory.put(c.getId(), c);
+        }
+
+        Map<String, Long> pathToId = new HashMap<>();
+        for (KnowledgeCategory category : allCategories) {
+            if (category.getStatus() != KnowledgeCategoryStatus.ACTIVE) continue;
+            String path = buildCategoryPath(category, idToCategory);
+            pathToId.put(path, category.getId());
+        }
+        return pathToId;
+    }
+
+    /**
+     * 递归构建单个分类的完整路径（从根到当前节点）
+     */
+    private String buildCategoryPath(KnowledgeCategory category,
+                                     Map<Long, KnowledgeCategory> idToCategory) {
+        List<String> names = new ArrayList<>();
+        KnowledgeCategory current = category;
+        while (current != null) {
+            names.addFirst(current.getName());
+            Long parentId = current.getParentId();
+            current = parentId != null ? idToCategory.get(parentId) : null;
+        }
+        return String.join("/", names);
     }
 
     /**

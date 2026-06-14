@@ -3,7 +3,6 @@ package com.knowledgegame.admin.api.dto.response;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -23,8 +22,8 @@ public class QuestionResponse {
     private List<String> tags;
     private String status;
     private List<Long> categoryIds;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Long createdAt;
+    private Long updatedAt;
 
     /**
      * 选项响应

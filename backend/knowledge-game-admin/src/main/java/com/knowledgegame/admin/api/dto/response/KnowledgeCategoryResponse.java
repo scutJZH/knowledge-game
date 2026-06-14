@@ -3,7 +3,6 @@ package com.knowledgegame.admin.api.dto.response;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
 
 /**
  * 知识点分类响应 DTO
@@ -21,6 +20,6 @@ public class KnowledgeCategoryResponse {
     private String coverImageUrl;
     private int sortOrder;
     private String status;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Long createdAt;
+    private Long updatedAt;
 }

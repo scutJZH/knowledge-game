@@ -246,8 +246,9 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
 
     // 校验填空答案
     if (values.type === 'FILL_BLANK') {
-      const filled = (values.answer || []).filter(
-        (item: any) => (typeof item === 'string' ? item : '').trim(),
+      const answerArray = Array.isArray(values.answer) ? values.answer : [];
+      const filled = answerArray.filter(
+        (item) => typeof item === 'string' && item.trim(),
       );
       if (filled.length < 1) {
         message.error('至少需要 1 个非空关键词');

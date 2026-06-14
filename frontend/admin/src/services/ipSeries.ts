@@ -9,8 +9,8 @@ export interface IpSeriesResponse {
   description: string;
   coverImageUrl: string;
   status: 'ACTIVE' | 'INACTIVE';
-  createdAt: string;
-  updatedAt: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /** 创建 IP 系列请求 */

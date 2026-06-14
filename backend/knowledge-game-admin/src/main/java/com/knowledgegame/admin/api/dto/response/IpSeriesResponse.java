@@ -3,7 +3,6 @@ package com.knowledgegame.admin.api.dto.response;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
 
 /**
  * IP 系列响应 DTO
@@ -18,6 +17,6 @@ public class IpSeriesResponse {
     private String description;
     private String coverImageUrl;
     private String status;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Long createdAt;
+    private Long updatedAt;
 }

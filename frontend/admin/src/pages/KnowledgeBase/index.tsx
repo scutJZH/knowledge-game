@@ -22,6 +22,16 @@ const KnowledgeBase: React.FC = () => {
   const [moveVisible, setMoveVisible] = useState(false);
   const [moveCategoryId, setMoveCategoryId] = useState<number | null>(null);
 
+  /** 加载分类详情 */
+  const loadDetail = useCallback(async (id: number) => {
+    try {
+      const data = await getById(id);
+      setDetail(data);
+    } catch {
+      setDetail(null);
+    }
+  }, []);
+
   /** 加载分类树（同时刷新当前选中节点的详情，确保移动后 sortOrder 同步） */
   const refreshTree = useCallback(async () => {
     setLoading(true);
@@ -38,16 +48,6 @@ const KnowledgeBase: React.FC = () => {
       setLoading(false);
     }
   }, [selectedId, loadDetail]);
-
-  /** 加载分类详情 */
-  const loadDetail = useCallback(async (id: number) => {
-    try {
-      const data = await getById(id);
-      setDetail(data);
-    } catch {
-      setDetail(null);
-    }
-  }, []);
 
   // 初始化加载树
   useEffect(() => {

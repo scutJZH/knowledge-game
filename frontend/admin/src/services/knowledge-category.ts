@@ -24,8 +24,8 @@ export interface CategoryDetail {
   coverImageUrl: string | null;
   sortOrder: number;
   status: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 /** 创建/编辑表单数据 */

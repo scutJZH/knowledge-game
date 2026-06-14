@@ -3,7 +3,6 @@ package com.knowledgegame.admin.api.dto.response;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
 
 /**
  * 卡牌模板列表响应 DTO（不含星级图片）
@@ -20,6 +19,6 @@ public class CardTemplateListResponse {
     private String rarity;
     private String description;
     private String status;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Long createdAt;
+    private Long updatedAt;
 }

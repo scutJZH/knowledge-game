@@ -387,19 +387,15 @@ const QuestionBank: React.FC = () => {
             success: true,
           };
         }}
-        toolbar={{
-          actions: [
-            <Button
-              key="create"
-              type="primary"
-              className="btn-create-question"
-              onClick={handleCreate}
-            >
-              新建题目
-            </Button>,
-          ],
-        }}
         toolBarRender={() => [
+          <Button
+            key="create"
+            type="primary"
+            className="btn-create-question"
+            onClick={handleCreate}
+          >
+            新建题目
+          </Button>,
           <Button key="download-template" onClick={handleDownloadTemplate}>
             下载模板
           </Button>,

@@ -49,8 +49,8 @@ class IpSeriesAppServiceTest {
                 .description(description)
                 .coverImageUrl(coverImageUrl)
                 .status(status)
-                .createdAt(LocalDateTime.of(2026, 1, 1, 0, 0, 0))
-                .updatedAt(LocalDateTime.of(2026, 1, 1, 0, 0, 0))
+                .createdAt(1767225600000L)
+                .updatedAt(1767225600000L)
                 .build();
     }
 

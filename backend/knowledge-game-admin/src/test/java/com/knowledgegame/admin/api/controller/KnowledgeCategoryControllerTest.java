@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -43,7 +42,7 @@ class KnowledgeCategoryControllerTest {
     @MockBean
     private KnowledgeCategoryAppService appService;
 
-    private LocalDateTime now = LocalDateTime.of(2026, 1, 1, 0, 0);
+    private final Long now = 1767225600000L;
 
     /**
      * 创建分类 - 正常返回 200

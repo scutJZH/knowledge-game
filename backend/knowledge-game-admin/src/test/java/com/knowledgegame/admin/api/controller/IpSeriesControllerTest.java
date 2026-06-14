@@ -25,7 +25,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -82,8 +81,8 @@ class IpSeriesControllerTest {
                 .description("忍者世界 IP 系列")
                 .coverImageUrl("https://example.com/naruto.jpg")
                 .status("ACTIVE")
-                .createdAt(LocalDateTime.of(2026, 1, 1, 0, 0, 0))
-                .updatedAt(LocalDateTime.of(2026, 1, 1, 0, 0, 0))
+                .createdAt(1767225600000L)
+                .updatedAt(1767225600000L)
                 .build();
     }
 
@@ -313,8 +312,8 @@ class IpSeriesControllerTest {
                 .description("更新后的描述")
                 .coverImageUrl("https://example.com/naruto.jpg")
                 .status("ACTIVE")
-                .createdAt(LocalDateTime.of(2026, 1, 1, 0, 0, 0))
-                .updatedAt(LocalDateTime.of(2026, 6, 1, 12, 0, 0))
+                .createdAt(1767225600000L)
+                .updatedAt(1780315200000L)
                 .build();
         when(ipSeriesAppService.updateIpSeries(
                 eq(1L), eq(null), eq("火影忍者-更新"), eq("更新后的描述"),

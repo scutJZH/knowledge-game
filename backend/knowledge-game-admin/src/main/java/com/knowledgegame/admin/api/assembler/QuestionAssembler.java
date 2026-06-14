@@ -7,6 +7,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 
@@ -26,7 +28,17 @@ public interface QuestionAssembler {
     @Mapping(target = "status", expression = "java(question.getStatus().name())")
     @Mapping(target = "options", expression = "java(toOptionItems(question.getOptions()))")
     @Mapping(target = "categoryIds", ignore = true)
+    @Mapping(target = "createdAt", expression = "java(toEpochMilli(question.getCreatedAt()))")
+    @Mapping(target = "updatedAt", expression = "java(toEpochMilli(question.getUpdatedAt()))")
     QuestionResponse toResponse(Question question);
+
+    /**
+     * LocalDateTime 转 epoch 毫秒（UTC）
+     */
+    default Long toEpochMilli(LocalDateTime dateTime) {
+        if (dateTime == null) return null;
+        return dateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli();
+    }
 
     /**
      * 选项值对象转 DTO

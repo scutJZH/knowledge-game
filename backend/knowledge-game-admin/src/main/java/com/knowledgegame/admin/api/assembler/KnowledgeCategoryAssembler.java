@@ -7,6 +7,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -21,6 +23,8 @@ public interface KnowledgeCategoryAssembler {
      * 领域模型转响应 DTO（status 枚举转字符串）
      */
     @Mapping(target = "status", expression = "java(category.getStatus().name())")
+    @Mapping(target = "createdAt", expression = "java(toEpochMilli(category.getCreatedAt()))")
+    @Mapping(target = "updatedAt", expression = "java(toEpochMilli(category.getUpdatedAt()))")
     KnowledgeCategoryResponse toResponse(KnowledgeCategory category);
 
     /**
@@ -34,4 +38,12 @@ public interface KnowledgeCategoryAssembler {
      * 批量转换
      */
     List<KnowledgeCategoryResponse> toResponseList(List<KnowledgeCategory> categories);
+
+    /**
+     * LocalDateTime 转 epoch 毫秒（UTC）
+     */
+    default Long toEpochMilli(LocalDateTime dateTime) {
+        if (dateTime == null) return null;
+        return dateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli();
+    }
 }

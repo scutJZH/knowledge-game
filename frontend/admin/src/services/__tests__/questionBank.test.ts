@@ -30,12 +30,12 @@ describe('questionBank API', () => {
     it('应使用正确的 GET URL 和 query params', async () => {
       const params = {
         keyword: 'test',
-        type: 'SINGLE_CHOICE',
-        difficulty: 1,
+        type: 'SINGLE_CHOICE' as const,
+        difficulty: 1 as const,
         categoryId: 5,
-        status: 'ACTIVE',
-        sort: 'updatedAt',
-        order: 'desc',
+        status: 'ACTIVE' as const,
+        sort: 'updatedAt' as const,
+        order: 'desc' as const,
         page: 0,
         size: 20,
       };
@@ -67,14 +67,14 @@ describe('questionBank API', () => {
   describe('createQuestion', () => {
     it('应使用正确的 POST URL 和 body', async () => {
       const data = {
-        type: 'SINGLE_CHOICE',
+        type: 'SINGLE_CHOICE' as const,
         content: 'What is Java?',
         options: [
           { key: 'A', content: 'A language' },
           { key: 'B', content: 'A coffee' },
         ],
         answer: 'A',
-        difficulty: 1,
+        difficulty: 1 as const,
         explanation: 'Java is a programming language',
         tags: ['basic'],
         categoryIds: [1, 2],
@@ -91,7 +91,7 @@ describe('questionBank API', () => {
     it('应使用正确的 PUT URL 和 body', async () => {
       const data = {
         content: 'Updated content',
-        difficulty: 2,
+        difficulty: 2 as const,
       };
       await updateQuestion(42, data);
       expect(mockRequest).toHaveBeenCalledWith('/api/admin/questions/42', {
