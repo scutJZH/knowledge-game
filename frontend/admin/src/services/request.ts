@@ -107,6 +107,9 @@ const requestConfig = {
       // 从响应头提取并缓存 traceId
       extractAndCacheTraceId(response);
 
+      // Blob 响应直接返回（如文件下载），不执行 Result<T> 解包
+      if (response.data instanceof Blob) return response;
+
       const result = response.data as Result<any>;
 
       // 成功：将 response.data 从 Result<T> 解包为 T

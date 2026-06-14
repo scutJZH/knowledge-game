@@ -45,6 +45,24 @@ export interface BatchSortItem {
   sortOrder: number;
 }
 
+/** AntD TreeSelect 的 treeData 节点类型 */
+export interface TreeDataNode {
+  title: string;
+  value: number;
+  key: number;
+  children?: TreeDataNode[];
+}
+
+/** 将 CategoryTreeNode 递归转为 AntD TreeSelect 的 treeData 格式 */
+export function convertToTreeData(nodes: CategoryTreeNode[]): TreeDataNode[] {
+  return nodes.map((node) => ({
+    title: node.name,
+    value: node.id,
+    key: node.id,
+    children: node.children ? convertToTreeData(node.children) : undefined,
+  }));
+}
+
 /** 获取分类树 */
 export async function getTree(): Promise<CategoryTreeNode[]> {
   return request('/api/admin/knowledge-categories/tree');

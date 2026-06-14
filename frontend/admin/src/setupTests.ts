@@ -14,3 +14,15 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 });
+
+/** jsdom 缺少 window.getComputedStyle，Ant Design Modal/Drawer 依赖它 */
+const originalGetComputedStyle = window.getComputedStyle;
+window.getComputedStyle = (elt: Element, pseudoElt?: string | null) => {
+  try {
+    return originalGetComputedStyle(elt, pseudoElt);
+  } catch {
+    return {
+      getPropertyValue: () => '',
+    } as unknown as CSSStyleDeclaration;
+  }
+};

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Button, message, Popconfirm, Select, Space, Tag, Tooltip, TreeSelect, Upload } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import { Button, message, Modal, Popconfirm, Select, Space, Tag, Tooltip, TreeSelect, Upload } from 'antd';
 import { ReloadOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
@@ -16,7 +16,7 @@ import {
   importQuestions,
   listQuestions,
 } from '@/services/questionBank';
-import { getTree } from '@/services/knowledge-category';
+import { getTree, convertToTreeData } from '@/services/knowledge-category';
 import type { CategoryTreeNode } from '@/services/knowledge-category';
 import QuestionFormDrawer from './components/QuestionFormDrawer';
 import ImportResultModal from './components/ImportResultModal';
@@ -54,7 +54,6 @@ const QuestionBank: React.FC = () => {
   const treeLoadedRef = useRef(false);
 
   /** 导入相关状态 */
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importResult, setImportResult] = useState<QuestionImportResult | null>(null);
 
@@ -79,9 +78,8 @@ const QuestionBank: React.FC = () => {
       });
   }, []);
 
-  /** 列定义（依赖 categoryTree 以支持搜索表单中的 TreeSelect） */
-  const columns: ProColumns<QuestionResponse>[] = useMemo(
-    () => [
+  /** 列定义 */
+  const columns: ProColumns<QuestionResponse>[] = [
       { title: 'ID', dataIndex: 'id', search: false, width: 80 },
       {
         title: '题型',
@@ -130,25 +128,7 @@ const QuestionBank: React.FC = () => {
         renderFormItem: () => (
           <TreeSelect
             placeholder="按分类筛选"
-            treeData={categoryTree.map((node) => ({
-              title: node.name,
-              value: node.id,
-              key: node.id,
-              children: node.children
-                ? node.children.map((child) => ({
-                    title: child.name,
-                    value: child.id,
-                    key: child.id,
-                    children: child.children
-                      ? child.children.map((gchild) => ({
-                          title: gchild.name,
-                          value: gchild.id,
-                          key: gchild.id,
-                        }))
-                      : undefined,
-                  }))
-                : undefined,
-            }))}
+            treeData={convertToTreeData(categoryTree)}
             allowClear
             style={{ width: '100%' }}
           />
@@ -178,11 +158,14 @@ const QuestionBank: React.FC = () => {
         title: '状态',
         dataIndex: 'status',
         width: 80,
-        initialValue: undefined,
+        initialValue: 'ALL',
         valueType: 'select',
-        valueEnum: Object.fromEntries(
-          QUESTION_STATUS_OPTIONS.map((o) => [o.value, { text: o.label }]),
-        ),
+        valueEnum: {
+          ALL: { text: '全部' },
+          ...Object.fromEntries(
+            QUESTION_STATUS_OPTIONS.map((o) => [o.value, { text: o.label }]),
+          ),
+        },
         render: (_, record) => {
           const opt = QUESTION_STATUS_OPTIONS.find((o) => o.value === record.status);
           return <Tag color={opt?.color}>{opt?.label || record.status}</Tag>;
@@ -222,9 +205,7 @@ const QuestionBank: React.FC = () => {
           </Space>
         ),
       },
-    ],
-    [categoryTree],
-  );
+  ];
 
   /** 打开编辑抽屉：拉取详情 → 打开 */
   const handleEdit = async (id: number) => {
@@ -306,13 +287,32 @@ const QuestionBank: React.FC = () => {
       a.href = url;
       a.download = '题库导入模板.xlsx';
       a.click();
-      URL.revokeObjectURL(url);
+      // 延迟释放避免部分浏览器下载未启动就被回收
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       // 错误已由 request 拦截器展示
     }
   };
 
-  /** 导入前校验：仅 .xlsx，≤ 10MB */
+  /** 执行导入（收到文件后弹确认 → 确认后调 API） */
+  const executeImport = (file: File) => {
+    Modal.confirm({
+      title: '确认导入？',
+      content: '将导入 Excel 文件中的全部题目，已存在的题目不会覆盖。',
+      onOk: async () => {
+        try {
+          const result = await importQuestions(file);
+          setImportResult(result);
+          setImportModalOpen(true);
+          actionRef.current?.reload();
+        } catch {
+          // 错误已由 request 拦截器展示
+        }
+      },
+    });
+  };
+
+  /** 导入前校验：扩展名 + 大小 */
   const handleBeforeUpload = (file: File): boolean => {
     if (!file.name.endsWith('.xlsx')) {
       message.error('仅支持 .xlsx 格式');
@@ -322,22 +322,9 @@ const QuestionBank: React.FC = () => {
       message.error('文件大小不能超过 10MB');
       return false;
     }
-    setPendingFile(file);
-    return false; // 阻止自动上传，由 Popconfirm 确认后手动提交
-  };
-
-  /** 确认导入 */
-  const handleImportConfirm = async () => {
-    if (!pendingFile) return;
-    try {
-      const result = await importQuestions(pendingFile);
-      setImportResult(result);
-      setImportModalOpen(true);
-      actionRef.current?.reload();
-    } catch {
-      // 错误已由 request 拦截器展示
-    }
-    setPendingFile(null);
+    // setTimeout 将 Modal.confirm 推到事件循环外，避免在 Upload 的合成事件回调中触发导致焦点异常
+    setTimeout(() => executeImport(file), 0);
+    return false; // 阻止自动上传
   };
 
   return (
@@ -390,7 +377,7 @@ const QuestionBank: React.FC = () => {
               ? (Number(difficulty) as 1 | 2 | 3)
               : undefined,
             categoryId: categoryId ? Number(categoryId) : undefined,
-            status: status as QuestionQuery['status'],
+            status: status && String(status) !== 'ALL' ? (status as QuestionQuery['status']) : undefined,
             sort: sortField as QuestionQuery['sort'],
             order: sortOrder as QuestionQuery['order'],
           });
@@ -432,23 +419,16 @@ const QuestionBank: React.FC = () => {
           <Button key="download-template" onClick={handleDownloadTemplate}>
             下载模板
           </Button>,
-          <Popconfirm
+          <Upload
             key="import"
-            title="确认导入？"
-            description="将导入 Excel 文件中的全部题目"
-            onConfirm={handleImportConfirm}
-            disabled={!pendingFile}
+            accept=".xlsx"
+            maxCount={1}
+            beforeUpload={handleBeforeUpload}
+            fileList={[]}
+            showUploadList={false}
           >
-            <Upload
-              accept=".xlsx"
-              maxCount={1}
-              beforeUpload={handleBeforeUpload}
-              fileList={[]}
-              showUploadList={false}
-            >
-              <Button icon={<UploadOutlined />}>批量导入</Button>
-            </Upload>
-          </Popconfirm>,
+            <Button icon={<UploadOutlined />}>批量导入</Button>
+          </Upload>,
         ]}
       />
 
