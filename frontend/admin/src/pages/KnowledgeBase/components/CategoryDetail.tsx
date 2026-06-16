@@ -15,14 +15,14 @@ interface CategoryDetailProps {
   onDelete: () => void;
 }
 
-/** 在树中递归查找指定 id 节点的子节点数量，未找到返回 0 */
-function countChildren(nodes: CategoryTreeNode[], id: number): number {
+/** 在树中递归查找指定 id 节点的 ACTIVE 子节点数量，未找到返回 0 */
+function countActiveChildren(nodes: CategoryTreeNode[], id: number): number {
   for (const node of nodes) {
     if (node.id === id) {
-      return node.children?.length ?? 0;
+      return node.children?.filter((c) => c.status === 'ACTIVE').length ?? 0;
     }
     if (node.children) {
-      const count = countChildren(node.children, id);
+      const count = countActiveChildren(node.children, id);
       if (count > 0) return count;
     }
   }
@@ -45,8 +45,8 @@ const CategoryDetailPanel: React.FC<CategoryDetailProps> = ({
     );
   }
 
-  // 预检是否有子分类（用于删除前的前端提示）
-  const hasChildren = countChildren(treeData, detail.id) > 0;
+  // 预检是否有 ACTIVE 子分类（INACTIVE 子分类不阻止父级停用）
+  const hasActiveChildren = countActiveChildren(treeData, detail.id) > 0;
 
   return (
     <Card
@@ -60,20 +60,19 @@ const CategoryDetailPanel: React.FC<CategoryDetailProps> = ({
             移动
           </Button>
           <Popconfirm
-            title="确认删除"
+            title="确认停用"
             description={
-              hasChildren
-                ? '该分类下存在子分类，请先删除或移动子分类'
-                : `确定要删除分类「${detail.name}」吗？此操作不可撤销。`
+              hasActiveChildren
+                ? '该分类下存在 ACTIVE 子分类，请先停用或移动子分类'
+                : `确定要停用分类「${detail.name}」吗？`
             }
             onConfirm={onDelete}
-            okText="删除"
+            okText="停用"
             cancelText="取消"
-            // 有子分类时禁用确认按钮
-            okButtonProps={hasChildren ? { disabled: true } : { danger: true }}
+            okButtonProps={hasActiveChildren ? { disabled: true } : { danger: true }}
           >
             <Button danger icon={<DeleteOutlined />}>
-              删除
+              停用
             </Button>
           </Popconfirm>
         </Space>

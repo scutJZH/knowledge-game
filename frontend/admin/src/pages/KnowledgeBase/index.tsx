@@ -88,15 +88,16 @@ const KnowledgeBase: React.FC = () => {
   /** 点击删除 */
   const handleDelete = useCallback(async () => {
     if (!selectedId) return;
-    // 前端预检：有子分类不允许删除
-    const hasChildren = (findNodeById(treeData, selectedId)?.children?.length ?? 0) > 0;
-    if (hasChildren) {
-      message.warning('该分类下存在子分类，请先删除或移动子分类');
+    // 前端预检：有 ACTIVE 子分类不允许停用
+    const node = findNodeById(treeData, selectedId);
+    const hasActiveChildren = (node?.children?.filter((c) => c.status === 'ACTIVE').length ?? 0) > 0;
+    if (hasActiveChildren) {
+      message.warning('该分类下存在 ACTIVE 子分类，请先停用或移动子分类');
       return;
     }
     try {
       await deleteCategory(selectedId);
-      message.success('删除成功');
+      message.success('停用成功');
       setSelectedId(null);
       setDetail(null);
       refreshTree();

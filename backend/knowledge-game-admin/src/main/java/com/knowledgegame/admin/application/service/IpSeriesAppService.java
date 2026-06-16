@@ -97,6 +97,12 @@ public class IpSeriesAppService {
                 }
             });
         }
+        // 状态切换 ACTIVE → INACTIVE 时校验关联卡牌
+        boolean deactivating = status == IpSeriesStatus.INACTIVE
+                && ipSeries.getStatus() == IpSeriesStatus.ACTIVE;
+        if (deactivating) {
+            ipSeriesDomainService.validateDeactivatable(id);
+        }
         ipSeries.update(code, name, description, coverImageUrl, status);
         IpSeries saved = ipSeriesRepositoryPort.save(ipSeries);
         return IpSeriesAssembler.INSTANCE.toResponse(saved);
