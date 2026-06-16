@@ -12,8 +12,11 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
+import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * 卡牌模板管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -24,13 +27,16 @@ public class CardTemplateAppService {
     private final CardTemplateDomainService cardTemplateDomainService;
     private final CardTemplateRepositoryPort cardTemplateRepositoryPort;
     private final IpSeriesRepositoryPort ipSeriesRepositoryPort;
+    private final IpSeriesDomainService ipSeriesDomainService;
 
     public CardTemplateAppService(CardTemplateDomainService cardTemplateDomainService,
                                   CardTemplateRepositoryPort cardTemplateRepositoryPort,
-                                  IpSeriesRepositoryPort ipSeriesRepositoryPort) {
+                                  IpSeriesRepositoryPort ipSeriesRepositoryPort,
+                                  IpSeriesDomainService ipSeriesDomainService) {
         this.cardTemplateDomainService = cardTemplateDomainService;
         this.cardTemplateRepositoryPort = cardTemplateRepositoryPort;
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
+        this.ipSeriesDomainService = ipSeriesDomainService;
     }
 
     /**
@@ -101,6 +107,12 @@ public class CardTemplateAppService {
                         throw new BusinessException("卡牌编码已存在: " + code);
                     });
         }
+        // 状态切换 INACTIVE → ACTIVE 时校验 IP 系列状态
+        boolean activating = status == CardTemplateStatus.ACTIVE
+                && template.getStatus() != CardTemplateStatus.ACTIVE;
+        if (activating) {
+            ipSeriesDomainService.validateCardActivatable(template);
+        }
         template.update(code, name, rarity, description, status, imageUrl);
         CardTemplate saved = cardTemplateRepositoryPort.save(template);
         return assembleDetailResponse(saved);
@@ -116,6 +128,41 @@ public class CardTemplateAppService {
         // TODO: 检查是否有关联用户收集，有则不允许删除
         template.deactivate();
         cardTemplateRepositoryPort.save(template);
+    }
+
+    /**
+     * 批量启用卡牌模板
+     */
+    @Transactional
+    public void batchActivate(List<Long> ids) {
+        // ids 非空由 BatchStatusRequest.@NotEmpty @Size 在 DTO 层保证
+        // 去重避免 JPA findAllById 返回列表大小与输入不一致导致误报
+        List<Long> distinctIds = ids.stream().distinct().toList();
+        List<CardTemplate> cards = cardTemplateRepositoryPort.findAllByIdIn(distinctIds);
+        if (cards.size() != distinctIds.size()) {
+            throw new BusinessException("部分卡牌 ID 不存在");
+        }
+        // 仅对当前 INACTIVE 的卡牌校验（已 ACTIVE 跳过）
+        List<CardTemplate> toActivate = cards.stream()
+                .filter(c -> c.getStatus() != CardTemplateStatus.ACTIVE)
+                .toList();
+        ipSeriesDomainService.validateCardsActivatable(toActivate);
+        cardTemplateRepositoryPort.batchUpdateStatus(distinctIds, CardTemplateStatus.ACTIVE);
+    }
+
+    /**
+     * 批量停用卡牌模板
+     */
+    @Transactional
+    public void batchDeactivate(List<Long> ids) {
+        // ids 非空由 DTO 层保证；去重与 batchActivate 对称
+        List<Long> distinctIds = ids.stream().distinct().toList();
+        // 存在性校验：与 batchActivate 对称，避免静默成功
+        List<CardTemplate> cards = cardTemplateRepositoryPort.findAllByIdIn(distinctIds);
+        if (cards.size() != distinctIds.size()) {
+            throw new BusinessException("部分卡牌 ID 不存在");
+        }
+        cardTemplateRepositoryPort.batchUpdateStatus(distinctIds, CardTemplateStatus.INACTIVE);
     }
 
     /**

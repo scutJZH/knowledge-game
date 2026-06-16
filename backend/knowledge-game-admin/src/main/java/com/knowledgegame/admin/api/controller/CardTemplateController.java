@@ -1,5 +1,6 @@
 package com.knowledgegame.admin.api.controller;
 
+import com.knowledgegame.admin.api.dto.request.BatchStatusRequest;
 import com.knowledgegame.admin.api.dto.request.CreateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
@@ -97,6 +98,24 @@ public class CardTemplateController {
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
         cardTemplateAppService.deleteCardTemplate(id);
+        return Result.success();
+    }
+
+    /**
+     * 批量启用卡牌模板
+     */
+    @PutMapping("/batch-activate")
+    public Result<Void> batchActivate(@Valid @RequestBody BatchStatusRequest request) {
+        cardTemplateAppService.batchActivate(request.getIds());
+        return Result.success();
+    }
+
+    /**
+     * 批量停用卡牌模板
+     */
+    @PutMapping("/batch-deactivate")
+    public Result<Void> batchDeactivate(@Valid @RequestBody BatchStatusRequest request) {
+        cardTemplateAppService.batchDeactivate(request.getIds());
         return Result.success();
     }
 }

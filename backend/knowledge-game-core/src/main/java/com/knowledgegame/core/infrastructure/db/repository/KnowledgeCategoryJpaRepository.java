@@ -34,9 +34,10 @@ public interface KnowledgeCategoryJpaRepository extends JpaRepository<KnowledgeC
     List<Long> findDescendantIds(@Param("parentId") Long parentId);
 
     /**
-     * 统计指定父级下的子分类数量
+     * 统计指定父级下的 ACTIVE 子分类数量
      */
-    long countByParentId(Long parentId);
+    @Query("SELECT COUNT(c) FROM KnowledgeCategoryPO c WHERE c.parentId = :parentId AND c.status = 'ACTIVE'")
+    long countActiveByParentId(@Param("parentId") Long parentId);
 
     /**
      * 查询指定父级下的最大排序号

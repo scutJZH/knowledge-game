@@ -5,6 +5,7 @@ import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -33,6 +34,21 @@ public interface CardTemplateRepositoryPort {
     PageResult<CardTemplate> findByConditions(String name, Long ipSeriesId,
                                               CardRarity rarity, CardTemplateStatus status,
                                               int pageNumber, int pageSize);
+
+    /**
+     * 统计指定 IP 系列下的 ACTIVE 卡牌模板数量
+     */
+    long countActiveByIpSeriesId(Long ipSeriesId);
+
+    /**
+     * 根据 ID 批量查询卡牌模板（用于批量启用前的校验）
+     */
+    List<CardTemplate> findAllByIdIn(List<Long> ids);
+
+    /**
+     * 批量更新卡牌模板状态
+     */
+    void batchUpdateStatus(List<Long> ids, CardTemplateStatus status);
 
     /**
      * 根据 ID 判断是否存在

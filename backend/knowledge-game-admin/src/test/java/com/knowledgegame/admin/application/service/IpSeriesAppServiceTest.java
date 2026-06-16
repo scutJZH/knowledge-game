@@ -6,6 +6,7 @@ import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -21,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +36,9 @@ class IpSeriesAppServiceTest {
 
     @Mock
     private IpSeriesRepositoryPort ipSeriesRepositoryPort;
+
+    @Mock
+    private IpSeriesDomainService ipSeriesDomainService;
 
     @InjectMocks
     private IpSeriesAppService ipSeriesAppService;
@@ -326,11 +332,10 @@ class IpSeriesAppServiceTest {
     }
 
     /**
-     * 软删除 - status 变为 INACTIVE
+     * 软删除 - 校验通过后 status 变为 INACTIVE
      */
     @Test
     void deleteIpSeries_shouldDeactivate() {
-        // 准备数据
         Long id = 1L;
         IpSeries existing = IpSeries.reconstruct(id, "MARVEL", "漫威宇宙", "描述",
                 "https://example.com/marvel.jpg", IpSeriesStatus.ACTIVE,
@@ -338,12 +343,31 @@ class IpSeriesAppServiceTest {
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
         when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // 执行
         ipSeriesAppService.deleteIpSeries(id);
 
-        // 验证 save 被调用，且传入的对象 status 已变为 INACTIVE
+        verify(ipSeriesDomainService).validateDeactivatable(id);
         verify(ipSeriesRepositoryPort).save(argThat(series ->
                 series.getStatus() == IpSeriesStatus.INACTIVE
         ));
+    }
+
+    /**
+     * 软删除 - 存在 ACTIVE 卡牌时校验失败，不调用 save
+     */
+    @Test
+    void deleteIpSeries_shouldNotSave_whenHasActiveCards() {
+        Long id = 1L;
+        IpSeries existing = IpSeries.reconstruct(id, "MARVEL", "漫威宇宙", "描述",
+                "https://example.com/marvel.jpg", IpSeriesStatus.ACTIVE,
+                LocalDateTime.now(), LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        doThrow(new BusinessException("IP 系列存在 5 张 ACTIVE 卡牌，无法停用"))
+                .when(ipSeriesDomainService).validateDeactivatable(id);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ipSeriesAppService.deleteIpSeries(id));
+        assertEquals("IP 系列存在 5 张 ACTIVE 卡牌，无法停用", ex.getMessage());
+
+        verify(ipSeriesRepositoryPort, never()).save(any());
     }
 }

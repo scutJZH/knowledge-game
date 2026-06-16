@@ -44,9 +44,14 @@ public interface KnowledgeCategoryRepositoryPort {
     List<Long> findDescendantIds(Long parentId);
 
     /**
-     * 统计指定父级下的子分类数量（包含 ACTIVE 和 INACTIVE）
+     * 统计指定父级下的 ACTIVE 子分类数量
      */
-    long countByParentId(Long parentId);
+    long countActiveByParentId(Long parentId);
+
+    /**
+     * 根据 ID 批量查询分类（用于批量启用时的状态判定）
+     */
+    List<KnowledgeCategory> findAllByIdIn(List<Long> ids);
 
     /**
      * 查询指定父级下的最大排序号
