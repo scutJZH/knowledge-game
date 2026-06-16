@@ -1,75 +1,65 @@
 package com.knowledgegame.core.infrastructure.db.converter;
 
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.infrastructure.db.entity.CardTemplatePO;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.factory.Mappers;
 
-/**
- * PO ↔ 领域模型转换器（卡牌模板，MapStruct）
- */
-@Mapper(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+@Mapper
 public interface CardTemplateConverter {
 
     CardTemplateConverter INSTANCE = Mappers.getMapper(CardTemplateConverter.class);
 
-    /**
-     * PO 转领域模型
-     */
     default CardTemplate toDomain(CardTemplatePO po) {
-        if (po == null) {
-            return null;
-        }
+        if (po == null) return null;
+        FileRef image = toFileRef(po.getImageFileId(), po.getImageUrl());
         return CardTemplate.reconstruct(
-                po.getId(),
-                po.getIpSeriesId(),
-                po.getCode(),
-                po.getName(),
-                po.getRarity(),
-                po.getDescription(),
-                po.getStatus(),
-                po.getImageUrl(),
-                po.getCreatedAt(),
-                po.getUpdatedAt()
-        );
+                po.getId(), po.getIpSeriesId(), po.getCode(), po.getName(),
+                po.getRarity(), po.getDescription(), po.getStatus(), image,
+                po.getCreatedAt(), po.getUpdatedAt());
     }
 
-    /**
-     * 领域模型转 PO（新增）
-     */
-    default CardTemplatePO toPO(CardTemplate template) {
-        if (template == null) {
-            return null;
-        }
+    default CardTemplatePO toPO(CardTemplate domain) {
+        if (domain == null) return null;
         return CardTemplatePO.builder()
-                .id(template.getId())
-                .ipSeriesId(template.getIpSeriesId())
-                .code(template.getCode())
-                .name(template.getName())
-                .rarity(template.getRarity())
-                .description(template.getDescription())
-                .status(template.getStatus())
-                .imageUrl(template.getImageUrl())
-                .createdAt(template.getCreatedAt())
-                .updatedAt(template.getUpdatedAt())
+                .id(domain.getId())
+                .ipSeriesId(domain.getIpSeriesId())
+                .code(domain.getCode())
+                .name(domain.getName())
+                .rarity(domain.getRarity())
+                .description(domain.getDescription())
+                .status(domain.getStatus())
+                .imageFileId(fileIdOf(domain.getImage()))
+                .imageUrl(urlOf(domain.getImage()))
+                .createdAt(domain.getCreatedAt())
+                .updatedAt(domain.getUpdatedAt())
                 .build();
     }
 
-    /**
-     * 用领域模型更新已有 PO
-     */
-    default void updatePO(@MappingTarget CardTemplatePO po, CardTemplate template) {
-        if (template == null) {
-            return;
-        }
-        po.setCode(template.getCode());
-        po.setName(template.getName());
-        po.setRarity(template.getRarity());
-        po.setDescription(template.getDescription());
-        po.setStatus(template.getStatus());
-        po.setImageUrl(template.getImageUrl());
-        po.setUpdatedAt(template.getUpdatedAt());
+    default void updatePO(@MappingTarget CardTemplatePO po, CardTemplate domain) {
+        if (domain == null) return;
+        if (domain.getCode() != null) po.setCode(domain.getCode());
+        if (domain.getName() != null) po.setName(domain.getName());
+        if (domain.getRarity() != null) po.setRarity(domain.getRarity());
+        if (domain.getDescription() != null) po.setDescription(domain.getDescription());
+        if (domain.getStatus() != null) po.setStatus(domain.getStatus());
+        po.setImageFileId(fileIdOf(domain.getImage()));
+        po.setImageUrl(urlOf(domain.getImage()));
+        po.setUpdatedAt(domain.getUpdatedAt());
+    }
+
+    default FileRef toFileRef(Long fileId, String url) {
+        if (fileId == null && url == null) return null;
+        return FileRef.of(fileId, url);
+    }
+
+    default Long fileIdOf(FileRef ref) {
+        return ref != null ? ref.fileId() : null;
+    }
+
+    default String urlOf(FileRef ref) {
+        return ref != null ? ref.url() : null;
     }
 }

@@ -42,6 +42,9 @@ public class IpSeriesPO {
     @Column(length = 500)
     private String description;
 
+    @Column(name = "cover_image_file_id")
+    private Long coverImageFileId;
+
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;
 

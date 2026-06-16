@@ -1,9 +1,11 @@
 package com.knowledgegame.file.api.controller;
 
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
+import com.knowledgegame.components.feign.dto.GenerateCredentialRequest;
 import com.knowledgegame.core.common.result.Result;
-import com.knowledgegame.file.api.dto.FileInfoResponse;
 import com.knowledgegame.file.api.dto.FileUploadResponse;
 import com.knowledgegame.file.application.FileAppService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -66,14 +68,11 @@ public class FileController {
 
     /**
      * 生成上传凭证（M2M，由 app/admin 通过 Feign 调用）
-     * count 参数指定凭证允许上传的文件数量，默认 1
-     * basePath 指定文件存储目录路径
      */
     @PostMapping("/internal/credential")
-    public Result<String> generateCredential(@RequestParam Long userId,
-                                              @RequestParam(defaultValue = "1") int count,
-                                              @RequestParam String basePath) {
-        String token = fileAppService.generateCredential(userId, count, basePath);
+    public Result<String> generateCredential(@Valid @RequestBody GenerateCredentialRequest request) {
+        String token = fileAppService.generateCredential(
+                request.userId(), request.count(), request.basePath(), request.metadata());
         return Result.success(token);
     }
 

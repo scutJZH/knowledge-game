@@ -2,6 +2,7 @@ package com.knowledgegame.core.domain.model.entity;
 
 import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -19,7 +20,7 @@ public class CardTemplate {
     private CardRarity rarity;
     private String description;
     private CardTemplateStatus status;
-    private String imageUrl;
+    private FileRef image;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -28,7 +29,7 @@ public class CardTemplate {
      */
     public static CardTemplate create(Long ipSeriesId, String code, String name,
                                       CardRarity rarity, String description,
-                                      CardTemplateStatus status, String imageUrl) {
+                                      CardTemplateStatus status, FileRef image) {
         CardTemplate template = new CardTemplate();
         template.ipSeriesId = ipSeriesId;
         template.code = code;
@@ -36,7 +37,7 @@ public class CardTemplate {
         template.rarity = rarity;
         template.description = description;
         template.status = status;
-        template.imageUrl = imageUrl;
+        template.image = image;
         template.createdAt = LocalDateTime.now();
         template.updatedAt = LocalDateTime.now();
         return template;
@@ -47,7 +48,7 @@ public class CardTemplate {
      */
     public static CardTemplate reconstruct(Long id, Long ipSeriesId, String code, String name,
                                            CardRarity rarity, String description,
-                                           CardTemplateStatus status, String imageUrl,
+                                           CardTemplateStatus status, FileRef image,
                                            LocalDateTime createdAt, LocalDateTime updatedAt) {
         CardTemplate template = new CardTemplate();
         template.id = id;
@@ -57,7 +58,7 @@ public class CardTemplate {
         template.rarity = rarity;
         template.description = description;
         template.status = status;
-        template.imageUrl = imageUrl;
+        template.image = image;
         template.createdAt = createdAt;
         template.updatedAt = updatedAt;
         return template;
@@ -67,7 +68,7 @@ public class CardTemplate {
      * 更新基础字段（null 不修改）
      */
     public void update(String code, String name, CardRarity rarity,
-                       String description, CardTemplateStatus status, String imageUrl) {
+                       String description, CardTemplateStatus status, FileRef image) {
         if (code != null) {
             this.code = code;
         }
@@ -83,8 +84,8 @@ public class CardTemplate {
         if (status != null) {
             this.status = status;
         }
-        if (imageUrl != null) {
-            this.imageUrl = imageUrl;
+        if (image != null) {
+            this.image = image;
         }
         this.updatedAt = LocalDateTime.now();
     }

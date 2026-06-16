@@ -1,8 +1,12 @@
 package com.knowledgegame.admin.api.controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.knowledgegame.admin.config.FilePathMapping;
 import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.components.feign.client.FileServiceClient;
+import com.knowledgegame.components.feign.dto.GenerateCredentialRequest;
 import com.knowledgegame.components.feign.dto.UploadCredentialResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.common.result.Result;
@@ -55,10 +59,16 @@ public class FileController {
             throw new BusinessException("不支持的业务类型: " + bizType);
         }
 
+        // 组装 metadata（当前所有 bizType 共享 { bizType, userId } 模板）
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("bizType", bizType);
+        metadata.put("userId", userId);
+
         // 通过 Feign 调用文件服务生成凭证
         String token;
         try {
-            Result<String> credentialResult = fileServiceClient.generateCredential(userId, count, basePath);
+            GenerateCredentialRequest request = new GenerateCredentialRequest(userId, count, basePath, metadata);
+            Result<String> credentialResult = fileServiceClient.generateCredential(request);
             token = credentialResult.getData();
             if (token == null || token.isBlank()) {
                 String errorMsg = credentialResult.getMessage() != null ? credentialResult.getMessage() : "文件服务返回空凭证";

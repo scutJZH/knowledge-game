@@ -42,6 +42,10 @@ public class UserPO {
     @Column(length = 50)
     private String nickname;
 
+    @Column(name = "avatar_file_id")
+    private Long avatarFileId;
+
+    @Column(length = 500)
     private String avatar;
 
     @Enumerated(EnumType.STRING)

@@ -72,7 +72,7 @@ class UserControllerTest {
                 .id(1L)
                 .username("testuser")
                 .nickname("测试用户")
-                .avatar(null)
+                .avatarUrl(null)
                 .role("USER")
                 .build();
         given(userAppService.register(any(RegisterCommand.class))).willReturn(response);
@@ -253,7 +253,7 @@ class UserControllerTest {
                 .id(1L)
                 .username("testuser")
                 .nickname("测试用户")
-                .avatar("avatar.png")
+                .avatarUrl("avatar.png")
                 .role("USER")
                 .build();
         given(userAppService.getUserById(1L)).willReturn(response);
@@ -263,7 +263,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.username").value("testuser"))
-                .andExpect(jsonPath("$.data.avatar").value("avatar.png"));
+                .andExpect(jsonPath("$.data.avatarUrl").value("avatar.png"));
 
         verify(userAppService).getUserById(1L);
     }
@@ -295,16 +295,16 @@ class UserControllerTest {
     void update_success() throws Exception {
         UpdateUserRequest request = new UpdateUserRequest();
         request.setNickname("新昵称");
-        request.setAvatar("new_avatar.png");
+        request.setAvatarFileId(1L);
 
         UserResponse response = UserResponse.builder()
                 .id(1L)
                 .username("testuser")
                 .nickname("新昵称")
-                .avatar("new_avatar.png")
+                .avatarUrl("new_avatar.png")
                 .role("USER")
                 .build();
-        given(userAppService.updateUser(eq(1L), eq("新昵称"), eq("new_avatar.png")))
+        given(userAppService.updateUser(eq(1L), eq("新昵称"), eq(1L)))
                 .willReturn(response);
 
         mockMvc.perform(put("/api/users/1")
@@ -313,9 +313,9 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.nickname").value("新昵称"))
-                .andExpect(jsonPath("$.data.avatar").value("new_avatar.png"));
+                .andExpect(jsonPath("$.data.avatarUrl").value("new_avatar.png"));
 
-        verify(userAppService).updateUser(1L, "新昵称", "new_avatar.png");
+        verify(userAppService).updateUser(1L, "新昵称", 1L);
     }
 
     // ==================== 删除接口 ====================

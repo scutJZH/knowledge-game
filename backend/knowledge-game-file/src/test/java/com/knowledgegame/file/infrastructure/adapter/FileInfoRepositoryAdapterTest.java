@@ -46,7 +46,7 @@ class FileInfoRepositoryAdapterTest {
     void shouldSaveAndReturnDomain() {
         FileInfo fileInfo = FileInfo.create("test.png",
                 new StoredFile("uuid.png", "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png", "image/png", 1024),
-                "ip-series", 1L);
+                "ip-series", 1L, null);
 
         FileInfoPO savedPO = new FileInfoPO();
         savedPO.setId(1L);

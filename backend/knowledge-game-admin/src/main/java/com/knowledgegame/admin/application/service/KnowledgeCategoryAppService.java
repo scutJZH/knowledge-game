@@ -4,10 +4,15 @@ import com.knowledgegame.admin.api.assembler.KnowledgeCategoryAssembler;
 import com.knowledgegame.admin.api.dto.request.BatchSortItem;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryTreeResponse;
+import com.knowledgegame.auth.security.SecurityUtils;
+import com.knowledgegame.components.feign.client.FileServiceClient;
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.common.util.EnumUtils;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
@@ -28,11 +33,14 @@ public class KnowledgeCategoryAppService {
 
     private final KnowledgeCategoryRepositoryPort categoryRepositoryPort;
     private final KnowledgeCategoryDomainService categoryDomainService;
+    private final FileServiceClient fileServiceClient;
 
     public KnowledgeCategoryAppService(KnowledgeCategoryRepositoryPort categoryRepositoryPort,
-                                       KnowledgeCategoryDomainService categoryDomainService) {
+                                       KnowledgeCategoryDomainService categoryDomainService,
+                                       FileServiceClient fileServiceClient) {
         this.categoryRepositoryPort = categoryRepositoryPort;
         this.categoryDomainService = categoryDomainService;
+        this.fileServiceClient = fileServiceClient;
     }
 
     /**
@@ -40,10 +48,12 @@ public class KnowledgeCategoryAppService {
      */
     @Transactional
     public KnowledgeCategoryResponse create(String name, String description, Long parentId,
-                                            String iconUrl, String color, String coverImageUrl,
+                                            Long iconFileId, String color, Long coverImageFileId,
                                             Integer sortOrder) {
+        FileRef icon = verifyFileRef(iconFileId, "CATEGORY_ICON");
+        FileRef coverImage = verifyFileRef(coverImageFileId, "CATEGORY_COVER");
         KnowledgeCategory category = categoryDomainService.validateAndCreate(
-                name, description, parentId, iconUrl, color, coverImageUrl, sortOrder);
+                name, description, parentId, icon, color, coverImage, sortOrder);
         KnowledgeCategory saved = categoryRepositoryPort.save(category);
         return KnowledgeCategoryAssembler.INSTANCE.toResponse(saved);
     }
@@ -88,23 +98,24 @@ public class KnowledgeCategoryAppService {
      */
     @Transactional
     public KnowledgeCategoryResponse update(Long id, String name, String description,
-                                            String iconUrl, String color, String coverImageUrl,
+                                            Long iconFileId, String color, Long coverImageFileId,
                                             Integer sortOrder) {
         KnowledgeCategory category = categoryRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("知识点分类不存在: " + id));
-        // 如果名称变更，校验同级唯一性
         if (name != null && !name.equals(category.getName())) {
             if (categoryRepositoryPort.existsByNameAndParentId(name, category.getParentId())) {
                 throw new BusinessException("同一父级下已存在同名分类: " + name);
             }
         }
-        category.update(name, description, iconUrl, color, coverImageUrl, sortOrder);
+        FileRef icon = verifyFileRef(iconFileId, "CATEGORY_ICON");
+        FileRef coverImage = verifyFileRef(coverImageFileId, "CATEGORY_COVER");
+        category.update(name, description, icon, color, coverImage, sortOrder);
         KnowledgeCategory saved = categoryRepositoryPort.save(category);
         return KnowledgeCategoryAssembler.INSTANCE.toResponse(saved);
     }
 
     /**
-     * 移动知识点分类（自动设置目标父级下的 sortOrder）
+     * 移动知识点分类
      */
     @Transactional
     public KnowledgeCategoryResponse move(Long id, Long newParentId) {
@@ -112,7 +123,6 @@ public class KnowledgeCategoryAppService {
                 .orElseThrow(() -> new BusinessException("知识点分类不存在: " + id));
         categoryDomainService.validateMove(id, newParentId);
         category.moveTo(newParentId);
-        // 自动设置 sortOrder 为目标父级下最大值 + 1
         Integer maxSortOrder = newParentId != null
                 ? categoryRepositoryPort.findMaxSortOrderByParentId(newParentId)
                 : categoryRepositoryPort.findMaxSortOrderForRoot();
@@ -123,19 +133,16 @@ public class KnowledgeCategoryAppService {
     }
 
     /**
-     * 批量排序知识点分类
-     * 校验所有 ID 存在且属于同一父级，逐个更新 sortOrder 并保存
+     * 批量排序
      */
     @Transactional
     public void batchSort(List<BatchSortItem> items) {
-        // 查询所有分类并校验 ID 存在
         Map<Long, KnowledgeCategory> categoryMap = new LinkedHashMap<>();
         for (BatchSortItem item : items) {
             KnowledgeCategory category = categoryRepositoryPort.findById(item.getId())
                     .orElseThrow(() -> new BusinessException("知识点分类不存在: " + item.getId()));
             categoryMap.put(item.getId(), category);
         }
-        // 校验所有分类属于同一父级
         Long expectedParentId = categoryMap.get(items.getFirst().getId()).getParentId();
         for (BatchSortItem item : items) {
             KnowledgeCategory category = categoryMap.get(item.getId());
@@ -143,7 +150,6 @@ public class KnowledgeCategoryAppService {
                 throw new BusinessException("所有分类必须属于同一父级");
             }
         }
-        // 逐个更新 sortOrder 并保存
         for (BatchSortItem item : items) {
             KnowledgeCategory category = categoryMap.get(item.getId());
             category.update(null, null, null, null, null, item.getSortOrder());
@@ -152,7 +158,7 @@ public class KnowledgeCategoryAppService {
     }
 
     /**
-     * 软删除知识点分类
+     * 软删除
      */
     @Transactional
     public void delete(Long id) {
@@ -163,19 +169,32 @@ public class KnowledgeCategoryAppService {
         categoryRepositoryPort.save(category);
     }
 
-    /**
-     * 构建分类树（内存组装，分类数量可控，无需数据库递归）
-     */
+    private FileRef verifyFileRef(Long fileId, String expectedBizType) {
+        if (fileId == null) {
+            return null;
+        }
+        Result<FileInfoResponse> result = fileServiceClient.getFileInfo(fileId);
+        FileInfoResponse info = result.getData();
+        if (info == null) {
+            throw new BusinessException(400, "文件不存在: " + fileId);
+        }
+        Map<String, Object> metadata = info.getMetadata();
+        if (metadata == null || !expectedBizType.equals(metadata.get("bizType"))) {
+            throw new BusinessException(400, "文件类型不匹配，期望 " + expectedBizType);
+        }
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (!Objects.equals(currentUserId, metadata.get("userId"))) {
+            throw new BusinessException(403, "无权使用该文件");
+        }
+        return FileRef.of(fileId, info.getUrl());
+    }
+
     private List<KnowledgeCategoryTreeResponse> buildTree(List<KnowledgeCategory> all) {
         Map<Long, KnowledgeCategoryTreeResponse> nodeMap = new LinkedHashMap<>();
         List<KnowledgeCategoryTreeResponse> roots = new ArrayList<>();
-
-        // 第一遍：创建所有节点
         for (KnowledgeCategory category : all) {
             nodeMap.put(category.getId(), KnowledgeCategoryAssembler.INSTANCE.toTreeNode(category));
         }
-
-        // 第二遍：建立父子关系
         for (KnowledgeCategory category : all) {
             KnowledgeCategoryTreeResponse node = nodeMap.get(category.getId());
             if (category.getParentId() == null) {
@@ -192,19 +211,12 @@ public class KnowledgeCategoryAppService {
                 }
             }
         }
-
-        // 按 sortOrder 排序
         sortChildren(roots);
         return roots;
     }
 
-    /**
-     * 递归排序子节点
-     */
     private void sortChildren(List<KnowledgeCategoryTreeResponse> nodes) {
-        if (nodes == null) {
-            return;
-        }
+        if (nodes == null) return;
         nodes.sort((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()));
         for (KnowledgeCategoryTreeResponse node : nodes) {
             sortChildren(node.getChildren());

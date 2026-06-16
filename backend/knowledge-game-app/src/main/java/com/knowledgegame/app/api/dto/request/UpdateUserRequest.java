@@ -14,5 +14,5 @@ public class UpdateUserRequest {
     @Size(max = 50, message = "昵称最长 50")
     private String nickname;
 
-    private String avatar;
+    private Long avatarFileId;
 }

@@ -1,6 +1,7 @@
 package com.knowledgegame.core.domain.model.entity;
 
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -15,7 +16,7 @@ public class IpSeries {
     private String code;
     private String name;
     private String description;
-    private String coverImageUrl;
+    private FileRef coverImage;
     private IpSeriesStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -24,12 +25,12 @@ public class IpSeries {
      * 创建新 IP 系列（工厂方法）
      */
     public static IpSeries create(String code, String name, String description,
-                                  String coverImageUrl, IpSeriesStatus status) {
+                                  FileRef coverImage, IpSeriesStatus status) {
         IpSeries series = new IpSeries();
         series.code = code;
         series.name = name;
         series.description = description;
-        series.coverImageUrl = coverImageUrl;
+        series.coverImage = coverImage;
         series.status = status;
         series.createdAt = LocalDateTime.now();
         series.updatedAt = LocalDateTime.now();
@@ -40,14 +41,14 @@ public class IpSeries {
      * 从持久化重建（用于 Repository 加载）
      */
     public static IpSeries reconstruct(Long id, String code, String name, String description,
-                                       String coverImageUrl, IpSeriesStatus status,
+                                       FileRef coverImage, IpSeriesStatus status,
                                        LocalDateTime createdAt, LocalDateTime updatedAt) {
         IpSeries series = new IpSeries();
         series.id = id;
         series.code = code;
         series.name = name;
         series.description = description;
-        series.coverImageUrl = coverImageUrl;
+        series.coverImage = coverImage;
         series.status = status;
         series.createdAt = createdAt;
         series.updatedAt = updatedAt;
@@ -55,10 +56,10 @@ public class IpSeries {
     }
 
     /**
-     * 更新 IP 系列信息
+     * 更新 IP 系列信息（FileRef 整体替换，传 null 表示清空封面图）
      */
     public void update(String code, String name, String description,
-                       String coverImageUrl, IpSeriesStatus status) {
+                       FileRef coverImage, IpSeriesStatus status) {
         if (code != null) {
             this.code = code;
         }
@@ -66,7 +67,7 @@ public class IpSeries {
             this.name = name;
         }
         this.description = description;
-        this.coverImageUrl = coverImageUrl;
+        this.coverImage = coverImage;
         if (status != null) {
             this.status = status;
         }

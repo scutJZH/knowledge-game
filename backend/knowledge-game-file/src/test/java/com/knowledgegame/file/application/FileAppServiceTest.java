@@ -1,6 +1,6 @@
 package com.knowledgegame.file.application;
 
-import com.knowledgegame.file.api.dto.FileInfoResponse;
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.file.api.dto.FileUploadResponse;
 import com.knowledgegame.file.common.config.FileProperties;
 import com.knowledgegame.file.domain.model.FileInfo;
@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,6 +30,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import org.mockito.ArgumentCaptor;
 
 /**
  * 文件应用服务测试
@@ -62,7 +65,7 @@ class FileAppServiceTest {
         @Test
         @DisplayName("成功上传文件")
         void shouldUploadFile() {
-            String token = credentialService.generateCredential(1L, 1, "ip-series");
+            String token = credentialService.generateCredential(1L, 1, "ip-series", null);
 
             StoredFile storedFile = new StoredFile("uuid.png", "ip-series/20260612/uuid.png",
                     "/static/ip-series/20260612/uuid.png", "image/png", 100);
@@ -71,7 +74,7 @@ class FileAppServiceTest {
 
             FileInfo savedFileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
                     "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
-                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false);
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false, null);
             when(fileInfoRepository.save(any(FileInfo.class))).thenReturn(savedFileInfo);
 
             MockMultipartFile file = new MockMultipartFile("file", "test.png",
@@ -98,7 +101,7 @@ class FileAppServiceTest {
         @Test
         @DisplayName("不支持的文件类型应抛异常")
         void shouldRejectUnsupportedType() {
-            String token = credentialService.generateCredential(1L, 1, "ip-series");
+            String token = credentialService.generateCredential(1L, 1, "ip-series", null);
             MockMultipartFile file = new MockMultipartFile("file", "test.txt",
                     "text/plain", "hello".getBytes());
 
@@ -116,7 +119,7 @@ class FileAppServiceTest {
         void shouldSoftDeleteFile() {
             FileInfo fileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
                     "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
-                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false);
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false, null);
             when(fileInfoRepository.findById(1L)).thenReturn(Optional.of(fileInfo));
 
             fileAppService.deleteFile(1L);
@@ -141,7 +144,7 @@ class FileAppServiceTest {
         void shouldGetFileInfo() {
             FileInfo fileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
                     "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
-                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false);
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false, null);
             when(fileInfoRepository.findById(1L)).thenReturn(Optional.of(fileInfo));
 
             FileInfoResponse response = fileAppService.getFileInfo(1L);
@@ -156,13 +159,79 @@ class FileAppServiceTest {
         void shouldBatchGetUrls() {
             FileInfo fileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
                     "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
-                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false);
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false, null);
             when(fileInfoRepository.findAllByIdIn(List.of(1L))).thenReturn(List.of(fileInfo));
 
             List<FileInfoResponse> responses = fileAppService.batchGetUrls(List.of(1L));
 
             assertEquals(1, responses.size());
             assertEquals(1L, responses.get(0).getFileId());
+        }
+    }
+
+    @Nested
+    @DisplayName("metadata 写入")
+    class MetadataTests {
+
+        @Test
+        @DisplayName("uploadFile 应将凭证 metadata 写入 FileInfo")
+        void shouldWriteMetadataOnUpload() {
+            Map<String, Object> metadata = Map.of("bizType", "IP_SERIES", "userId", 1L);
+            String token = credentialService.generateCredential(1L, 1, "ip-series", metadata);
+
+            StoredFile storedFile = new StoredFile("uuid.png", "ip-series/20260612/uuid.png",
+                    "/static/ip-series/20260612/uuid.png", "image/png", 100);
+            when(storageProvider.store(anyString(), anyString(), any(), any(long.class), anyString()))
+                    .thenReturn(storedFile);
+
+            FileInfo savedFileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
+                    "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false, metadata);
+            ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
+            when(fileInfoRepository.save(captor.capture())).thenReturn(savedFileInfo);
+
+            MockMultipartFile file = new MockMultipartFile("file", "test.png",
+                    "image/png", "hello".getBytes());
+
+            fileAppService.uploadFile(1L, token, file);
+
+            FileInfo captured = captor.getValue();
+            assertNotNull(captured.getMetadata());
+            assertEquals("IP_SERIES", captured.getMetadata().get("bizType"));
+            assertEquals(1L, captured.getMetadata().get("userId"));
+        }
+
+        @Test
+        @DisplayName("batchUploadFiles 应将凭证 metadata 写入每个 FileInfo")
+        void shouldWriteMetadataOnBatchUpload() {
+            Map<String, Object> metadata = Map.of("bizType", "IP_SERIES", "userId", 1L);
+            String token = credentialService.generateCredential(1L, 2, "ip-series", metadata);
+
+            StoredFile storedFile = new StoredFile("uuid.png", "ip-series/20260612/uuid.png",
+                    "/static/ip-series/20260612/uuid.png", "image/png", 100);
+            when(storageProvider.store(anyString(), anyString(), any(), any(long.class), anyString()))
+                    .thenReturn(storedFile);
+
+            FileInfo savedFileInfo = FileInfo.reconstruct(1L, "test.png", "uuid.png",
+                    "ip-series/20260612/uuid.png", "/static/ip-series/20260612/uuid.png",
+                    "image/png", 100, "ip-series", 1L, LocalDateTime.now(), false, metadata);
+            ArgumentCaptor<FileInfo> captor = ArgumentCaptor.forClass(FileInfo.class);
+            when(fileInfoRepository.save(captor.capture())).thenReturn(savedFileInfo);
+
+            MockMultipartFile file1 = new MockMultipartFile("files", "test1.png",
+                    "image/png", "hello".getBytes());
+            MockMultipartFile file2 = new MockMultipartFile("files", "test2.png",
+                    "image/png", "world".getBytes());
+
+            fileAppService.batchUploadFiles(1L, token, List.of(file1, file2));
+
+            List<FileInfo> captured = captor.getAllValues();
+            assertEquals(2, captured.size());
+            for (FileInfo info : captured) {
+                assertNotNull(info.getMetadata());
+                assertEquals("IP_SERIES", info.getMetadata().get("bizType"));
+                assertEquals(1L, info.getMetadata().get("userId"));
+            }
         }
     }
 }

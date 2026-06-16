@@ -94,7 +94,7 @@ public class UserController {
     @PutMapping("/{id}")
     public Result<UserResponse> update(@PathVariable Long id,
                                        @Valid @RequestBody UpdateUserRequest request) {
-        return Result.success(userAppService.updateUser(id, request.getNickname(), request.getAvatar()));
+        return Result.success(userAppService.updateUser(id, request.getNickname(), request.getAvatarFileId()));
     }
 
     /**

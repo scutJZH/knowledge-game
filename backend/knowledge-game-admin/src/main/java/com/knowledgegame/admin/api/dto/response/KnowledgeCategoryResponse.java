@@ -15,8 +15,10 @@ public class KnowledgeCategoryResponse {
     private Long parentId;
     private String name;
     private String description;
+    private Long iconFileId;
     private String iconUrl;
     private String color;
+    private Long coverImageFileId;
     private String coverImageUrl;
     private int sortOrder;
     private String status;

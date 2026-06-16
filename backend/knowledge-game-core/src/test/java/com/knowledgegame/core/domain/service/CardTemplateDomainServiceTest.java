@@ -6,6 +6,7 @@ import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class CardTemplateDomainServiceTest {
         // 准备：构造一个 ACTIVE 的 IpSeries
         IpSeries activeIpSeries = IpSeries.reconstruct(
                 10L, "MARVEL", "漫威宇宙", "超级英雄",
-                "https://cover.jpg", IpSeriesStatus.ACTIVE,
+                FileRef.of(1L, "https://cover.jpg"), IpSeriesStatus.ACTIVE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 1, 0, 0)
         );
@@ -56,19 +57,16 @@ class CardTemplateDomainServiceTest {
         // 执行
         CardTemplate result = cardTemplateDomainService.validateAndCreate(
                 10L, "CARD_001", "测试卡牌", CardRarity.SR,
-                "测试描述", CardTemplateStatus.ACTIVE, "https://example.com/card.png"
+                "测试描述", CardTemplateStatus.ACTIVE, FileRef.of(1L, "https://example.com/card.png")
         );
 
-        // 断言
-        assertNotNull(result, "返回的 CardTemplate 不应为 null");
-        assertNull(result.getId(), "新创建的模板 id 应为 null");
-        assertEquals(10L, result.getIpSeriesId(), "ipSeriesId 应为 10");
-        assertEquals("CARD_001", result.getCode(), "code 应为 CARD_001");
-        assertEquals("测试卡牌", result.getName(), "name 应为 测试卡牌");
-        assertEquals(CardRarity.SR, result.getRarity(), "rarity 应为 SR");
-        assertEquals(CardTemplateStatus.ACTIVE, result.getStatus(), "status 应为 ACTIVE");
-        assertEquals("https://example.com/card.png", result.getImageUrl(),
-                "imageUrl 应正确设置");
+        assertNotNull(result);
+        assertNull(result.getId());
+        assertEquals(10L, result.getIpSeriesId());
+        assertEquals("CARD_001", result.getCode());
+        assertEquals(CardRarity.SR, result.getRarity());
+        assertEquals(CardTemplateStatus.ACTIVE, result.getStatus());
+        assertEquals(FileRef.of(1L, "https://example.com/card.png"), result.getImage());
     }
 
     /**
@@ -80,7 +78,7 @@ class CardTemplateDomainServiceTest {
         // 准备
         IpSeries activeIpSeries = IpSeries.reconstruct(
                 10L, "MARVEL", "漫威宇宙", "描述",
-                "https://cover.jpg", IpSeriesStatus.ACTIVE,
+                FileRef.of(1L, "https://cover.jpg"), IpSeriesStatus.ACTIVE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 1, 0, 0)
         );
@@ -93,8 +91,8 @@ class CardTemplateDomainServiceTest {
         );
 
         // 断言
-        assertNotNull(result, "返回的 CardTemplate 不应为 null");
-        assertNull(result.getImageUrl(), "imageUrl 应为 null");
+        assertNotNull(result);
+        assertNull(result.getImage());
     }
 
     /**
@@ -130,7 +128,7 @@ class CardTemplateDomainServiceTest {
         // 准备：构造一个 INACTIVE 的 IpSeries
         IpSeries inactiveIpSeries = IpSeries.reconstruct(
                 20L, "DC", "DC宇宙", "超级英雄",
-                "https://cover.jpg", IpSeriesStatus.INACTIVE,
+                FileRef.of(1L, "https://cover.jpg"), IpSeriesStatus.INACTIVE,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 1, 0, 0)
         );
@@ -140,7 +138,7 @@ class CardTemplateDomainServiceTest {
         BusinessException exception = assertThrows(BusinessException.class, () ->
                 cardTemplateDomainService.validateAndCreate(
                         20L, "CODE", "名称", CardRarity.R,
-                        "描述", CardTemplateStatus.ACTIVE, "https://example.com/img.png"
+                        "描述", CardTemplateStatus.ACTIVE, FileRef.of(1L, "https://example.com/img.png")
                 ),
                 "IpSeries 为 INACTIVE 时应抛出 BusinessException"
         );

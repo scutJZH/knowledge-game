@@ -1,7 +1,7 @@
 package com.knowledgegame.file.application;
 
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
-import com.knowledgegame.file.api.dto.FileInfoResponse;
 import com.knowledgegame.file.api.dto.FileUploadResponse;
 import com.knowledgegame.file.common.config.FileProperties;
 import com.knowledgegame.file.domain.model.FileInfo;
@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -45,10 +46,11 @@ public class FileAppService {
     /**
      * 生成上传凭证
      */
-    public String generateCredential(long userId, int count, String basePath) {
+    public String generateCredential(long userId, int count, String basePath,
+                                      Map<String, Object> metadata) {
         // 校验 basePath 格式
         validateBasePath(basePath);
-        return credentialService.generateCredential(userId, count, basePath);
+        return credentialService.generateCredential(userId, count, basePath, metadata);
     }
 
     /**
@@ -56,11 +58,12 @@ public class FileAppService {
      */
     @Transactional
     public FileUploadResponse uploadFile(long userId, String token, MultipartFile file) {
-        // 前置校验凭证有效性并提取 basePath
+        // 前置校验凭证有效性并提取 basePath + metadata
         if (!credentialService.validate(userId, token)) {
             throw new BusinessException(401, "上传凭证无效或已过期");
         }
         String basePath = credentialService.getBasePath(userId, token);
+        Map<String, Object> metadata = credentialService.getMetadata(userId, token);
 
         // 校验文件类型
         String contentType = file.getContentType();
@@ -92,7 +95,8 @@ public class FileAppService {
                 file.getOriginalFilename(),
                 storedFile,
                 basePath,
-                userId
+                userId,
+                metadata
         );
         FileInfo saved = fileInfoRepository.save(fileInfo);
 
@@ -135,20 +139,22 @@ public class FileAppService {
     }
 
     /**
-     * 批量上传文件（原子性：全部成功或全部失败）
+     * 批量上传文件
      * <p>
+     * DB 操作原子性：全部成功或全部失败（@Transactional）。磁盘文件可能产生孤儿，由 cleanupDeletedFiles 定期清理。
      * 校验顺序：凭证有效性 → 文件数量与凭证次数一致 → 每个文件类型+大小 → 存储+入库 → 一次性消费凭证
      *
      * @return 每个文件的上传结果（fileId + url），顺序与传入文件列表一致
      */
     @Transactional
     public List<FileUploadResponse> batchUploadFiles(long userId, String token, List<MultipartFile> files) {
-        // 1. 校验凭证有效性并提取 basePath
+        // 1. 校验凭证有效性并提取 basePath + metadata
         int remainingCount = credentialService.getRemainingCount(userId, token);
         if (remainingCount < 0) {
             throw new BusinessException(401, "上传凭证无效或已过期");
         }
         String basePath = credentialService.getBasePath(userId, token);
+        Map<String, Object> metadata = credentialService.getMetadata(userId, token);
 
         // 2. 校验文件数量与凭证次数完全一致
         if (files == null || files.isEmpty()) {
@@ -189,7 +195,8 @@ public class FileAppService {
                     file.getOriginalFilename(),
                     storedFile,
                     basePath,
-                    userId
+                    userId,
+                    metadata
             );
             FileInfo saved = fileInfoRepository.save(fileInfo);
 

@@ -119,10 +119,9 @@ const IpSeries: React.FC = () => {
     setSubmitLoading(true);
     try {
       if (editingRecord) {
-        // 编辑模式下将 undefined 转为 null，确保后端能清空 coverImageUrl
         const updateData = {
           ...values,
-          coverImageUrl: values.coverImageUrl ?? null,
+          coverImageFileId: values.coverImageFileId ?? null,
         };
         await updateIpSeries(editingRecord.id, updateData as UpdateIpSeriesRequest);
         message.success('更新成功');
@@ -214,8 +213,12 @@ const IpSeries: React.FC = () => {
             placeholder="请输入描述"
             rules={[{ max: 500, message: '描述不能超过 500 字符' }]}
           />
-          <ProForm.Item name="coverImageUrl" label="封面图">
-            <ImageUploadField bizType="IP_SERIES" placeholder="上传封面图" />
+          <ProForm.Item name="coverImageFileId" label="封面图">
+            <ImageUploadField
+              bizType="IP_SERIES"
+              placeholder="上传封面图"
+              url={editingRecord?.coverImageUrl}
+            />
           </ProForm.Item>
           <ProFormSelect
             name="status"

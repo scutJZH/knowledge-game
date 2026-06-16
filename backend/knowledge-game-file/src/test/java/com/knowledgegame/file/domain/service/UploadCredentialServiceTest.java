@@ -5,8 +5,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -28,7 +32,7 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("应生成非空 token")
         void shouldGenerateNonNullToken() {
-            String token = service.generateCredential(1L, 1, "ip-series");
+            String token = service.generateCredential(1L, 1, "ip-series", null);
             assertNotNull(token);
             assertFalse(token.isEmpty());
         }
@@ -41,21 +45,21 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("有效凭证应通过验证")
         void shouldValidateValidCredential() {
-            String token = service.generateCredential(1L, 1, "ip-series");
+            String token = service.generateCredential(1L, 1, "ip-series", null);
             assertTrue(service.validate(1L, token));
         }
 
         @Test
         @DisplayName("错误的 userId 应验证失败")
         void shouldRejectWrongUserId() {
-            String token = service.generateCredential(1L, 1, "ip-series");
+            String token = service.generateCredential(1L, 1, "ip-series", null);
             assertFalse(service.validate(2L, token));
         }
 
         @Test
         @DisplayName("错误的 token 应验证失败")
         void shouldRejectWrongToken() {
-            service.generateCredential(1L, 1, "ip-series");
+            service.generateCredential(1L, 1, "ip-series", null);
             assertFalse(service.validate(1L, "wrong-token"));
         }
 
@@ -64,7 +68,7 @@ class UploadCredentialServiceTest {
         void shouldRejectExpiredCredential() {
             // 使用 -1 分钟过期，确保证券立即过期
             UploadCredentialService shortLived = new UploadCredentialService(-1);
-            String token = shortLived.generateCredential(1L, 1, "ip-series");
+            String token = shortLived.generateCredential(1L, 1, "ip-series", null);
             assertFalse(shortLived.validate(1L, token));
         }
     }
@@ -76,7 +80,7 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("tryConsume 消费后凭证应失效")
         void shouldInvalidateAfterTryConsume() {
-            String token = service.generateCredential(1L, 1, "ip-series");
+            String token = service.generateCredential(1L, 1, "ip-series", null);
             assertTrue(service.tryConsume(1L, token));
             assertFalse(service.validate(1L, token));
         }
@@ -84,7 +88,7 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("tryConsume 重复消费返回 false")
         void shouldReturnFalseOnDoubleTryConsume() {
-            String token = service.generateCredential(1L, 1, "ip-series");
+            String token = service.generateCredential(1L, 1, "ip-series", null);
             assertTrue(service.tryConsume(1L, token));
             assertFalse(service.tryConsume(1L, token));
         }
@@ -98,7 +102,7 @@ class UploadCredentialServiceTest {
         @DisplayName("应清理过期凭证")
         void shouldCleanExpiredCredentials() {
             UploadCredentialService shortLived = new UploadCredentialService(-1);
-            shortLived.generateCredential(1L, 1, "ip-series");
+            shortLived.generateCredential(1L, 1, "ip-series", null);
             int cleaned = shortLived.cleanupExpired();
             assertTrue(cleaned > 0);
         }
@@ -106,9 +110,47 @@ class UploadCredentialServiceTest {
         @Test
         @DisplayName("未过期凭证不应被清理")
         void shouldNotCleanValidCredentials() {
-            service.generateCredential(1L, 1, "ip-series");
+            service.generateCredential(1L, 1, "ip-series", null);
             int cleaned = service.cleanupExpired();
             assertTrue(cleaned == 0);
+        }
+    }
+
+    @Nested
+    @DisplayName("metadata 管理")
+    class MetadataTests {
+
+        @Test
+        @DisplayName("生成凭证时传入 metadata，getMetadata 应返回相同值")
+        void shouldStoreAndRetrieveMetadata() {
+            Map<String, Object> metadata = Map.of("bizType", "IP_SERIES", "userId", 1L);
+            String token = service.generateCredential(1L, 1, "ip-series", metadata);
+
+            Map<String, Object> retrieved = service.getMetadata(1L, token);
+            assertNotNull(retrieved);
+            assertEquals("IP_SERIES", retrieved.get("bizType"));
+            assertEquals(1L, retrieved.get("userId"));
+        }
+
+        @Test
+        @DisplayName("未传入 metadata 时 getMetadata 应返回 null")
+        void shouldReturnNullMetadataWhenNotProvided() {
+            String token = service.generateCredential(1L, 1, "ip-series", null);
+
+            Map<String, Object> retrieved = service.getMetadata(1L, token);
+            assertNull(retrieved);
+        }
+
+        @Test
+        @DisplayName("过期清理时应一并清理 metadata")
+        void shouldCleanMetadataOnExpiry() {
+            UploadCredentialService shortLived = new UploadCredentialService(-1);
+            Map<String, Object> metadata = Map.of("bizType", "IP_SERIES");
+            String token = shortLived.generateCredential(1L, 1, "ip-series", metadata);
+
+            shortLived.cleanupExpired();
+
+            assertNull(shortLived.getMetadata(1L, token));
         }
     }
 }

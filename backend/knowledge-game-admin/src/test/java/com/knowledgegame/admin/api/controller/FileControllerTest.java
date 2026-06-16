@@ -3,6 +3,7 @@ package com.knowledgegame.admin.api.controller;
 import com.knowledgegame.admin.config.FilePathMapping;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.components.feign.client.FileServiceClient;
+import com.knowledgegame.components.feign.dto.GenerateCredentialRequest;
 import com.knowledgegame.core.common.result.Result;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,8 +21,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
+
+import org.mockito.ArgumentCaptor;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -132,52 +138,73 @@ class FileControllerTest {
     class FullFlowTests {
 
         @Test
-        @DisplayName("Mock FileServiceClient 返回 token 时，验证响应格式正确（含 token + uploadUrl）")
+        @DisplayName("Mock FileServiceClient 返回 token 时，验证 metadata 含 bizType + userId")
         void shouldReturnTokenAndUploadUrl_whenFeignSucceeds() throws Exception {
             try (MockedStatic<FilePathMapping> mockedMapping = mockStatic(FilePathMapping.class)) {
-                mockedMapping.when(() -> FilePathMapping.toBasePath("ip-series")).thenReturn("ip-series");
-                given(fileServiceClient.generateCredential(1L, 1, "ip-series"))
+                mockedMapping.when(() -> FilePathMapping.toBasePath("IP_SERIES")).thenReturn("ip-series");
+                ArgumentCaptor<GenerateCredentialRequest> captor =
+                        ArgumentCaptor.forClass(GenerateCredentialRequest.class);
+                given(fileServiceClient.generateCredential(captor.capture()))
                         .willReturn(Result.success("admin-token-456"));
 
                 mockMvc.perform(get("/api/admin/upload-credential")
-                                .param("bizType", "ip-series"))
+                                .param("bizType", "IP_SERIES"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.code").value(200))
                         .andExpect(jsonPath("$.data.token").value("admin-token-456"))
                         .andExpect(jsonPath("$.data.uploadUrl").value("http://localhost:8083/api/file/upload"));
+
+                GenerateCredentialRequest req = captor.getValue();
+                assertEquals("ip-series", req.basePath());
+                assertEquals("IP_SERIES", req.metadata().get("bizType"));
+                assertEquals(1L, req.metadata().get("userId"));
             }
         }
 
         @Test
-        @DisplayName("count=1 时 uploadUrl 为单文件上传地址")
+        @DisplayName("count=1 时 uploadUrl 为单文件上传地址，metadata 正确")
         void shouldReturnSingleUploadUrl_whenCountIs1() throws Exception {
             try (MockedStatic<FilePathMapping> mockedMapping = mockStatic(FilePathMapping.class)) {
-                mockedMapping.when(() -> FilePathMapping.toBasePath("ip-series")).thenReturn("ip-series");
-                given(fileServiceClient.generateCredential(1L, 1, "ip-series"))
+                mockedMapping.when(() -> FilePathMapping.toBasePath("IP_SERIES")).thenReturn("ip-series");
+                ArgumentCaptor<GenerateCredentialRequest> captor =
+                        ArgumentCaptor.forClass(GenerateCredentialRequest.class);
+                given(fileServiceClient.generateCredential(captor.capture()))
                         .willReturn(Result.success("single-token"));
 
                 mockMvc.perform(get("/api/admin/upload-credential")
-                                .param("bizType", "ip-series")
+                                .param("bizType", "IP_SERIES")
                                 .param("count", "1"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.data.uploadUrl").value("http://localhost:8083/api/file/upload"));
+
+                GenerateCredentialRequest req = captor.getValue();
+                assertEquals(1, req.count());
+                assertEquals("ip-series", req.basePath());
+                assertEquals("IP_SERIES", req.metadata().get("bizType"));
             }
         }
 
         @Test
-        @DisplayName("count>1 时 uploadUrl 为批量上传地址")
+        @DisplayName("count>1 时 uploadUrl 为批量上传地址，metadata 含正确 bizType")
         void shouldReturnBatchUploadUrl_whenCountGreaterThan1() throws Exception {
             try (MockedStatic<FilePathMapping> mockedMapping = mockStatic(FilePathMapping.class)) {
-                mockedMapping.when(() -> FilePathMapping.toBasePath("avatar")).thenReturn("avatar");
-                given(fileServiceClient.generateCredential(1L, 5, "avatar"))
+                mockedMapping.when(() -> FilePathMapping.toBasePath("IP_SERIES")).thenReturn("ip-series");
+                ArgumentCaptor<GenerateCredentialRequest> captor =
+                        ArgumentCaptor.forClass(GenerateCredentialRequest.class);
+                given(fileServiceClient.generateCredential(captor.capture()))
                         .willReturn(Result.success("batch-token"));
 
                 mockMvc.perform(get("/api/admin/upload-credential")
-                                .param("bizType", "avatar")
+                                .param("bizType", "IP_SERIES")
                                 .param("count", "5"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.data.token").value("batch-token"))
                         .andExpect(jsonPath("$.data.uploadUrl").value("http://localhost:8083/api/file/batch-upload"));
+
+                GenerateCredentialRequest req = captor.getValue();
+                assertEquals(5, req.count());
+                assertEquals("ip-series", req.basePath());
+                assertEquals("IP_SERIES", req.metadata().get("bizType"));
             }
         }
     }

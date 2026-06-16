@@ -3,6 +3,7 @@ package com.knowledgegame.app.api.controller;
 import com.knowledgegame.app.config.FilePathMapping;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.components.feign.client.FileServiceClient;
+import com.knowledgegame.components.feign.dto.GenerateCredentialRequest;
 import com.knowledgegame.core.common.result.Result;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,8 +21,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
+
+import org.mockito.ArgumentCaptor;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -66,7 +71,7 @@ class FileControllerTest {
         }
 
         @Test
-        @DisplayName("bizType 无映射返回 400（当前所有 bizType 都无映射）")
+        @DisplayName("bizType 无映射返回 400（ip-series 不在 app 端映射中）")
         void shouldReturn400_whenBizTypeNotMapped() throws Exception {
             mockMvc.perform(get("/api/upload-credential")
                             .param("bizType", "ip-series"))
@@ -94,7 +99,6 @@ class FileControllerTest {
         @Test
         @DisplayName("count 默认值验证（不传 count 参数时请求不报参数错误）")
         void shouldAcceptRequest_withoutCount() throws Exception {
-            // 不传 count 时 count 默认为 1，但因映射为空仍返回业务异常
             mockMvc.perform(get("/api/upload-credential")
                             .param("bizType", "ip-series"))
                     .andExpect(status().isOk())
@@ -114,7 +118,6 @@ class FileControllerTest {
         @Test
         @DisplayName("未登录调用返回 400（SecurityUtils 抛出未认证异常）")
         void shouldReturn400_whenNotAuthenticated() throws Exception {
-            // 清除 SecurityContext 模拟未登录
             SecurityContextHolder.clearContext();
 
             mockMvc.perform(get("/api/upload-credential")
@@ -136,52 +139,72 @@ class FileControllerTest {
     class FullFlowTests {
 
         @Test
-        @DisplayName("Mock FileServiceClient 返回 token 时，验证响应格式正确（含 token + uploadUrl）")
+        @DisplayName("Mock FileServiceClient 返回 token 时，验证 metadata 含 bizType + userId")
         void shouldReturnTokenAndUploadUrl_whenFeignSucceeds() throws Exception {
             try (MockedStatic<FilePathMapping> mockedMapping = mockStatic(FilePathMapping.class)) {
-                mockedMapping.when(() -> FilePathMapping.toBasePath("ip-series")).thenReturn("ip-series");
-                given(fileServiceClient.generateCredential(1L, 1, "ip-series"))
+                mockedMapping.when(() -> FilePathMapping.toBasePath("USER_AVATAR")).thenReturn("user-avatar");
+                ArgumentCaptor<GenerateCredentialRequest> captor =
+                        ArgumentCaptor.forClass(GenerateCredentialRequest.class);
+                given(fileServiceClient.generateCredential(captor.capture()))
                         .willReturn(Result.success("test-token-123"));
 
                 mockMvc.perform(get("/api/upload-credential")
-                                .param("bizType", "ip-series"))
+                                .param("bizType", "USER_AVATAR"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.code").value(200))
                         .andExpect(jsonPath("$.data.token").value("test-token-123"))
                         .andExpect(jsonPath("$.data.uploadUrl").value("http://localhost:8083/api/file/upload"));
+
+                GenerateCredentialRequest req = captor.getValue();
+                assertEquals("user-avatar", req.basePath());
+                assertEquals("USER_AVATAR", req.metadata().get("bizType"));
+                assertEquals(1L, req.metadata().get("userId"));
             }
         }
 
         @Test
-        @DisplayName("count=1 时 uploadUrl 为单文件上传地址")
+        @DisplayName("count=1 时 uploadUrl 为单文件上传地址，metadata 正确")
         void shouldReturnSingleUploadUrl_whenCountIs1() throws Exception {
             try (MockedStatic<FilePathMapping> mockedMapping = mockStatic(FilePathMapping.class)) {
-                mockedMapping.when(() -> FilePathMapping.toBasePath("ip-series")).thenReturn("ip-series");
-                given(fileServiceClient.generateCredential(1L, 1, "ip-series"))
+                mockedMapping.when(() -> FilePathMapping.toBasePath("USER_AVATAR")).thenReturn("user-avatar");
+                ArgumentCaptor<GenerateCredentialRequest> captor =
+                        ArgumentCaptor.forClass(GenerateCredentialRequest.class);
+                given(fileServiceClient.generateCredential(captor.capture()))
                         .willReturn(Result.success("single-token"));
 
                 mockMvc.perform(get("/api/upload-credential")
-                                .param("bizType", "ip-series")
+                                .param("bizType", "USER_AVATAR")
                                 .param("count", "1"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.data.uploadUrl").value("http://localhost:8083/api/file/upload"));
+
+                GenerateCredentialRequest req = captor.getValue();
+                assertEquals(1, req.count());
+                assertEquals("user-avatar", req.basePath());
             }
         }
 
         @Test
-        @DisplayName("count>1 时 uploadUrl 为批量上传地址")
+        @DisplayName("count>1 时 uploadUrl 为批量上传地址，metadata 含正确 bizType")
         void shouldReturnBatchUploadUrl_whenCountGreaterThan1() throws Exception {
             try (MockedStatic<FilePathMapping> mockedMapping = mockStatic(FilePathMapping.class)) {
-                mockedMapping.when(() -> FilePathMapping.toBasePath("avatar")).thenReturn("avatar");
-                given(fileServiceClient.generateCredential(1L, 3, "avatar"))
+                mockedMapping.when(() -> FilePathMapping.toBasePath("USER_AVATAR")).thenReturn("user-avatar");
+                ArgumentCaptor<GenerateCredentialRequest> captor =
+                        ArgumentCaptor.forClass(GenerateCredentialRequest.class);
+                given(fileServiceClient.generateCredential(captor.capture()))
                         .willReturn(Result.success("batch-token"));
 
                 mockMvc.perform(get("/api/upload-credential")
-                                .param("bizType", "avatar")
+                                .param("bizType", "USER_AVATAR")
                                 .param("count", "3"))
                         .andExpect(status().isOk())
                         .andExpect(jsonPath("$.data.token").value("batch-token"))
                         .andExpect(jsonPath("$.data.uploadUrl").value("http://localhost:8083/api/file/batch-upload"));
+
+                GenerateCredentialRequest req = captor.getValue();
+                assertEquals(3, req.count());
+                assertEquals("user-avatar", req.basePath());
+                assertEquals("USER_AVATAR", req.metadata().get("bizType"));
             }
         }
     }

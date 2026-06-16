@@ -38,7 +38,8 @@ public interface FileInfoConverter {
                 po.getBasePath(),
                 po.getUploaderId(),
                 po.getCreatedAt(),
-                po.getDeleted()
+                po.getDeleted(),
+                po.getMetadata()
         );
     }
 

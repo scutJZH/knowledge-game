@@ -17,14 +17,12 @@ public class UpdateKnowledgeCategoryRequest {
     @Size(max = 500, message = "描述最长 500")
     private String description;
 
-    @Size(max = 500, message = "图标 URL 最长 500")
-    private String iconUrl;
+    private Long iconFileId;
 
     @Size(max = 20, message = "颜色值最长 20")
     private String color;
 
-    @Size(max = 500, message = "封面图 URL 最长 500")
-    private String coverImageUrl;
+    private Long coverImageFileId;
 
     private Integer sortOrder;
 }

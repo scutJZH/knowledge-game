@@ -17,6 +17,7 @@ export interface CardTemplateResponse {
   rarity: CardRarity;
   description: string;
   status: CardTemplateStatus;
+  imageFileId?: number;
   imageUrl?: string;
   createdAt: number;
   updatedAt: number;
@@ -47,6 +48,7 @@ export interface CreateCardTemplateRequest {
   rarity: CardRarity;
   description?: string;
   status: CardTemplateStatus;
+  imageFileId?: number;
   imageUrl?: string;
 }
 
@@ -57,6 +59,7 @@ export interface UpdateCardTemplateRequest {
   rarity?: CardRarity;
   description?: string;
   status?: CardTemplateStatus;
+  imageFileId?: number;
   imageUrl?: string;
 }
 

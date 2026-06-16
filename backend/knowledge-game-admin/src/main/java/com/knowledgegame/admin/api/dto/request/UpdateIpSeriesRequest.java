@@ -21,8 +21,7 @@ public class UpdateIpSeriesRequest {
     @Size(max = 500, message = "描述最长 500")
     private String description;
 
-    @Size(max = 500, message = "封面图 URL 最长 500")
-    private String coverImageUrl;
+    private Long coverImageFileId;
 
     private IpSeriesStatus status;
 }

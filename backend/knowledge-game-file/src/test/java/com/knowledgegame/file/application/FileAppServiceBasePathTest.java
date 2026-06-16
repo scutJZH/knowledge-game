@@ -49,32 +49,32 @@ class FileAppServiceBasePathTest {
         @Test
         @DisplayName("合法 basePath：小写字母（如 ip-series）")
         void shouldAccept_lowerCaseWithHyphen() {
-            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "ip-series"));
+            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "ip-series", null));
         }
 
         @Test
         @DisplayName("合法 basePath：纯小写字母（如 avatar）")
         void shouldAccept_lowerCaseLetters() {
-            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "avatar"));
+            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "avatar", null));
         }
 
         @Test
         @DisplayName("合法 basePath：小写字母+数字+短横线（如 card-star-image）")
         void shouldAccept_lowerCaseWithNumbersAndHyphens() {
-            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "card-star-image"));
+            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "card-star-image", null));
         }
 
         @Test
         @DisplayName("合法 basePath：小写字母+数字（如 image2）")
         void shouldAccept_lowerCaseWithNumbers() {
-            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "image2"));
+            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "image2", null));
         }
 
         @Test
         @DisplayName("空 basePath 被拒绝")
         void shouldReject_emptyBasePath() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, ""));
+                    () -> fileAppService.generateCredential(1L, 1, "", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -82,7 +82,7 @@ class FileAppServiceBasePathTest {
         @DisplayName("null basePath 被拒绝")
         void shouldReject_nullBasePath() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, null));
+                    () -> fileAppService.generateCredential(1L, 1, null, null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -90,7 +90,7 @@ class FileAppServiceBasePathTest {
         @DisplayName("包含 \"..\" 的 basePath 被拒绝（路径遍历攻击防护）")
         void shouldReject_pathTraversal() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, ".."));
+                    () -> fileAppService.generateCredential(1L, 1, "..", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -98,7 +98,7 @@ class FileAppServiceBasePathTest {
         @DisplayName("包含 \"../\" 的 basePath 被拒绝")
         void shouldReject_pathTraversalWithSlash() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, "../etc"));
+                    () -> fileAppService.generateCredential(1L, 1, "../etc", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -106,7 +106,7 @@ class FileAppServiceBasePathTest {
         @DisplayName("包含 \"/\" 的 basePath 被拒绝")
         void shouldReject_slashInPath() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, "ip/series"));
+                    () -> fileAppService.generateCredential(1L, 1, "ip/series", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -114,7 +114,7 @@ class FileAppServiceBasePathTest {
         @DisplayName("大写字母的 basePath 被拒绝（如 IP_SERIES）")
         void shouldReject_upperCaseLetters() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, "IP_SERIES"));
+                    () -> fileAppService.generateCredential(1L, 1, "IP_SERIES", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -122,7 +122,7 @@ class FileAppServiceBasePathTest {
         @DisplayName("包含下划线的 basePath 被拒绝")
         void shouldReject_underscore() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, "ip_series"));
+                    () -> fileAppService.generateCredential(1L, 1, "ip_series", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -130,7 +130,7 @@ class FileAppServiceBasePathTest {
         @DisplayName("以短横线开头的 basePath 被拒绝（如 -test）")
         void shouldReject_startWithHyphen() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, "-test"));
+                    () -> fileAppService.generateCredential(1L, 1, "-test", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -138,7 +138,7 @@ class FileAppServiceBasePathTest {
         @DisplayName("包含空格的 basePath 被拒绝")
         void shouldReject_spaceInPath() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, "ip series"));
+                    () -> fileAppService.generateCredential(1L, 1, "ip series", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
@@ -146,26 +146,26 @@ class FileAppServiceBasePathTest {
         @DisplayName("包含特殊字符的 basePath 被拒绝")
         void shouldReject_specialCharacters() {
             Exception ex = assertThrows(Exception.class,
-                    () -> fileAppService.generateCredential(1L, 1, "ip@series"));
+                    () -> fileAppService.generateCredential(1L, 1, "ip@series", null));
             assertEquals(400, ((BusinessException) ex).getCode());
         }
 
         @Test
         @DisplayName("纯数字的 basePath 合法")
         void shouldAccept_pureNumbers() {
-            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "123"));
+            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "123", null));
         }
 
         @Test
         @DisplayName("单字母 basePath 合法")
         void shouldAccept_singleLetter() {
-            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "a"));
+            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "a", null));
         }
 
         @Test
         @DisplayName("单数字 basePath 合法")
         void shouldAccept_singleDigit() {
-            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "1"));
+            assertDoesNotThrow(() -> fileAppService.generateCredential(1L, 1, "1", null));
         }
     }
 }

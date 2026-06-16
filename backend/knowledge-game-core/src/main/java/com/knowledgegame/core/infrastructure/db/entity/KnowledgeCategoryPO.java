@@ -44,11 +44,17 @@ public class KnowledgeCategoryPO {
     @Column(length = 500)
     private String description;
 
+    @Column(name = "icon_file_id")
+    private Long iconFileId;
+
     @Column(name = "icon_url", length = 500)
     private String iconUrl;
 
     @Column(length = 20)
     private String color;
+
+    @Column(name = "cover_image_file_id")
+    private Long coverImageFileId;
 
     @Column(name = "cover_image_url", length = 500)
     private String coverImageUrl;

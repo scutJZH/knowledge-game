@@ -31,7 +31,7 @@ class UploadCredentialServiceBasePathTest {
         @Test
         @DisplayName("生成凭证后应能取出 basePath")
         void shouldRetrieveBasePath_afterGeneration() {
-            String token = service.generateCredential(1L, 1, "ip-series");
+            String token = service.generateCredential(1L, 1, "ip-series", null);
 
             String basePath = service.getBasePath(1L, token);
             assertEquals("ip-series", basePath);
@@ -40,7 +40,7 @@ class UploadCredentialServiceBasePathTest {
         @Test
         @DisplayName("生成凭证后应验证通过")
         void shouldValidate_afterGeneration() {
-            String token = service.generateCredential(1L, 1, "avatar");
+            String token = service.generateCredential(1L, 1, "avatar", null);
 
             assertTrue(service.validate(1L, token));
         }
@@ -48,9 +48,9 @@ class UploadCredentialServiceBasePathTest {
         @Test
         @DisplayName("不同 basePath 的凭证均能正确记录")
         void shouldRecordDifferentBasePaths() {
-            String token1 = service.generateCredential(1L, 1, "ip-series");
-            String token2 = service.generateCredential(1L, 1, "avatar");
-            String token3 = service.generateCredential(1L, 1, "card-star-image");
+            String token1 = service.generateCredential(1L, 1, "ip-series", null);
+            String token2 = service.generateCredential(1L, 1, "avatar", null);
+            String token3 = service.generateCredential(1L, 1, "card-star-image", null);
 
             assertEquals("ip-series", service.getBasePath(1L, token1));
             assertEquals("avatar", service.getBasePath(1L, token2));
@@ -71,7 +71,7 @@ class UploadCredentialServiceBasePathTest {
         @Test
         @DisplayName("错误的 userId 返回 null basePath")
         void shouldReturnNull_forWrongUserId() {
-            String token = service.generateCredential(1L, 1, "ip-series");
+            String token = service.generateCredential(1L, 1, "ip-series", null);
 
             assertNull(service.getBasePath(2L, token));
         }
@@ -79,7 +79,7 @@ class UploadCredentialServiceBasePathTest {
         @Test
         @DisplayName("已消费的凭证返回 null basePath")
         void shouldReturnNull_forConsumedCredential() {
-            String token = service.generateCredential(1L, 1, "ip-series");
+            String token = service.generateCredential(1L, 1, "ip-series", null);
 
             service.tryConsume(1L, token);
 
@@ -91,7 +91,7 @@ class UploadCredentialServiceBasePathTest {
         void shouldReturnNull_forExpiredCredential() {
             // 使用 -1 分钟过期，确保凭证立即过期
             UploadCredentialService shortLived = new UploadCredentialService(-1);
-            String token = shortLived.generateCredential(1L, 1, "ip-series");
+            String token = shortLived.generateCredential(1L, 1, "ip-series", null);
 
             assertNull(shortLived.getBasePath(1L, token));
         }
@@ -104,8 +104,8 @@ class UploadCredentialServiceBasePathTest {
         @Test
         @DisplayName("消费一个凭证不影响另一个凭证的 basePath")
         void shouldNotAffectOtherCredential_whenOneConsumed() {
-            String token1 = service.generateCredential(1L, 1, "ip-series");
-            String token2 = service.generateCredential(1L, 1, "avatar");
+            String token1 = service.generateCredential(1L, 1, "ip-series", null);
+            String token2 = service.generateCredential(1L, 1, "avatar", null);
 
             // 消费第一个凭证
             service.tryConsume(1L, token1);
@@ -118,8 +118,8 @@ class UploadCredentialServiceBasePathTest {
         @Test
         @DisplayName("不同用户的同名 basePath 凭证互不影响")
         void shouldIsolateAcrossUsers() {
-            String token1 = service.generateCredential(1L, 1, "ip-series");
-            String token2 = service.generateCredential(2L, 1, "ip-series");
+            String token1 = service.generateCredential(1L, 1, "ip-series", null);
+            String token2 = service.generateCredential(2L, 1, "ip-series", null);
 
             // 消费用户1的凭证
             service.tryConsume(1L, token1);
@@ -132,8 +132,8 @@ class UploadCredentialServiceBasePathTest {
         @Test
         @DisplayName("不同 basePath 的凭证各自独立消费")
         void shouldConsumeIndependently() {
-            String token1 = service.generateCredential(1L, 1, "ip-series");
-            String token2 = service.generateCredential(1L, 1, "avatar");
+            String token1 = service.generateCredential(1L, 1, "ip-series", null);
+            String token2 = service.generateCredential(1L, 1, "avatar", null);
 
             // 分别消费
             assertTrue(service.tryConsume(1L, token1));
@@ -151,9 +151,9 @@ class UploadCredentialServiceBasePathTest {
             String basePath2 = "avatar";
             String basePath3 = "card-star-image";
 
-            String token1 = service.generateCredential(1L, 1, basePath1);
-            String token2 = service.generateCredential(1L, 1, basePath2);
-            String token3 = service.generateCredential(1L, 1, basePath3);
+            String token1 = service.generateCredential(1L, 1, basePath1, null);
+            String token2 = service.generateCredential(1L, 1, basePath2, null);
+            String token3 = service.generateCredential(1L, 1, basePath3, null);
 
             // 所有凭证均可验证
             assertNotNull(token1);

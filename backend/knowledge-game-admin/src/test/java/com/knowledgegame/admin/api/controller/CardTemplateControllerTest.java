@@ -88,7 +88,7 @@ class CardTemplateControllerTest {
                 .rarity("SR")
                 .description("电气鼠")
                 .status("ACTIVE")
-                .imageUrl("https://example.com/card.png")
+                .imageFileId(1L).imageUrl("https://example.com/card.png")
                 .createdAt(1767225600000L)
                 .updatedAt(1767225600000L)
                 .build();
@@ -105,7 +105,7 @@ class CardTemplateControllerTest {
         request.setRarity(CardRarity.SR);
         request.setDescription("电气鼠");
         request.setStatus(CardTemplateStatus.ACTIVE);
-        request.setImageUrl("https://example.com/card.png");
+        request.setImageFileId(1L);
         return request;
     }
 
@@ -122,7 +122,7 @@ class CardTemplateControllerTest {
         when(cardTemplateAppService.createCardTemplate(
                 eq(1L), eq("PIKACHU"), eq("皮卡丘"),
                 eq(CardRarity.SR), eq("电气鼠"),
-                eq(CardTemplateStatus.ACTIVE), eq("https://example.com/card.png")
+                eq(CardTemplateStatus.ACTIVE), eq(1L)
         )).thenReturn(buildTestResponse(1L));
 
         // 执行请求并断言
@@ -137,12 +137,12 @@ class CardTemplateControllerTest {
                 .andExpect(jsonPath("$.data.rarity").value("SR"))
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.data.ipSeriesName").value("火影忍者"))
-                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/card.png"));
+                .andExpect(jsonPath("$.data.imageFileId").value(1L));
 
         verify(cardTemplateAppService).createCardTemplate(
                 eq(1L), eq("PIKACHU"), eq("皮卡丘"),
                 eq(CardRarity.SR), eq("电气鼠"),
-                eq(CardTemplateStatus.ACTIVE), eq("https://example.com/card.png"));
+                eq(CardTemplateStatus.ACTIVE), eq(1L));
     }
 
     /**
@@ -185,7 +185,7 @@ class CardTemplateControllerTest {
                 .andExpect(jsonPath("$.data.rarity").value("SR"))
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.data.ipSeriesName").value("火影忍者"))
-                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/card.png"))
+                .andExpect(jsonPath("$.data.imageFileId").value(1L))
                 .andExpect(jsonPath("$.data.starImages").doesNotExist());
 
         verify(cardTemplateAppService).getCardTemplateById(1L);
@@ -270,7 +270,7 @@ class CardTemplateControllerTest {
         UpdateCardTemplateRequest request = new UpdateCardTemplateRequest();
         request.setName("皮卡丘-进化");
         request.setDescription("进化后的电气鼠");
-        request.setImageUrl("https://example.com/card-updated.png");
+        request.setImageFileId(1L);
 
         // 模拟 AppService 返回更新后的 DTO
         CardTemplateResponse updatedResponse = CardTemplateResponse.builder()
@@ -282,13 +282,13 @@ class CardTemplateControllerTest {
                 .rarity("SR")
                 .description("进化后的电气鼠")
                 .status("ACTIVE")
-                .imageUrl("https://example.com/card-updated.png")
+                .imageFileId(1L).imageUrl("https://example.com/card.png")
                 .createdAt(1767225600000L)
                 .updatedAt(1780315200000L)
                 .build();
         when(cardTemplateAppService.updateCardTemplate(
                 eq(1L), isNull(), eq("皮卡丘-进化"), isNull(),
-                eq("进化后的电气鼠"), isNull(), eq("https://example.com/card-updated.png")
+                eq("进化后的电气鼠"), isNull(), eq(1L)
         )).thenReturn(updatedResponse);
 
         // 执行请求并断言
@@ -300,10 +300,10 @@ class CardTemplateControllerTest {
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.name").value("皮卡丘-进化"))
                 .andExpect(jsonPath("$.data.description").value("进化后的电气鼠"))
-                .andExpect(jsonPath("$.data.imageUrl").value("https://example.com/card-updated.png"));
+                .andExpect(jsonPath("$.data.imageFileId").value(1L));
 
         verify(cardTemplateAppService).updateCardTemplate(
-                1L, null, "皮卡丘-进化", null, "进化后的电气鼠", null, "https://example.com/card-updated.png");
+                1L, null, "皮卡丘-进化", null, "进化后的电气鼠", null, 1L);
     }
 
     // ========== 删除接口测试 ==========

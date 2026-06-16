@@ -8,8 +8,8 @@ export interface UploadCredentialResponse {
 }
 
 /** 文件上传响应 */
-interface FileUploadResponse {
-  fileId: string;
+export interface FileUploadResponse {
+  fileId: number;
   url: string;
 }
 
@@ -43,7 +43,7 @@ export async function uploadFile(
   uploadUrl: string,
   file: File,
   userId: number,
-): Promise<string> {
+): Promise<FileUploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
 
@@ -57,7 +57,6 @@ export async function uploadFile(
   });
 
   if (!response.ok) {
-    // 尝试解析文件服务返回的 JSON 格式错误信息，提取可读消息
     let errorMsg = '上传失败';
     try {
       const errorBody: { message?: string } = await response.json();
@@ -76,6 +75,8 @@ export async function uploadFile(
     throw new Error(result.message || '上传失败');
   }
 
-  // 基于标准 URL 解析拼接完整 URL（相对路径相对于 uploadUrl 解析）
-  return new URL(result.data.url, uploadUrl).href;
+  return {
+    fileId: result.data.fileId,
+    url: new URL(result.data.url, uploadUrl).href,
+  };
 }

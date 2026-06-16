@@ -26,11 +26,12 @@ public class UploadCredentialService {
     /**
      * 生成上传凭证
      */
-    public String generateCredential(long userId, int count, String basePath) {
+    public String generateCredential(long userId, int count, String basePath,
+                                      Map<String, Object> metadata) {
         String token = UUID.randomUUID().toString();
         String key = buildKey(userId, token);
         long expireAt = Instant.now().plusSeconds(expireMinutes * 60L).getEpochSecond();
-        credentials.put(key, new CredentialState(expireAt, count, basePath));
+        credentials.put(key, new CredentialState(expireAt, count, basePath, metadata));
         return token;
     }
 
@@ -62,6 +63,17 @@ public class UploadCredentialService {
             return null;
         }
         return state.basePath;
+    }
+
+    /**
+     * 从凭证中提取 metadata（凭证无效时返回 null）
+     */
+    public Map<String, Object> getMetadata(long userId, String token) {
+        CredentialState state = getState(userId, token);
+        if (state == null) {
+            return null;
+        }
+        return state.metadata;
     }
 
     /**
@@ -169,11 +181,13 @@ public class UploadCredentialService {
         final long expireAt;
         final AtomicInteger remainingCount;
         final String basePath;
+        final Map<String, Object> metadata;
 
-        CredentialState(long expireAt, int count, String basePath) {
+        CredentialState(long expireAt, int count, String basePath, Map<String, Object> metadata) {
             this.expireAt = expireAt;
             this.remainingCount = new AtomicInteger(count);
             this.basePath = basePath;
+            this.metadata = metadata;
         }
     }
 }

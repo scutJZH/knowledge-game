@@ -2,6 +2,7 @@ package com.knowledgegame.admin.api.assembler;
 
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -20,6 +21,8 @@ public interface IpSeriesAssembler {
     /**
      * 领域模型转响应 DTO
      */
+    @Mapping(target = "coverImageFileId", expression = "java(fileIdOf(ipSeries.getCoverImage()))")
+    @Mapping(target = "coverImageUrl", expression = "java(urlOf(ipSeries.getCoverImage()))")
     @Mapping(target = "createdAt", expression = "java(toEpochMilli(ipSeries.getCreatedAt()))")
     @Mapping(target = "updatedAt", expression = "java(toEpochMilli(ipSeries.getUpdatedAt()))")
     IpSeriesResponse toResponse(IpSeries ipSeries);
@@ -30,5 +33,13 @@ public interface IpSeriesAssembler {
     default Long toEpochMilli(LocalDateTime dateTime) {
         if (dateTime == null) return null;
         return dateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli();
+    }
+
+    default Long fileIdOf(FileRef ref) {
+        return ref != null ? ref.fileId() : null;
+    }
+
+    default String urlOf(FileRef ref) {
+        return ref != null ? ref.url() : null;
     }
 }
