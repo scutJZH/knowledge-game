@@ -1,7 +1,7 @@
 package com.knowledgegame.file.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.knowledgegame.file.api.dto.FileInfoResponse;
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.file.api.dto.FileUploadResponse;
 import com.knowledgegame.file.application.FileAppService;
 import com.knowledgegame.file.common.config.FileProperties;
@@ -18,10 +18,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -51,11 +53,12 @@ class FileControllerTest {
     @Test
     @DisplayName("生成上传凭证应返回 token")
     void shouldGenerateCredential() throws Exception {
-        when(fileAppService.generateCredential(1L, 1, "ip-series")).thenReturn("test-token");
+        when(fileAppService.generateCredential(1L, 1, "ip-series", null))
+                .thenReturn("test-token");
 
         mockMvc.perform(post("/api/file/internal/credential")
-                        .param("userId", "1")
-                        .param("basePath", "ip-series"))
+                        .contentType("application/json")
+                        .content("{\"userId\":1,\"count\":1,\"basePath\":\"ip-series\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").value("test-token"));
@@ -125,5 +128,44 @@ class FileControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("凭证接口接收 metadata body 并透传")
+    void shouldGenerateCredentialWithMetadata() throws Exception {
+        Map<String, Object> metadata = Map.of("bizType", "IP_SERIES", "userId", 1);
+        when(fileAppService.generateCredential(eq(1L), eq(1), eq("ip-series"), any()))
+                .thenReturn("test-token");
+
+        mockMvc.perform(post("/api/file/internal/credential")
+                        .contentType("application/json")
+                        .content("{\"userId\":1,\"count\":1,\"basePath\":\"ip-series\",\"metadata\":{\"bizType\":\"IP_SERIES\",\"userId\":1}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").value("test-token"));
+    }
+
+    @Test
+    @DisplayName("查询文件信息应返回 metadata 字段")
+    void shouldReturnMetadataInFileInfoResponse() throws Exception {
+        Map<String, Object> metadata = Map.of("bizType", "IP_SERIES");
+        FileInfoResponse response = FileInfoResponse.builder()
+                .fileId(1L)
+                .url("/static/ip-series/20260612/uuid.png")
+                .originalName("test.png")
+                .contentType("image/png")
+                .fileSize(100L)
+                .basePath("ip-series")
+                .uploaderId(1L)
+                .createdAt(LocalDateTime.now())
+                .metadata(metadata)
+                .build();
+        when(fileAppService.getFileInfo(1L)).thenReturn(response);
+
+        mockMvc.perform(get("/api/file/internal/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.fileId").value(1))
+                .andExpect(jsonPath("$.data.metadata.bizType").value("IP_SERIES"));
     }
 }

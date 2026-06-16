@@ -1,49 +1,85 @@
 package com.knowledgegame.core.infrastructure.db.converter;
 
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
-import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.factory.Mappers;
 
 /**
- * PO ↔ 领域模型转换器（知识点分类，MapStruct 自动生成实现）
+ * PO ↔ 领域模型转换器（知识点分类）
  */
-@Mapper(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+@Mapper
 public interface KnowledgeCategoryConverter {
 
     KnowledgeCategoryConverter INSTANCE = Mappers.getMapper(KnowledgeCategoryConverter.class);
 
-    /**
-     * PO 转领域模型（使用 reconstruct 工厂方法）
-     */
     default KnowledgeCategory toDomain(KnowledgeCategoryPO po) {
         if (po == null) {
             return null;
         }
+        FileRef icon = toFileRef(po.getIconFileId(), po.getIconUrl());
+        FileRef cover = toFileRef(po.getCoverImageFileId(), po.getCoverImageUrl());
         return KnowledgeCategory.reconstruct(
-                po.getId(),
-                po.getParentId(),
-                po.getName(),
-                po.getDescription(),
-                po.getIconUrl(),
-                po.getColor(),
-                po.getCoverImageUrl(),
-                po.getSortOrder(),
-                po.getStatus(),
-                po.getCreatedAt(),
-                po.getUpdatedAt()
-        );
+                po.getId(), po.getParentId(), po.getName(), po.getDescription(),
+                icon, po.getColor(), cover,
+                po.getSortOrder(), po.getStatus(),
+                po.getCreatedAt(), po.getUpdatedAt());
     }
 
-    /**
-     * 领域模型转 PO（新增）
-     */
-    KnowledgeCategoryPO toPO(KnowledgeCategory category);
+    default KnowledgeCategoryPO toPO(KnowledgeCategory domain) {
+        if (domain == null) {
+            return null;
+        }
+        return KnowledgeCategoryPO.builder()
+                .parentId(domain.getParentId())
+                .name(domain.getName())
+                .description(domain.getDescription())
+                .iconFileId(fileIdOf(domain.getIcon()))
+                .iconUrl(urlOf(domain.getIcon()))
+                .color(domain.getColor())
+                .coverImageFileId(fileIdOf(domain.getCoverImage()))
+                .coverImageUrl(urlOf(domain.getCoverImage()))
+                .sortOrder(domain.getSortOrder())
+                .status(domain.getStatus())
+                .createdAt(domain.getCreatedAt())
+                .updatedAt(domain.getUpdatedAt())
+                .build();
+    }
 
-    /**
-     * 用领域模型更新已有 PO（忽略 null 字段）
-     */
-    void updatePO(@MappingTarget KnowledgeCategoryPO po, KnowledgeCategory category);
+    default void updatePO(@MappingTarget KnowledgeCategoryPO po, KnowledgeCategory domain) {
+        if (domain.getName() != null) {
+            po.setName(domain.getName());
+        }
+        if (domain.getDescription() != null) {
+            po.setDescription(domain.getDescription());
+        }
+        po.setIconFileId(fileIdOf(domain.getIcon()));
+        po.setIconUrl(urlOf(domain.getIcon()));
+        if (domain.getColor() != null) {
+            po.setColor(domain.getColor());
+        }
+        po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
+        po.setCoverImageUrl(urlOf(domain.getCoverImage()));
+        if (domain.getStatus() != null) {
+            po.setStatus(domain.getStatus());
+        }
+        po.setUpdatedAt(domain.getUpdatedAt());
+    }
+
+    default FileRef toFileRef(Long fileId, String url) {
+        if (fileId == null && url == null) {
+            return null;
+        }
+        return FileRef.of(fileId, url);
+    }
+
+    default Long fileIdOf(FileRef ref) {
+        return ref != null ? ref.fileId() : null;
+    }
+
+    default String urlOf(FileRef ref) {
+        return ref != null ? ref.url() : null;
+    }
 }

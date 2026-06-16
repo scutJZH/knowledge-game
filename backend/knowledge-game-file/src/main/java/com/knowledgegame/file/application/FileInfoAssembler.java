@@ -1,6 +1,6 @@
 package com.knowledgegame.file.application;
 
-import com.knowledgegame.file.api.dto.FileInfoResponse;
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.file.domain.model.FileInfo;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -19,6 +19,7 @@ public interface FileInfoAssembler {
     @Mapping(target = "fileId", source = "id")
     @Mapping(target = "basePath", source = "basePath")
     @Mapping(target = "uploaderId", source = "uploaderId")
+    @Mapping(target = "metadata", source = "metadata")
     FileInfoResponse toResponse(FileInfo fileInfo);
 
     List<FileInfoResponse> toResponseList(List<FileInfo> fileInfos);

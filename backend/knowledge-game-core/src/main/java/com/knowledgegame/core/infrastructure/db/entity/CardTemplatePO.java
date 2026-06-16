@@ -57,6 +57,9 @@ public class CardTemplatePO {
     @Column(nullable = false, length = 20)
     private CardTemplateStatus status;
 
+    @Column(name = "image_file_id")
+    private Long imageFileId;
+
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 

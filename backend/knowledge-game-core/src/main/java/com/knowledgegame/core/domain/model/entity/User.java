@@ -1,6 +1,7 @@
 package com.knowledgegame.core.domain.model.entity;
 
 import com.knowledgegame.core.domain.model.domainenum.UserRole;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -15,7 +16,7 @@ public class User {
     private String username;
     private String passwordHash;
     private String nickname;
-    private String avatar;
+    private FileRef avatar;
     private UserRole role;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -38,7 +39,7 @@ public class User {
      * 从持久化重建（用于 Repository 加载）
      */
     public static User reconstruct(Long id, String username, String passwordHash, String nickname,
-                                   String avatar, UserRole role,
+                                   FileRef avatar, UserRole role,
                                    LocalDateTime createdAt, LocalDateTime updatedAt) {
         User user = new User();
         user.id = id;
@@ -55,7 +56,7 @@ public class User {
     /**
      * 更新用户信息
      */
-    public void updateProfile(String nickname, String avatar) {
+    public void updateProfile(String nickname, FileRef avatar) {
         this.nickname = nickname;
         this.avatar = avatar;
         this.updatedAt = LocalDateTime.now();

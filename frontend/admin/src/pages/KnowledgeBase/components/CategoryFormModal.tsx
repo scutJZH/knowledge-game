@@ -82,9 +82,9 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
               parentId: editingCategory.parentId,
               name: editingCategory.name,
               description: editingCategory.description ?? '',
-              iconUrl: editingCategory.iconUrl ?? '',
+              iconFileId: editingCategory.iconFileId ?? undefined,
               color: editingCategory.color ?? '',
-              coverImageUrl: editingCategory.coverImageUrl ?? '',
+              coverImageFileId: editingCategory.coverImageFileId ?? undefined,
               sortOrder: editingCategory.sortOrder,
             }
           : {
@@ -123,12 +123,20 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
         fieldProps={{ rows: 3 }}
       />
 
-      <ProForm.Item name="iconUrl" label="图标">
-        <ImageUploadField bizType="CATEGORY_ICON" placeholder="上传图标" />
+      <ProForm.Item name="iconFileId" label="图标">
+        <ImageUploadField
+          bizType="CATEGORY_ICON"
+          placeholder="上传图标"
+          url={editingCategory?.iconUrl}
+        />
       </ProForm.Item>
 
-      <ProForm.Item name="coverImageUrl" label="封面图">
-        <ImageUploadField bizType="CATEGORY_COVER" placeholder="上传封面图" />
+      <ProForm.Item name="coverImageFileId" label="封面图">
+        <ImageUploadField
+          bizType="CATEGORY_COVER"
+          placeholder="上传封面图"
+          url={editingCategory?.coverImageUrl}
+        />
       </ProForm.Item>
 
       <ProFormText

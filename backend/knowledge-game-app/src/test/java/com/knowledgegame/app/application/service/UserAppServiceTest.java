@@ -5,10 +5,17 @@ import com.knowledgegame.app.api.dto.response.RefreshTokenResponse;
 import com.knowledgegame.app.api.dto.response.UserResponse;
 import com.knowledgegame.app.application.command.LoginCommand;
 import com.knowledgegame.app.application.command.RegisterCommand;
+import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.UserRole;
 import com.knowledgegame.core.domain.model.entity.User;
+import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
+import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.domain.port.outbound.UserRepositoryPort;
+
+import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,8 +36,12 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.knowledgegame.auth.security.SecurityUtils;
+import org.mockito.MockedStatic;
 
 /**
  * UserAppService 单元测试（纯 Mockito，不启动 Spring 上下文）
@@ -43,6 +54,9 @@ class UserAppServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private FileServiceClient fileServiceClient;
 
     private JwtTokenProvider jwtTokenProvider;
 
@@ -58,7 +72,7 @@ class UserAppServiceTest {
         jwtProperties.setRefreshTokenExpiration(604800000);
         jwtTokenProvider = new JwtTokenProvider(jwtProperties);
         tokenBlacklist = new InMemoryTokenBlacklist();
-        userAppService = new UserAppService(userRepositoryPort, passwordEncoder, jwtTokenProvider, tokenBlacklist);
+        userAppService = new UserAppService(userRepositoryPort, passwordEncoder, jwtTokenProvider, tokenBlacklist, fileServiceClient);
     }
 
     // ==================== register ====================
@@ -133,7 +147,7 @@ class UserAppServiceTest {
         @DisplayName("正常查询返回用户信息")
         void getUserById_success() {
             User user = User.reconstruct(1L, "testuser", "hash", "昵称",
-                    "avatar.png", UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+                    FileRef.of(1L, "avatar.png"), UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
             when(userRepositoryPort.findById(1L)).thenReturn(Optional.of(user));
 
             UserResponse response = userAppService.getUserById(1L);
@@ -142,7 +156,7 @@ class UserAppServiceTest {
             assertThat(response.getId()).isEqualTo(1L);
             assertThat(response.getUsername()).isEqualTo("testuser");
             assertThat(response.getNickname()).isEqualTo("昵称");
-            assertThat(response.getAvatar()).isEqualTo("avatar.png");
+            assertThat(response.getAvatarUrl()).isEqualTo("avatar.png");
             assertThat(response.getRole()).isEqualTo("USER");
         }
 
@@ -199,22 +213,32 @@ class UserAppServiceTest {
         @Test
         @DisplayName("正常更新用户昵称和头像")
         void updateUser_success() {
-            User originalUser = User.reconstruct(1L, "testuser", "hash", "旧昵称",
-                    "oldAvatar.png", UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
-            when(userRepositoryPort.findById(1L)).thenReturn(Optional.of(originalUser));
+            try (MockedStatic<SecurityUtils> mockedSecurity = mockStatic(SecurityUtils.class)) {
+                mockedSecurity.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
-            // 模拟 save 返回更新后的用户
+                User originalUser = User.reconstruct(1L, "testuser", "hash", "旧昵称",
+                        FileRef.of(1L, "https://example.com/avatar.png"), UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+                when(userRepositoryPort.findById(1L)).thenReturn(Optional.of(originalUser));
+
+                FileInfoResponse fileInfo = FileInfoResponse.builder()
+                    .fileId(2L)
+                    .url("https://example.com/new-avatar.png")
+                    .metadata(Map.of("bizType", "USER_AVATAR", "userId", 1L))
+                    .build();
+            when(fileServiceClient.getFileInfo(2L)).thenReturn(Result.success(fileInfo));
+
             User updatedUser = User.reconstruct(1L, "testuser", "hash", "新昵称",
-                    "newAvatar.png", UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+                    FileRef.of(2L, "https://example.com/new-avatar.png"), UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
             when(userRepositoryPort.save(any(User.class))).thenReturn(updatedUser);
 
-            UserResponse response = userAppService.updateUser(1L, "新昵称", "newAvatar.png");
+            UserResponse response = userAppService.updateUser(1L, "新昵称", 2L);
 
             assertThat(response).isNotNull();
             assertThat(response.getNickname()).isEqualTo("新昵称");
-            assertThat(response.getAvatar()).isEqualTo("newAvatar.png");
+            assertThat(response.getAvatarUrl()).isEqualTo("https://example.com/new-avatar.png");
             // 验证保存被调用
             verify(userRepositoryPort).save(any(User.class));
+            }
         }
 
         @Test
@@ -222,7 +246,7 @@ class UserAppServiceTest {
         void updateUser_notFound_throws() {
             when(userRepositoryPort.findById(999L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> userAppService.updateUser(999L, "昵称", "avatar"))
+            assertThatThrownBy(() -> userAppService.updateUser(999L, "昵称", null))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("用户不存在: 999");
         }

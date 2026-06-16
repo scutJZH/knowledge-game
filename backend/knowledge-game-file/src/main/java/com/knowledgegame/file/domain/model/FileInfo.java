@@ -1,6 +1,7 @@
 package com.knowledgegame.file.domain.model;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
  * 文件信息聚合根
@@ -18,6 +19,7 @@ public class FileInfo {
     private long uploaderId;
     private LocalDateTime createdAt;
     private boolean deleted;
+    private Map<String, Object> metadata;
 
     private FileInfo() {
     }
@@ -25,7 +27,8 @@ public class FileInfo {
     /**
      * 创建文件信息
      */
-    public static FileInfo create(String originalName, StoredFile storedFile, String basePath, long uploaderId) {
+    public static FileInfo create(String originalName, StoredFile storedFile, String basePath, long uploaderId,
+                                   Map<String, Object> metadata) {
         FileInfo info = new FileInfo();
         info.originalName = originalName;
         info.storedName = storedFile.storedName();
@@ -37,6 +40,7 @@ public class FileInfo {
         info.uploaderId = uploaderId;
         info.createdAt = LocalDateTime.now();
         info.deleted = false;
+        info.metadata = metadata;
         return info;
     }
 
@@ -45,7 +49,8 @@ public class FileInfo {
      */
     public static FileInfo reconstruct(Long id, String originalName, String storedName, String filePath,
                                 String url, String contentType, long fileSize, String basePath,
-                                long uploaderId, LocalDateTime createdAt, boolean deleted) {
+                                long uploaderId, LocalDateTime createdAt, boolean deleted,
+                                Map<String, Object> metadata) {
         FileInfo info = new FileInfo();
         info.id = id;
         info.originalName = originalName;
@@ -58,6 +63,7 @@ public class FileInfo {
         info.uploaderId = uploaderId;
         info.createdAt = createdAt;
         info.deleted = deleted;
+        info.metadata = metadata;
         return info;
     }
 
@@ -110,6 +116,10 @@ public class FileInfo {
 
     public boolean isDeleted() {
         return deleted;
+    }
+
+    public Map<String, Object> getMetadata() {
+        return metadata;
     }
 
     void setId(Long id) {

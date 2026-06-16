@@ -39,7 +39,7 @@ public class IpSeriesController {
                 request.getCode(),
                 request.getName(),
                 request.getDescription(),
-                request.getCoverImageUrl(),
+                request.getCoverImageFileId(),
                 request.getStatus()
         );
         return Result.success(response);
@@ -78,7 +78,7 @@ public class IpSeriesController {
                 request.getCode(),
                 request.getName(),
                 request.getDescription(),
-                request.getCoverImageUrl(),
+                request.getCoverImageFileId(),
                 request.getStatus()
         );
         return Result.success(response);

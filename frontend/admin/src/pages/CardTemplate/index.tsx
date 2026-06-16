@@ -210,7 +210,7 @@ const CardTemplate: React.FC = () => {
       rarity: editingRecord.rarity,
       description: editingRecord.description,
       status: editingRecord.status,
-      imageUrl: editingRecord.imageUrl,
+      imageFileId: editingRecord.imageFileId,
     };
   };
 
@@ -317,8 +317,12 @@ const CardTemplate: React.FC = () => {
             valueEnum={{ ACTIVE: '启用', INACTIVE: '停用' }}
             rules={[{ required: true, message: '请选择状态' }]}
           />
-          <ProForm.Item name="imageUrl" label="卡面图">
-            <ImageUploadField bizType="CARD_TEMPLATE" placeholder="上传卡面图" />
+          <ProForm.Item name="imageFileId" label="卡面图">
+            <ImageUploadField
+              bizType="CARD_TEMPLATE"
+              placeholder="上传卡面图"
+              url={editingRecord?.imageUrl}
+            />
           </ProForm.Item>
         </ModalForm>
       )}

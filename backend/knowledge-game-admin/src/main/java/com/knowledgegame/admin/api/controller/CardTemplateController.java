@@ -43,7 +43,7 @@ public class CardTemplateController {
                 request.getRarity(),
                 request.getDescription(),
                 request.getStatus(),
-                request.getImageUrl()
+                request.getImageFileId()
         );
         return Result.success(response);
     }
@@ -86,7 +86,7 @@ public class CardTemplateController {
                 request.getRarity(),
                 request.getDescription(),
                 request.getStatus(),
-                request.getImageUrl()
+                request.getImageFileId()
         );
         return Result.success(response);
     }

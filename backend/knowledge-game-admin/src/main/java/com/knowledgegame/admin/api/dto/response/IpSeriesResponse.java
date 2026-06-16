@@ -15,6 +15,7 @@ public class IpSeriesResponse {
     private String code;
     private String name;
     private String description;
+    private Long coverImageFileId;
     private String coverImageUrl;
     private String status;
     private Long createdAt;

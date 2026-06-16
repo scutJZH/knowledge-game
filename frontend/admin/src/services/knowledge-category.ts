@@ -7,6 +7,7 @@ export interface CategoryTreeNode {
   parentId: number | null;
   name: string;
   status: string;
+  iconFileId: number | null;
   iconUrl: string | null;
   color: string | null;
   sortOrder: number;
@@ -19,8 +20,10 @@ export interface CategoryDetail {
   parentId: number | null;
   name: string;
   description: string | null;
+  iconFileId: number | null;
   iconUrl: string | null;
   color: string | null;
+  coverImageFileId: number | null;
   coverImageUrl: string | null;
   sortOrder: number;
   status: string;
@@ -33,9 +36,9 @@ export interface CategoryFormData {
   parentId?: number | null;
   name: string;
   description?: string;
-  iconUrl?: string;
+  iconFileId?: number;
   color?: string;
-  coverImageUrl?: string;
+  coverImageFileId?: number;
   sortOrder?: number;
 }
 

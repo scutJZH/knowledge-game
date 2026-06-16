@@ -22,6 +22,12 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Jakarta Validation API（GenerateCredentialRequest 的 @NotNull/@NotBlank） -->
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+        </dependency>
+
         <!-- OpenFeign（provided，由使用方提供实际依赖） -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

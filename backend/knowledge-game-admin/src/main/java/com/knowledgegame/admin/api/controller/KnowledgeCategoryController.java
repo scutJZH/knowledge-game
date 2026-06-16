@@ -44,9 +44,9 @@ public class KnowledgeCategoryController {
                 request.getName(),
                 request.getDescription(),
                 request.getParentId(),
-                request.getIconUrl(),
+                request.getIconFileId(),
                 request.getColor(),
-                request.getCoverImageUrl(),
+                request.getCoverImageFileId(),
                 request.getSortOrder()
         );
         return Result.success(response);
@@ -94,9 +94,9 @@ public class KnowledgeCategoryController {
                 id,
                 request.getName(),
                 request.getDescription(),
-                request.getIconUrl(),
+                request.getIconFileId(),
                 request.getColor(),
-                request.getCoverImageUrl(),
+                request.getCoverImageFileId(),
                 request.getSortOrder()
         );
         return Result.success(response);

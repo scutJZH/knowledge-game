@@ -19,6 +19,7 @@ public class CardTemplateResponse {
     private String rarity;
     private String description;
     private String status;
+    private Long imageFileId;
     private String imageUrl;
     private Long createdAt;
     private Long updatedAt;

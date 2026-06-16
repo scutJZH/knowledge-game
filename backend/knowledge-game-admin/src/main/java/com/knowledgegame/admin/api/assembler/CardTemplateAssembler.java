@@ -3,6 +3,7 @@ package com.knowledgegame.admin.api.assembler;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -22,6 +23,8 @@ public interface CardTemplateAssembler {
      * 领域模型转详情响应 DTO
      */
     @Mapping(target = "ipSeriesName", source = "ipSeriesName")
+    @Mapping(target = "imageFileId", expression = "java(fileIdOf(template.getImage()))")
+    @Mapping(target = "imageUrl", expression = "java(urlOf(template.getImage()))")
     @Mapping(target = "rarity", expression = "java(template.getRarity() != null ? template.getRarity().name() : null)")
     @Mapping(target = "status", expression = "java(template.getStatus() != null ? template.getStatus().name() : null)")
     @Mapping(target = "createdAt", expression = "java(toEpochMilli(template.getCreatedAt()))")
@@ -38,11 +41,16 @@ public interface CardTemplateAssembler {
     @Mapping(target = "updatedAt", expression = "java(toEpochMilli(template.getUpdatedAt()))")
     CardTemplateListResponse toListResponse(CardTemplate template, String ipSeriesName);
 
-    /**
-     * LocalDateTime 转 epoch 毫秒（UTC）
-     */
     default Long toEpochMilli(LocalDateTime dateTime) {
         if (dateTime == null) return null;
         return dateTime.atZone(ZoneOffset.UTC).toInstant().toEpochMilli();
+    }
+
+    default Long fileIdOf(FileRef ref) {
+        return ref != null ? ref.fileId() : null;
+    }
+
+    default String urlOf(FileRef ref) {
+        return ref != null ? ref.url() : null;
     }
 }

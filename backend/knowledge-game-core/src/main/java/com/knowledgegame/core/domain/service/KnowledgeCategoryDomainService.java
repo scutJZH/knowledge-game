@@ -3,6 +3,7 @@ package com.knowledgegame.core.domain.service;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 
 import java.util.List;
@@ -24,7 +25,7 @@ public class KnowledgeCategoryDomainService {
      * sortOrder 为 null 时自动计算（同级最大值 + 1，无同级时为 0）
      */
     public KnowledgeCategory validateAndCreate(String name, String description, Long parentId,
-                                               String iconUrl, String color, String coverImageUrl,
+                                               FileRef icon, String color, FileRef coverImage,
                                                Integer sortOrder) {
         // 同一父级下名称唯一（包含 INACTIVE）
         if (categoryRepositoryPort.existsByNameAndParentId(name, parentId)) {
@@ -40,7 +41,7 @@ public class KnowledgeCategoryDomainService {
         }
         // 自动计算 sortOrder
         int resolvedSortOrder = resolveSortOrder(parentId, sortOrder);
-        return KnowledgeCategory.create(name, description, parentId, iconUrl, color, coverImageUrl, resolvedSortOrder);
+        return KnowledgeCategory.create(name, description, parentId, icon, color, coverImage, resolvedSortOrder);
     }
 
     /**

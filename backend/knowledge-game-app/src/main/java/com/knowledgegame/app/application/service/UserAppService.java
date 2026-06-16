@@ -7,11 +7,19 @@ import com.knowledgegame.app.api.dto.response.UserResponse;
 import com.knowledgegame.app.application.command.LoginCommand;
 import com.knowledgegame.app.application.command.RegisterCommand;
 import com.knowledgegame.auth.security.JwtTokenProvider;
+import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.auth.security.TokenBlacklist;
+import com.knowledgegame.components.feign.client.FileServiceClient;
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.common.result.ResultCode;
 import com.knowledgegame.core.domain.model.entity.User;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.UserRepositoryPort;
+
+import java.util.Map;
+import java.util.Objects;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,13 +37,16 @@ public class UserAppService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenBlacklist tokenBlacklist;
+    private final FileServiceClient fileServiceClient;
 
     public UserAppService(UserRepositoryPort userRepositoryPort, PasswordEncoder passwordEncoder,
-                          JwtTokenProvider jwtTokenProvider, TokenBlacklist tokenBlacklist) {
+                          JwtTokenProvider jwtTokenProvider, TokenBlacklist tokenBlacklist,
+                          FileServiceClient fileServiceClient) {
         this.userRepositoryPort = userRepositoryPort;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenProvider = jwtTokenProvider;
         this.tokenBlacklist = tokenBlacklist;
+        this.fileServiceClient = fileServiceClient;
     }
 
     /**
@@ -133,13 +144,28 @@ public class UserAppService {
      * 更新用户信息
      */
     @Transactional
-    public UserResponse updateUser(Long id, String nickname, String avatar) {
+    public UserResponse updateUser(Long id, String nickname, Long avatarFileId) {
         User user = userRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND.getCode(),
                         ResultCode.USER_NOT_FOUND.getMessage() + ": " + id));
+        FileRef avatar = verifyFileRef(avatarFileId, "USER_AVATAR");
         user.updateProfile(nickname, avatar);
         User saved = userRepositoryPort.save(user);
         return UserAssembler.INSTANCE.toResponse(saved);
+    }
+
+    private FileRef verifyFileRef(Long fileId, String expectedBizType) {
+        if (fileId == null) return null;
+        Result<FileInfoResponse> result = fileServiceClient.getFileInfo(fileId);
+        FileInfoResponse info = result.getData();
+        if (info == null) throw new BusinessException(400, "文件不存在: " + fileId);
+        Map<String, Object> metadata = info.getMetadata();
+        if (metadata == null || !expectedBizType.equals(metadata.get("bizType")))
+            throw new BusinessException(400, "文件类型不匹配，期望 " + expectedBizType);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        if (!Objects.equals(currentUserId, metadata.get("userId")))
+            throw new BusinessException(403, "无权使用该文件");
+        return FileRef.of(fileId, info.getUrl());
     }
 
     /**

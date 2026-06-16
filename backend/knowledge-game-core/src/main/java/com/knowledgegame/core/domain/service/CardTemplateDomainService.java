@@ -5,6 +5,7 @@ import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 
 /**
@@ -23,7 +24,7 @@ public class CardTemplateDomainService {
      */
     public CardTemplate validateAndCreate(Long ipSeriesId, String code, String name,
                                           CardRarity rarity, String description,
-                                          CardTemplateStatus status, String imageUrl) {
+                                          CardTemplateStatus status, FileRef image) {
         // 校验 IP 系列存在
         var ipSeries = ipSeriesRepositoryPort.findById(ipSeriesId)
                 .orElseThrow(() -> new BusinessException("IP 系列不存在: " + ipSeriesId));
@@ -31,6 +32,6 @@ public class CardTemplateDomainService {
         if (ipSeries.getStatus() != IpSeriesStatus.ACTIVE) {
             throw new BusinessException("IP 系列未启用: " + ipSeriesId);
         }
-        return CardTemplate.create(ipSeriesId, code, name, rarity, description, status, imageUrl);
+        return CardTemplate.create(ipSeriesId, code, name, rarity, description, status, image);
     }
 }

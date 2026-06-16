@@ -25,8 +25,7 @@ public class CreateIpSeriesRequest {
     @Size(max = 500, message = "描述最长 500")
     private String description;
 
-    @Size(max = 500, message = "封面图 URL 最长 500")
-    private String coverImageUrl;
+    private Long coverImageFileId;
 
     @NotNull(message = "状态不能为空")
     private IpSeriesStatus status;

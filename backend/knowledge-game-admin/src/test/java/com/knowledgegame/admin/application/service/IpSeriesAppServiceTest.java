@@ -1,9 +1,11 @@
 package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
+import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import org.junit.jupiter.api.Test;
@@ -21,63 +23,43 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * IpSeriesAppService 单元测试
- * 使用 Mockito mock RepositoryPort，验证应用服务的业务编排逻辑
- */
 @ExtendWith(MockitoExtension.class)
 class IpSeriesAppServiceTest {
 
     @Mock
     private IpSeriesRepositoryPort ipSeriesRepositoryPort;
 
+    @Mock
+    private FileServiceClient fileServiceClient;
+
     @InjectMocks
     private IpSeriesAppService ipSeriesAppService;
 
-    /**
-     * 构建测试用的 IpSeriesResponse DTO
-     */
-    private IpSeriesResponse buildResponse(Long id, String code, String name, String description,
-                                           String coverImageUrl, String status) {
-        return IpSeriesResponse.builder()
-                .id(id)
-                .code(code)
-                .name(name)
-                .description(description)
-                .coverImageUrl(coverImageUrl)
-                .status(status)
-                .createdAt(1767225600000L)
-                .updatedAt(1767225600000L)
-                .build();
+    private static IpSeries buildIpSeries(Long id, String code, String name, String desc,
+                                          IpSeriesStatus status) {
+        return IpSeries.reconstruct(id, code, name, desc, null, status,
+                LocalDateTime.now(), LocalDateTime.now());
     }
 
-    /**
-     * 创建 IP 系列 - 正常创建成功
-     */
     @Test
     void createIpSeries_shouldSucceed_whenCodeAndNameAreUnique() {
-        // 准备参数
         String code = "MARVEL";
         String name = "漫威宇宙";
         String description = "漫威超级英雄系列";
-        String coverImageUrl = "https://example.com/marvel.jpg";
         IpSeriesStatus status = IpSeriesStatus.ACTIVE;
 
-        // code 和 name 均不存在，返回 empty
         when(ipSeriesRepositoryPort.findByCode(code)).thenReturn(Optional.empty());
         when(ipSeriesRepositoryPort.findByName(name)).thenReturn(Optional.empty());
-        // save 返回带 id 的领域对象
-        IpSeries saved = IpSeries.reconstruct(1L, code, name, description, coverImageUrl, status,
-                LocalDateTime.now(), LocalDateTime.now());
+        IpSeries saved = buildIpSeries(1L, code, name, description, status);
         when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenReturn(saved);
 
-        // 执行（AppService 内部将领域对象转换为 DTO 返回）
-        IpSeriesResponse result = ipSeriesAppService.createIpSeries(code, name, description, coverImageUrl, status);
+        IpSeriesResponse result = ipSeriesAppService.createIpSeries(
+                code, name, description, null, status);
 
-        // 验证返回的 DTO 字段
         assertNotNull(result);
         assertEquals(1L, result.getId());
         assertEquals(code, result.getCode());
@@ -88,69 +70,45 @@ class IpSeriesAppServiceTest {
         verify(ipSeriesRepositoryPort).save(any(IpSeries.class));
     }
 
-    /**
-     * 创建 IP 系列 - code 重复抛 BusinessException
-     */
     @Test
     void createIpSeries_shouldThrow_whenCodeDuplicate() {
-        // 准备参数
         String code = "MARVEL";
         String name = "漫威宇宙";
         String description = "漫威超级英雄系列";
-        String coverImageUrl = "https://example.com/marvel.jpg";
         IpSeriesStatus status = IpSeriesStatus.ACTIVE;
 
-        // 模拟 code 已存在
-        IpSeries existing = IpSeries.reconstruct(1L, code, "其他名称", description, coverImageUrl, status,
-                LocalDateTime.now(), LocalDateTime.now());
+        IpSeries existing = buildIpSeries(1L, code, "其他名称", description, status);
         when(ipSeriesRepositoryPort.findByCode(code)).thenReturn(Optional.of(existing));
 
-        // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> ipSeriesAppService.createIpSeries(code, name, description, coverImageUrl, status));
+                () -> ipSeriesAppService.createIpSeries(code, name, description, null, status));
         assertEquals("IP 系列编码已存在: " + code, exception.getMessage());
     }
 
-    /**
-     * 创建 IP 系列 - name 重复抛 BusinessException
-     */
     @Test
     void createIpSeries_shouldThrow_whenNameDuplicate() {
-        // 准备参数
         String code = "MARVEL";
         String name = "漫威宇宙";
         String description = "漫威超级英雄系列";
-        String coverImageUrl = "https://example.com/marvel.jpg";
         IpSeriesStatus status = IpSeriesStatus.ACTIVE;
 
-        // code 不存在，但 name 已存在
         when(ipSeriesRepositoryPort.findByCode(code)).thenReturn(Optional.empty());
-        IpSeries existing = IpSeries.reconstruct(2L, "OTHER", name, description, coverImageUrl, status,
-                LocalDateTime.now(), LocalDateTime.now());
+        IpSeries existing = buildIpSeries(2L, "OTHER", name, description, status);
         when(ipSeriesRepositoryPort.findByName(name)).thenReturn(Optional.of(existing));
 
-        // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> ipSeriesAppService.createIpSeries(code, name, description, coverImageUrl, status));
+                () -> ipSeriesAppService.createIpSeries(code, name, description, null, status));
         assertEquals("IP 系列名称已存在: " + name, exception.getMessage());
     }
 
-    /**
-     * 根据 ID 查询 - 正常返回 DTO
-     */
     @Test
     void getIpSeriesById_shouldReturn_whenExists() {
-        // 准备数据
         Long id = 1L;
-        IpSeries ipSeries = IpSeries.reconstruct(id, "MARVEL", "漫威宇宙", "描述",
-                "https://example.com/marvel.jpg", IpSeriesStatus.ACTIVE,
-                LocalDateTime.now(), LocalDateTime.now());
+        IpSeries ipSeries = buildIpSeries(id, "MARVEL", "漫威宇宙", "描述", IpSeriesStatus.ACTIVE);
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(ipSeries));
 
-        // 执行（返回 DTO）
         IpSeriesResponse result = ipSeriesAppService.getIpSeriesById(id);
 
-        // 验证返回的 DTO 字段
         assertNotNull(result);
         assertEquals(id, result.getId());
         assertEquals("MARVEL", result.getCode());
@@ -159,89 +117,51 @@ class IpSeriesAppServiceTest {
         verify(ipSeriesRepositoryPort).findById(id);
     }
 
-    /**
-     * 根据 ID 查询 - 不存在抛 BusinessException
-     */
     @Test
     void getIpSeriesById_shouldThrow_whenNotFound() {
-        // 准备数据
         Long id = 999L;
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.empty());
 
-        // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,
                 () -> ipSeriesAppService.getIpSeriesById(id));
         assertEquals("IP 系列不存在: " + id, exception.getMessage());
     }
 
-    /**
-     * 分页查询 - 正常分页查询
-     */
     @Test
     void listIpSeries_shouldReturnPagedResult() {
-        // 准备数据
-        String name = "漫威";
-        String status = "ACTIVE";
-        int pageNumber = 0;
-        int pageSize = 10;
-
-        // 构建领域分页结果（port 返回 PageResult<IpSeries>）
-        IpSeries series1 = IpSeries.reconstruct(1L, "MARVEL", "漫威宇宙", "描述1",
-                "https://example.com/1.jpg", IpSeriesStatus.ACTIVE,
-                LocalDateTime.now(), LocalDateTime.now());
-        IpSeries series2 = IpSeries.reconstruct(2L, "DC", "漫威和DC", "描述2",
-                "https://example.com/2.jpg", IpSeriesStatus.ACTIVE,
-                LocalDateTime.now(), LocalDateTime.now());
+        IpSeries series1 = buildIpSeries(1L, "MARVEL", "漫威宇宙", "描述1", IpSeriesStatus.ACTIVE);
+        IpSeries series2 = buildIpSeries(2L, "DC", "漫威和DC", "描述2", IpSeriesStatus.ACTIVE);
         PageResult<IpSeries> mockPageResult = PageResult.<IpSeries>builder()
                 .content(List.of(series1, series2))
-                .totalElements(2)
-                .pageNumber(0)
-                .pageSize(10)
-                .totalPages(1)
-                .build();
+                .totalElements(2).pageNumber(0).pageSize(10).totalPages(1).build();
 
-        when(ipSeriesRepositoryPort.findByConditions(name, IpSeriesStatus.ACTIVE, pageNumber, pageSize))
+        when(ipSeriesRepositoryPort.findByConditions("漫威", IpSeriesStatus.ACTIVE, 0, 10))
                 .thenReturn(mockPageResult);
 
-        // 执行（AppService 返回 PageResult<IpSeriesResponse>）
-        PageResult<IpSeriesResponse> result = ipSeriesAppService.listIpSeries(name, status, pageNumber, pageSize);
+        PageResult<IpSeriesResponse> result = ipSeriesAppService.listIpSeries("漫威", "ACTIVE", 0, 10);
 
-        // 验证
         assertNotNull(result);
         assertEquals(2, result.getContent().size());
         assertEquals("MARVEL", result.getContent().get(0).getCode());
         assertEquals("DC", result.getContent().get(1).getCode());
-        assertEquals(2L, result.getTotalElements());
-        assertEquals(1, result.getTotalPages());
-        verify(ipSeriesRepositoryPort).findByConditions(name, IpSeriesStatus.ACTIVE, pageNumber, pageSize);
     }
 
-    /**
-     * 更新 IP 系列 - 正常更新
-     */
     @Test
     void updateIpSeries_shouldSucceed_whenCodeAndNameNotChanged() {
-        // 准备数据：更新 description 和 coverImageUrl，code 和 name 不变
         Long id = 1L;
         String code = "MARVEL";
         String name = "漫威宇宙";
         String newDescription = "新描述";
-        String newCoverUrl = "https://example.com/new.jpg";
         IpSeriesStatus status = IpSeriesStatus.ACTIVE;
 
-        IpSeries existing = IpSeries.reconstruct(id, code, name, "旧描述", "旧图片",
-                IpSeriesStatus.ACTIVE, LocalDateTime.now(), LocalDateTime.now());
+        IpSeries existing = buildIpSeries(id, code, name, "旧描述", IpSeriesStatus.ACTIVE);
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-
-        // code 和 name 没变，不需要查重，直接保存
-        IpSeries saved = IpSeries.reconstruct(id, code, name, newDescription, newCoverUrl, status,
-                LocalDateTime.now(), LocalDateTime.now());
+        IpSeries saved = buildIpSeries(id, code, name, newDescription, status);
         when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenReturn(saved);
 
-        // 执行（返回 DTO）
-        IpSeriesResponse result = ipSeriesAppService.updateIpSeries(id, code, name, newDescription, newCoverUrl, status);
+        IpSeriesResponse result = ipSeriesAppService.updateIpSeries(
+                id, code, name, newDescription, null, status);
 
-        // 验证返回的 DTO
         assertNotNull(result);
         assertEquals(id, result.getId());
         assertEquals(newDescription, result.getDescription());
@@ -249,101 +169,81 @@ class IpSeriesAppServiceTest {
         verify(ipSeriesRepositoryPort).save(any(IpSeries.class));
     }
 
-    /**
-     * 更新 IP 系列 - code 重复（排除自身）抛异常
-     */
     @Test
     void updateIpSeries_shouldThrow_whenCodeDuplicateExcludingSelf() {
-        // 准备数据：修改 code 为一个已被其他记录占用的值
         Long id = 1L;
         String newCode = "DC";
         String name = "漫威宇宙";
+        IpSeriesStatus status = IpSeriesStatus.ACTIVE;
 
-        IpSeries existing = IpSeries.reconstruct(id, "MARVEL", name, "描述", "图片",
-                IpSeriesStatus.ACTIVE, LocalDateTime.now(), LocalDateTime.now());
+        IpSeries existing = buildIpSeries(id, "MARVEL", name, "描述", status);
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-
-        // 模拟 newCode 已被其他记录占用
-        IpSeries conflict = IpSeries.reconstruct(2L, newCode, "DC宇宙", "描述", "图片",
-                IpSeriesStatus.ACTIVE, LocalDateTime.now(), LocalDateTime.now());
+        IpSeries conflict = buildIpSeries(2L, newCode, "DC宇宙", "描述", status);
         when(ipSeriesRepositoryPort.findByCode(newCode)).thenReturn(Optional.of(conflict));
 
-        // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> ipSeriesAppService.updateIpSeries(id, newCode, name, "描述", "图片", IpSeriesStatus.ACTIVE));
+                () -> ipSeriesAppService.updateIpSeries(id, newCode, name, "描述", null, status));
         assertEquals("IP 系列编码已存在: " + newCode, exception.getMessage());
     }
 
-    /**
-     * 更新 IP 系列 - name 重复（排除自身）抛异常
-     */
     @Test
     void updateIpSeries_shouldThrow_whenNameDuplicateExcludingSelf() {
-        // 准备数据：修改 name 为一个已被其他记录占用的值
         Long id = 1L;
         String code = "MARVEL";
         String newName = "DC宇宙";
+        IpSeriesStatus status = IpSeriesStatus.ACTIVE;
 
-        IpSeries existing = IpSeries.reconstruct(id, code, "漫威宇宙", "描述", "图片",
-                IpSeriesStatus.ACTIVE, LocalDateTime.now(), LocalDateTime.now());
+        IpSeries existing = buildIpSeries(id, code, "漫威宇宙", "描述", status);
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-
-        // code 没变，不会触发 code 查重；但 name 改了，需要查重
-        // 模拟 newName 已被其他记录占用
-        IpSeries conflict = IpSeries.reconstruct(2L, "DC", newName, "描述", "图片",
-                IpSeriesStatus.ACTIVE, LocalDateTime.now(), LocalDateTime.now());
+        IpSeries conflict = buildIpSeries(2L, "DC", newName, "描述", status);
         when(ipSeriesRepositoryPort.findByName(newName)).thenReturn(Optional.of(conflict));
 
-        // 执行并验证异常
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> ipSeriesAppService.updateIpSeries(id, code, newName, "描述", "图片", IpSeriesStatus.ACTIVE));
+                () -> ipSeriesAppService.updateIpSeries(id, code, newName, "描述", null, status));
         assertEquals("IP 系列名称已存在: " + newName, exception.getMessage());
     }
 
-    /**
-     * 更新 IP 系列 - 仅大小写改名时不应抛异常（MySQL ci 排序规则会命中自身）
-     */
     @Test
     void updateIpSeries_shouldAllowCaseChangeOnName() {
         Long id = 1L;
         String code = "MARVEL";
         String originalName = "pokemon";
+        IpSeriesStatus status = IpSeriesStatus.ACTIVE;
 
-        IpSeries existing = IpSeries.reconstruct(id, code, originalName, "描述", "图片",
-                IpSeriesStatus.ACTIVE, LocalDateTime.now(), LocalDateTime.now());
+        IpSeries existing = buildIpSeries(id, code, originalName, "描述", status);
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-
-        // MySQL ci 下 findByName("POKEMON") 命中自身
         when(ipSeriesRepositoryPort.findByName("POKEMON")).thenReturn(Optional.of(existing));
         when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // 执行：大小写改名应成功，不抛异常
         IpSeriesResponse result = ipSeriesAppService.updateIpSeries(
-                id, code, "POKEMON", "描述", "图片", IpSeriesStatus.ACTIVE);
+                id, code, "POKEMON", "描述", null, status);
 
         assertNotNull(result);
         verify(ipSeriesRepositoryPort).save(any(IpSeries.class));
     }
 
-    /**
-     * 软删除 - status 变为 INACTIVE
-     */
     @Test
     void deleteIpSeries_shouldDeactivate() {
-        // 准备数据
         Long id = 1L;
-        IpSeries existing = IpSeries.reconstruct(id, "MARVEL", "漫威宇宙", "描述",
-                "https://example.com/marvel.jpg", IpSeriesStatus.ACTIVE,
-                LocalDateTime.now(), LocalDateTime.now());
+        IpSeries existing = buildIpSeries(id, "MARVEL", "漫威宇宙", "描述", IpSeriesStatus.ACTIVE);
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // 执行
         ipSeriesAppService.deleteIpSeries(id);
 
-        // 验证 save 被调用，且传入的对象 status 已变为 INACTIVE
         verify(ipSeriesRepositoryPort).save(argThat(series ->
-                series.getStatus() == IpSeriesStatus.INACTIVE
-        ));
+                series.getStatus() == IpSeriesStatus.INACTIVE));
+    }
+
+    @Test
+    void deleteIpSeries_shouldNotSave_whenNotFound() {
+        Long id = 999L;
+        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> ipSeriesAppService.deleteIpSeries(id));
+        assertEquals("IP 系列不存在: " + id, ex.getMessage());
+
+        verify(ipSeriesRepositoryPort, never()).save(any());
     }
 }

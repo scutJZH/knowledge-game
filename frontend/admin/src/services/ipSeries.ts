@@ -7,6 +7,7 @@ export interface IpSeriesResponse {
   code: string;
   name: string;
   description: string;
+  coverImageFileId: number | null;
   coverImageUrl: string;
   status: 'ACTIVE' | 'INACTIVE';
   createdAt: number;
@@ -18,7 +19,7 @@ export interface CreateIpSeriesRequest {
   code: string;
   name: string;
   description?: string;
-  coverImageUrl?: string;
+  coverImageFileId?: number;
   status: 'ACTIVE' | 'INACTIVE';
 }
 
@@ -30,7 +31,7 @@ export interface UpdateIpSeriesRequest {
   code?: string;
   name?: string;
   description?: string;
-  coverImageUrl?: string;
+  coverImageFileId?: number;
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
