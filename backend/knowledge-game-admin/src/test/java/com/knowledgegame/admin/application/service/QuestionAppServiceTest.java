@@ -24,14 +24,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -337,19 +341,71 @@ class QuestionAppServiceTest {
     }
 
     /**
-     * 批量启用 - 验证调用 batchUpdateStatus 传入 ACTIVE
+     * 批量启用 - 完整调用链：加载题目 → 查分类关联 → 批量加载分类 → 逐题校验 → 更新
      */
     @Test
-    void batchActivate_shouldCallRepoWithActive() {
-        List<Long> ids = List.of(1L, 2L, 3L);
+    void batchActivate_shouldValidateBeforeUpdate() {
+        List<Long> ids = List.of(1L, 2L);
+        Question q1 = buildTestQuestion(1L, "题目一");
+        Question q2 = buildTestQuestion(2L, "题目二");
+        when(questionRepository.findByIds(ids)).thenReturn(List.of(q1, q2));
+        Map<Long, List<Long>> catRelMap = Map.of(1L, List.of(10L), 2L, List.of(20L));
+        when(questionRepository.findCategoryIdsByQuestionIds(ids)).thenReturn(catRelMap);
+        KnowledgeCategory cat1 = buildCategory(10L, "分类1", KnowledgeCategoryStatus.ACTIVE);
+        KnowledgeCategory cat2 = buildCategory(20L, "分类2", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAllByIdIn(anyList())).thenReturn(List.of(cat1, cat2));
 
         appService.batchActivate(ids);
 
+        verify(questionRepository).findByIds(ids);
+        verify(questionRepository).findCategoryIdsByQuestionIds(ids);
+        verify(categoryRepositoryPort).findAllByIdIn(anyList());
+        verify(questionDomainService).validateActivatable(eq("题目一"), eq(List.of(10L)), any());
+        verify(questionDomainService).validateActivatable(eq("题目二"), eq(List.of(20L)), any());
         verify(questionRepository).batchUpdateStatus(ids, QuestionStatus.ACTIVE);
     }
 
     /**
-     * 批量禁用 - 验证调用 batchUpdateStatus 传入 INACTIVE
+     * 批量启用 - 校验失败时不调用 batchUpdateStatus
+     */
+    @Test
+    void batchActivate_shouldNotUpdate_whenValidationFails() {
+        List<Long> ids = List.of(1L, 2L);
+        Question q1 = buildTestQuestion(1L, "题目一");
+        Question q2 = buildTestQuestion(2L, "题目二");
+        when(questionRepository.findByIds(ids)).thenReturn(List.of(q1, q2));
+        Map<Long, List<Long>> catRelMap = Map.of(1L, List.of(10L), 2L, List.of(20L));
+        when(questionRepository.findCategoryIdsByQuestionIds(ids)).thenReturn(catRelMap);
+        KnowledgeCategory cat1 = buildCategory(10L, "分类1", KnowledgeCategoryStatus.ACTIVE);
+        KnowledgeCategory cat2 = buildCategory(20L, "分类2", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAllByIdIn(anyList())).thenReturn(List.of(cat1, cat2));
+        doThrow(new BusinessException("题目《题目一》关联的知识点分类《已停用分类》处于停用状态，请先启用对应分类再启用题目"))
+                .when(questionDomainService).validateActivatable(eq("题目一"), any(), any());
+
+        assertThrows(BusinessException.class, () -> appService.batchActivate(ids));
+
+        verify(questionDomainService).validateActivatable(eq("题目一"), any(), any());
+        verify(questionDomainService, never()).validateActivatable(eq("题目二"), any(), any());
+        verify(questionRepository, never()).batchUpdateStatus(any(), any());
+    }
+
+    /**
+     * 批量启用 - 部分 ID 不存在时抛异常
+     */
+    @Test
+    void batchActivate_shouldThrow_whenSomeIdsNotFound() {
+        List<Long> ids = List.of(1L, 999L);
+        Question q1 = buildTestQuestion(1L, "题目一");
+        when(questionRepository.findByIds(ids)).thenReturn(List.of(q1));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.batchActivate(ids));
+        assertEquals("部分题目 ID 不存在", ex.getMessage());
+        verify(questionRepository, never()).batchUpdateStatus(any(), any());
+    }
+
+    /**
+     * 批量禁用 - 验证调用 batchUpdateStatus 传入 INACTIVE（含去重）
      */
     @Test
     void batchDeactivate_shouldCallRepoWithInactive() {
@@ -368,5 +424,16 @@ class QuestionAppServiceTest {
         item.setKey(key);
         item.setContent(content);
         return item;
+    }
+
+    private Question buildTestQuestion(Long id, String content) {
+        return Question.reconstruct(id, QuestionType.SINGLE_CHOICE, content, List.of(),
+                "A", Difficulty.EASY, null, List.of(), QuestionStatus.INACTIVE,
+                LocalDateTime.now(), LocalDateTime.now());
+    }
+
+    private KnowledgeCategory buildCategory(Long id, String name, KnowledgeCategoryStatus status) {
+        return KnowledgeCategory.reconstruct(id, null, name, null, null, null, null, 0,
+                status, null, null);
     }
 }

@@ -364,4 +364,59 @@ class CardTemplateControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(500));
     }
+
+    // ========== REQ-94：批量启用/停用端点测试 ==========
+
+    @Test
+    @DisplayName("PUT /batch-activate 正常返回 200")
+    void batchActivate_shouldReturn200() throws Exception {
+        mockMvc.perform(put("/api/admin/card-templates/batch-activate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[1,2,3]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(cardTemplateAppService).batchActivate(List.of(1L, 2L, 3L));
+    }
+
+    @Test
+    @DisplayName("PUT /batch-deactivate 正常返回 200")
+    void batchDeactivate_shouldReturn200() throws Exception {
+        mockMvc.perform(put("/api/admin/card-templates/batch-deactivate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[4,5,6]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(cardTemplateAppService).batchDeactivate(List.of(4L, 5L, 6L));
+    }
+
+    @Test
+    @DisplayName("PUT /batch-activate ids 为空返回参数校验错误")
+    void batchActivate_shouldReturn400_whenIdsEmpty() throws Exception {
+        mockMvc.perform(put("/api/admin/card-templates/batch-activate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("PUT /batch-activate ids 超过 100 返回参数校验错误")
+    void batchActivate_shouldReturn400_whenIdsExceed100() throws Exception {
+        StringBuilder idsJson = new StringBuilder("[");
+        for (int i = 1; i <= 101; i++) {
+            if (i > 1) idsJson.append(",");
+            idsJson.append(i);
+        }
+        idsJson.append("]");
+
+        mockMvc.perform(put("/api/admin/card-templates/batch-activate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"ids\":" + idsJson + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").isNotEmpty());
+    }
 }

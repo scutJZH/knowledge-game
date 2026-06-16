@@ -4,6 +4,7 @@ import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
+import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 
 import java.util.List;
 
@@ -13,9 +14,12 @@ import java.util.List;
 public class KnowledgeCategoryDomainService {
 
     private final KnowledgeCategoryRepositoryPort categoryRepositoryPort;
+    private final QuestionRepository questionRepository;
 
-    public KnowledgeCategoryDomainService(KnowledgeCategoryRepositoryPort categoryRepositoryPort) {
+    public KnowledgeCategoryDomainService(KnowledgeCategoryRepositoryPort categoryRepositoryPort,
+                                           QuestionRepository questionRepository) {
         this.categoryRepositoryPort = categoryRepositoryPort;
+        this.questionRepository = questionRepository;
     }
 
     /**
@@ -89,12 +93,18 @@ public class KnowledgeCategoryDomainService {
     }
 
     /**
-     * 校验删除合法性（有子分类时禁止删除）
+     * 校验停用合法性：子分类校验 → 题目关联校验，均通过才允许停用
      */
     public void validateDelete(Long categoryId) {
-        long childCount = categoryRepositoryPort.countByParentId(categoryId);
-        if (childCount > 0) {
-            throw new BusinessException("该分类下存在 " + childCount + " 个子分类（含已停用），无法删除");
+        // 子分类校验：仅统计 ACTIVE
+        long activeChildCount = categoryRepositoryPort.countActiveByParentId(categoryId);
+        if (activeChildCount > 0) {
+            throw new BusinessException("知识点分类下存在 " + activeChildCount + " 个 ACTIVE 子分类，无法删除");
+        }
+        // 题目关联校验：仅统计 ACTIVE 题目
+        long activeQuestionCount = questionRepository.countActiveByCategoryId(categoryId);
+        if (activeQuestionCount > 0) {
+            throw new BusinessException("知识点分类关联 " + activeQuestionCount + " 道 ACTIVE 题目，无法删除");
         }
     }
 }

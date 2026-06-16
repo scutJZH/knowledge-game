@@ -2,13 +2,16 @@ package com.knowledgegame.core.domain.service;
 
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.Difficulty;
+import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.domainenum.QuestionType;
+import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.entity.Question;
 import com.knowledgegame.core.domain.model.vo.QuestionOption;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -143,6 +146,39 @@ public class QuestionDomainService {
             if (tag.length() > 20) {
                 throw new BusinessException("标签长度不能超过 20 字: " + tag);
             }
+        }
+    }
+
+    /**
+     * 校验题目可否启用：关联的所有分类必须全部 ACTIVE（纯内存校验，调用方预加载分类）
+     *
+     * @param questionName 题目名（用于错误消息）
+     * @param categoryIds  该题目关联的分类 ID 列表
+     * @param categoryMap  分类 ID → 分类实体的预加载映射（批量场景由调用方一次性加载）
+     */
+    public void validateActivatable(String questionName, List<Long> categoryIds,
+                                     Map<Long, KnowledgeCategory> categoryMap) {
+        if (categoryIds.isEmpty()) {
+            return; // 题目未关联任何分类，允许启用
+        }
+        // 检查 INACTIVE 或缺失（已删除）的分类
+        List<String> inactiveNames = categoryIds.stream()
+                .map(cid -> {
+                    KnowledgeCategory c = categoryMap.get(cid);
+                    if (c == null) {
+                        return "《(ID=" + cid + ")》"; // 分类已删除
+                    }
+                    if (c.getStatus() != KnowledgeCategoryStatus.ACTIVE) {
+                        return "《" + c.getName() + "》";
+                    }
+                    return null;
+                })
+                .filter(n -> n != null)
+                .toList();
+        if (!inactiveNames.isEmpty()) {
+            String names = String.join("、", inactiveNames);
+            throw new BusinessException(
+                    "题目《" + questionName + "》关联的知识点分类" + names + "处于停用状态，请先启用对应分类再启用题目");
         }
     }
 }

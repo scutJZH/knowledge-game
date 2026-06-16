@@ -12,6 +12,7 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
+import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -50,6 +53,9 @@ class CardTemplateAppServiceTest {
 
     @Mock
     private IpSeriesRepositoryPort ipSeriesRepositoryPort;
+
+    @Mock
+    private IpSeriesDomainService ipSeriesDomainService;
 
     @InjectMocks
     private CardTemplateAppService cardTemplateAppService;
@@ -289,6 +295,8 @@ class CardTemplateAppServiceTest {
         assertEquals(newImageUrl, result.getImageUrl());
         verify(cardTemplateRepositoryPort).findById(id);
         verify(cardTemplateRepositoryPort).save(any(CardTemplate.class));
+        // ACTIVE→ACTIVE 不触发 IP 校验
+        verify(ipSeriesDomainService, never()).validateCardActivatable(any());
     }
 
     /**
@@ -360,5 +368,87 @@ class CardTemplateAppServiceTest {
         verify(cardTemplateRepositoryPort).save(argThat(template ->
                 template.getStatus() == CardTemplateStatus.INACTIVE
         ));
+    }
+
+    // ========== REQ-94：INACTIVE→ACTIVE 前置校验测试 ==========
+
+    @Test
+    @DisplayName("INACTIVE→ACTIVE 切换且 IP ACTIVE 时应正常通过")
+    void updateCardTemplate_shouldActivate_whenIpActive() {
+        Long id = 1L;
+        CardTemplate existing = buildCardTemplate(id, "CODE", "卡牌", CardRarity.N,
+                CardTemplateStatus.INACTIVE);
+        when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        CardTemplate saved = buildCardTemplate(id, "CODE", "卡牌", CardRarity.N,
+                CardTemplateStatus.ACTIVE);
+        when(cardTemplateRepositoryPort.save(any(CardTemplate.class))).thenReturn(saved);
+        when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影忍者")));
+
+        CardTemplateResponse result = cardTemplateAppService.updateCardTemplate(
+                id, null, null, null, null, CardTemplateStatus.ACTIVE, null);
+
+        assertNotNull(result);
+        assertEquals("ACTIVE", result.getStatus());
+        verify(ipSeriesDomainService).validateCardActivatable(existing);
+    }
+
+    @Test
+    @DisplayName("INACTIVE→ACTIVE 切换且 IP INACTIVE 时应抛异常")
+    void updateCardTemplate_shouldThrow_whenIpInactive() {
+        Long id = 1L;
+        CardTemplate existing = buildCardTemplate(id, "CODE", "测试卡牌", CardRarity.N,
+                CardTemplateStatus.INACTIVE);
+        when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        doThrow(new BusinessException(
+                "卡牌《测试卡牌》关联的 IP 系列《火影忍者》处于停用状态，请先启用 IP 系列再启用卡牌"))
+                .when(ipSeriesDomainService).validateCardActivatable(existing);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> cardTemplateAppService.updateCardTemplate(
+                        id, null, null, null, null, CardTemplateStatus.ACTIVE, null));
+        assertEquals("卡牌《测试卡牌》关联的 IP 系列《火影忍者》处于停用状态，请先启用 IP 系列再启用卡牌",
+                ex.getMessage());
+        verify(cardTemplateRepositoryPort, never()).save(any());
+    }
+
+    // ========== REQ-94：批量启用/停用测试 ==========
+
+    @Test
+    @DisplayName("批量启用 全部 ID 存在且 IP ACTIVE 时应成功")
+    void batchActivate_shouldSucceed_whenAllIdsExist() {
+        List<Long> ids = List.of(1L, 2L);
+        CardTemplate card1 = buildCardTemplate(1L, "C1", "卡牌1", CardRarity.N, CardTemplateStatus.INACTIVE);
+        CardTemplate card2 = buildCardTemplate(2L, "C2", "卡牌2", CardRarity.N, CardTemplateStatus.INACTIVE);
+        when(cardTemplateRepositoryPort.findAllByIdIn(ids)).thenReturn(List.of(card1, card2));
+
+        cardTemplateAppService.batchActivate(ids);
+
+        verify(ipSeriesDomainService).validateCardsActivatable(List.of(card1, card2));
+        verify(cardTemplateRepositoryPort).batchUpdateStatus(ids, CardTemplateStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("批量启用 部分 ID 不存在时应抛异常")
+    void batchActivate_shouldThrow_whenSomeIdsNotFound() {
+        List<Long> ids = List.of(1L, 999L);
+        when(cardTemplateRepositoryPort.findAllByIdIn(ids)).thenReturn(List.of(
+                buildCardTemplate(1L, "C1", "卡牌1", CardRarity.N, CardTemplateStatus.INACTIVE)));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> cardTemplateAppService.batchActivate(ids));
+        assertEquals("部分卡牌 ID 不存在", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("批量停用 应委托 batchUpdateStatus(INACTIVE)")
+    void batchDeactivate_shouldDelegateToBatchUpdateStatus() {
+        List<Long> ids = List.of(1L, 2L);
+        CardTemplate card1 = buildCardTemplate(1L, "C1", "卡牌1", CardRarity.N, CardTemplateStatus.ACTIVE);
+        CardTemplate card2 = buildCardTemplate(2L, "C2", "卡牌2", CardRarity.N, CardTemplateStatus.ACTIVE);
+        when(cardTemplateRepositoryPort.findAllByIdIn(ids)).thenReturn(List.of(card1, card2));
+
+        cardTemplateAppService.batchDeactivate(ids);
+
+        verify(cardTemplateRepositoryPort).batchUpdateStatus(ids, CardTemplateStatus.INACTIVE);
     }
 }

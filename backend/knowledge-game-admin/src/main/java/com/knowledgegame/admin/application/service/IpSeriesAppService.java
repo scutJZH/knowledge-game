@@ -8,6 +8,7 @@ import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,9 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class IpSeriesAppService {
 
     private final IpSeriesRepositoryPort ipSeriesRepositoryPort;
+    private final IpSeriesDomainService ipSeriesDomainService;
 
-    public IpSeriesAppService(IpSeriesRepositoryPort ipSeriesRepositoryPort) {
+    public IpSeriesAppService(IpSeriesRepositoryPort ipSeriesRepositoryPort,
+                                IpSeriesDomainService ipSeriesDomainService) {
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
+        this.ipSeriesDomainService = ipSeriesDomainService;
     }
 
     /**
@@ -105,7 +109,7 @@ public class IpSeriesAppService {
     public void deleteIpSeries(Long id) {
         IpSeries ipSeries = ipSeriesRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("IP 系列不存在: " + id));
-        // TODO: 检查是否有关联卡牌，有则不允许删除
+        ipSeriesDomainService.validateDeactivatable(id);
         ipSeries.deactivate();
         ipSeriesRepositoryPort.save(ipSeries);
     }

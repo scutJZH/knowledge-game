@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 题目仓储适配器（实现领域层出端口）
@@ -157,6 +158,24 @@ public class QuestionRepositoryAdapter implements QuestionRepository {
     @Override
     public List<Long> findActiveCategoryIdsByQuestionId(Long questionId) {
         return questionJpaRepository.findActiveCategoryIdsByQuestionId(questionId);
+    }
+
+    @Override
+    public long countActiveByCategoryId(Long categoryId) {
+        return relationJpaRepository.countActiveQuestionsByCategoryId(categoryId);
+    }
+
+    @Override
+    public Map<Long, List<Long>> findCategoryIdsByQuestionIds(List<Long> questionIds) {
+        List<QuestionCategoryRelationPO> relations = relationJpaRepository.findAllByQuestionIdIn(questionIds);
+        return relations.stream()
+                .collect(Collectors.groupingBy(
+                        QuestionCategoryRelationPO::getQuestionId,
+                        Collectors.mapping(
+                                QuestionCategoryRelationPO::getCategoryId,
+                                Collectors.toList()
+                        )
+                ));
     }
 
     @Override

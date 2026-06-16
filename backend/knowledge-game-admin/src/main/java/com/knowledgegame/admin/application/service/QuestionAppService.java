@@ -37,6 +37,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 题目管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -170,11 +171,40 @@ public class QuestionAppService {
     }
 
     /**
-     * 批量启用
+     * 批量启用（含分类状态前置校验）
      */
     @Transactional
     public void batchActivate(List<Long> ids) {
-        questionRepository.batchUpdateStatus(ids, QuestionStatus.ACTIVE);
+        // ids 非空由 BatchStatusRequest.@NotEmpty 在 DTO 层保证
+        // 去重避免 size 校验误报
+        List<Long> distinctIds = ids.stream().distinct().toList();
+        // 存在性校验：与 CardTemplate 行为对称，避免静默成功
+        List<Question> questions = questionRepository.findByIds(distinctIds);
+        if (questions.size() != distinctIds.size()) {
+            throw new BusinessException("部分题目 ID 不存在");
+        }
+        // 加载题目信息用于错误消息中的题目名
+        Map<Long, String> idToName = questions.stream()
+                .collect(Collectors.toMap(Question::getId, Question::getContent));
+        // 查询所有题目的分类关联
+        Map<Long, List<Long>> questionToCategoryIds = questionRepository.findCategoryIdsByQuestionIds(distinctIds);
+        // 收集全部唯一分类 ID，一次性批量加载
+        List<Long> allCategoryIds = questionToCategoryIds.values().stream()
+                .flatMap(List::stream)
+                .distinct()
+                .toList();
+        Map<Long, KnowledgeCategory> categoryMap = allCategoryIds.isEmpty()
+                ? Map.of()
+                : categoryRepositoryPort.findAllByIdIn(allCategoryIds).stream()
+                        .collect(Collectors.toMap(KnowledgeCategory::getId, c -> c));
+        // 逐题校验（纯内存），第一个失败抛异常
+        for (Long id : distinctIds) {
+            String questionName = idToName.getOrDefault(id, "(ID=" + id + ")");
+            List<Long> categoryIds = questionToCategoryIds.getOrDefault(id, List.of());
+            questionDomainService.validateActivatable(questionName, categoryIds, categoryMap);
+        }
+        // 全部通过则执行
+        questionRepository.batchUpdateStatus(distinctIds, QuestionStatus.ACTIVE);
     }
 
     /**
@@ -182,7 +212,9 @@ public class QuestionAppService {
      */
     @Transactional
     public void batchDeactivate(List<Long> ids) {
-        questionRepository.batchUpdateStatus(ids, QuestionStatus.INACTIVE);
+        // ids 非空由 DTO 层保证；去重与 batchActivate 对称
+        List<Long> distinctIds = ids.stream().distinct().toList();
+        questionRepository.batchUpdateStatus(distinctIds, QuestionStatus.INACTIVE);
     }
 
     /**

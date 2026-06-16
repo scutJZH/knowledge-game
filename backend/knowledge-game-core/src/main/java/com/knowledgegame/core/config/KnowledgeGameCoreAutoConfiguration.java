@@ -1,9 +1,11 @@
 package com.knowledgegame.core.config;
 
+import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
+import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
 import com.knowledgegame.core.domain.service.QuestionDomainService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -37,8 +39,18 @@ public class KnowledgeGameCoreAutoConfiguration {
      */
     @Bean
     public KnowledgeCategoryDomainService knowledgeCategoryDomainService(
-            KnowledgeCategoryRepositoryPort categoryRepositoryPort) {
-        return new KnowledgeCategoryDomainService(categoryRepositoryPort);
+            KnowledgeCategoryRepositoryPort categoryRepositoryPort,
+            QuestionRepository questionRepository) {
+        return new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+    }
+
+    /**
+     * 注册 IP 系列领域服务（跨聚合校验，纯 POJO，需手动注册）
+     */
+    @Bean
+    public IpSeriesDomainService ipSeriesDomainService(CardTemplateRepositoryPort cardTemplateRepositoryPort,
+                                                        IpSeriesRepositoryPort ipSeriesRepositoryPort) {
+        return new IpSeriesDomainService(cardTemplateRepositoryPort, ipSeriesRepositoryPort);
     }
 
     /**

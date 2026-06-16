@@ -19,7 +19,7 @@ public interface QuestionJpaRepository extends JpaRepository<QuestionPO, Long>,
     /**
      * 批量更新状态
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE QuestionPO q SET q.status = :status, q.updatedAt = CURRENT_TIMESTAMP WHERE q.id IN :ids")
     void batchUpdateStatus(@Param("ids") List<Long> ids, @Param("status") QuestionStatus status);
 

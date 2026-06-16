@@ -102,8 +102,15 @@ public class KnowledgeCategoryRepositoryAdapter implements KnowledgeCategoryRepo
     }
 
     @Override
-    public long countByParentId(Long parentId) {
-        return jpaRepository.countByParentId(parentId);
+    public long countActiveByParentId(Long parentId) {
+        return jpaRepository.countActiveByParentId(parentId);
+    }
+
+    @Override
+    public List<KnowledgeCategory> findAllByIdIn(List<Long> ids) {
+        return jpaRepository.findAllById(ids).stream()
+                .map(KnowledgeCategoryConverter.INSTANCE::toDomain)
+                .toList();
     }
 
     @Override

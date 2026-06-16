@@ -4,6 +4,7 @@ import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -35,6 +36,11 @@ public interface IpSeriesRepositoryPort {
      * 分页查询（支持名称模糊搜索 + 状态筛选）
      */
     PageResult<IpSeries> findByConditions(String name, IpSeriesStatus status, int pageNumber, int pageSize);
+
+    /**
+     * 根据 ID 批量查询（用于批量校验时一次性加载）
+     */
+    List<IpSeries> findAllByIdIn(List<Long> ids);
 
     /**
      * 根据 ID 判断是否存在

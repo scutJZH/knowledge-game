@@ -5,19 +5,25 @@ import com.knowledgegame.core.domain.model.domainenum.Difficulty;
 import com.knowledgegame.core.domain.model.domainenum.QuestionType;
 import com.knowledgegame.core.domain.model.entity.Question;
 import com.knowledgegame.core.domain.model.vo.QuestionOption;
+import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
+import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.when;
 
 /**
  * QuestionDomainService 单元测试
@@ -677,5 +683,90 @@ class QuestionDomainServiceTest {
         service.validateUpdate(
                 existing, null, null, null, List.of("新标签")
         );
+    }
+
+    // ======================== validateActivatable ========================
+
+    /**
+     * validateActivatable：题目未关联任何分类时允许启用
+     */
+    @Test
+    @DisplayName("validateActivatable 题目未关联任何分类时应通过")
+    void validateActivatable_shouldPass_whenNoCategories() {
+        QuestionDomainService service = new QuestionDomainService(questionRepository);
+        service.validateActivatable("测试题", List.of(), Map.of());
+        // 无异常即通过
+    }
+
+    /**
+     * validateActivatable：全部关联分类为 ACTIVE 时允许启用（纯内存校验）
+     */
+    @Test
+    @DisplayName("validateActivatable 全部关联分类为 ACTIVE 时应通过")
+    void validateActivatable_shouldPass_whenAllCategoriesActive() {
+        KnowledgeCategory cat1 = buildCategory(10L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        KnowledgeCategory cat2 = buildCategory(20L, "面向对象", KnowledgeCategoryStatus.ACTIVE);
+        Map<Long, KnowledgeCategory> catMap = Map.of(10L, cat1, 20L, cat2);
+
+        QuestionDomainService service = new QuestionDomainService(questionRepository);
+        service.validateActivatable("测试题", List.of(10L, 20L), catMap);
+        // 无异常即通过
+    }
+
+    /**
+     * validateActivatable：存在 INACTIVE 分类时抛异常，消息列出全部 INACTIVE 名称
+     */
+    @Test
+    @DisplayName("validateActivatable 存在 INACTIVE 分类时应抛异常（列出全部 INACTIVE 名称）")
+    void validateActivatable_shouldThrow_whenHasInactiveCategories() {
+        KnowledgeCategory cat1 = buildCategory(10L, "Java基础", KnowledgeCategoryStatus.INACTIVE);
+        KnowledgeCategory cat2 = buildCategory(20L, "面向对象", KnowledgeCategoryStatus.INACTIVE);
+        Map<Long, KnowledgeCategory> catMap = Map.of(10L, cat1, 20L, cat2);
+
+        QuestionDomainService service = new QuestionDomainService(questionRepository);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.validateActivatable("测试题", List.of(10L, 20L), catMap));
+        assertEquals("题目《测试题》关联的知识点分类《Java基础》、《面向对象》处于停用状态，请先启用对应分类再启用题目",
+                ex.getMessage());
+    }
+
+    /**
+     * validateActivatable：部分 INACTIVE 时消息只列出 INACTIVE 的分类名
+     */
+    @Test
+    @DisplayName("validateActivatable 部分分类 INACTIVE 时只列出 INACTIVE 的名称")
+    void validateActivatable_shouldListOnlyInactiveNames() {
+        KnowledgeCategory cat1 = buildCategory(10L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        KnowledgeCategory cat2 = buildCategory(20L, "面向对象", KnowledgeCategoryStatus.INACTIVE);
+        Map<Long, KnowledgeCategory> catMap = Map.of(10L, cat1, 20L, cat2);
+
+        QuestionDomainService service = new QuestionDomainService(questionRepository);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.validateActivatable("测试题", List.of(10L, 20L), catMap));
+        assertEquals("题目《测试题》关联的知识点分类《面向对象》处于停用状态，请先启用对应分类再启用题目",
+                ex.getMessage());
+    }
+
+    /**
+     * validateActivatable：categoryMap 中缺少某分类 ID 时视为已删除，报告异常
+     */
+    @Test
+    @DisplayName("validateActivatable categoryMap 中缺少分类 ID 时应报 INACTIVE")
+    void validateActivatable_shouldTreatMissingCategoryAsInactive() {
+        KnowledgeCategory cat1 = buildCategory(10L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        Map<Long, KnowledgeCategory> catMap = Map.of(10L, cat1);
+
+        QuestionDomainService service = new QuestionDomainService(questionRepository);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.validateActivatable("测试题", List.of(10L, 999L), catMap));
+        assertEquals("题目《测试题》关联的知识点分类《(ID=999)》处于停用状态，请先启用对应分类再启用题目",
+                ex.getMessage());
+    }
+
+    // ======================== 辅助方法 ========================
+
+    private KnowledgeCategory buildCategory(Long id, String name, KnowledgeCategoryStatus status) {
+        return KnowledgeCategory.reconstruct(id, null, name, null, null, null, null, 0,
+                status, null, null);
     }
 }

@@ -7,6 +7,7 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -45,6 +46,17 @@ public interface QuestionRepository {
      * 查询题目关联的分类 ID 列表（过滤 INACTIVE 分类）
      */
     List<Long> findActiveCategoryIdsByQuestionId(Long questionId);
+
+    /**
+     * 统计与指定分类关联的 ACTIVE 题目数量
+     */
+    long countActiveByCategoryId(Long categoryId);
+
+    /**
+     * 查询多道题目关联的全部分类 ID（去重），用于批量启用前的分类状态校验
+     * 返回 Map<questionId, List<categoryId>>
+     */
+    Map<Long, List<Long>> findCategoryIdsByQuestionIds(List<Long> questionIds);
 
     /**
      * 批量更新状态

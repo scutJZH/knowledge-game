@@ -90,6 +90,23 @@ public class CardTemplateRepositoryAdapter implements CardTemplateRepositoryPort
     }
 
     @Override
+    public long countActiveByIpSeriesId(Long ipSeriesId) {
+        return cardTemplateJpaRepository.countActiveByIpSeriesId(ipSeriesId);
+    }
+
+    @Override
+    public List<CardTemplate> findAllByIdIn(List<Long> ids) {
+        return cardTemplateJpaRepository.findAllById(ids).stream()
+                .map(CardTemplateConverter.INSTANCE::toDomain)
+                .toList();
+    }
+
+    @Override
+    public void batchUpdateStatus(List<Long> ids, CardTemplateStatus status) {
+        cardTemplateJpaRepository.batchUpdateStatus(ids, status);
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return cardTemplateJpaRepository.existsById(id);
     }
