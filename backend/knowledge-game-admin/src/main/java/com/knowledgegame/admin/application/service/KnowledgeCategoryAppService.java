@@ -35,6 +35,7 @@ public class KnowledgeCategoryAppService {
     private final KnowledgeCategoryDomainService categoryDomainService;
     private final FileServiceClient fileServiceClient;
 
+
     public KnowledgeCategoryAppService(KnowledgeCategoryRepositoryPort categoryRepositoryPort,
                                        KnowledgeCategoryDomainService categoryDomainService,
                                        FileServiceClient fileServiceClient) {
@@ -183,7 +184,9 @@ public class KnowledgeCategoryAppService {
             throw new BusinessException(400, "文件类型不匹配，期望 " + expectedBizType);
         }
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (!Objects.equals(currentUserId, metadata.get("userId"))) {
+        Object metaUserId = metadata.get("userId");
+        Long metaUserIdLong = metaUserId instanceof Number ? ((Number) metaUserId).longValue() : null;
+        if (!Objects.equals(currentUserId, metaUserIdLong)) {
             throw new BusinessException(403, "无权使用该文件");
         }
         return FileRef.of(fileId, info.getUrl());

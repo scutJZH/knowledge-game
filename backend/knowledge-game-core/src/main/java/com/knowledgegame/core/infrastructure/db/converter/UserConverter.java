@@ -33,14 +33,16 @@ public class UserConverter {
         po.setUsername(user.getUsername());
         po.setPasswordHash(user.getPasswordHash());
         po.setNickname(user.getNickname());
-        po.setAvatarFileId(fileIdOf(user.getAvatar()));
-        po.setAvatar(urlOf(user.getAvatar()));
+        if (user.getAvatar() != null) {
+            po.setAvatarFileId(fileIdOf(user.getAvatar()));
+            po.setAvatar(urlOf(user.getAvatar()));
+        }
         po.setRole(user.getRole());
         po.setUpdatedAt(user.getUpdatedAt());
     }
 
     private static FileRef toFileRef(Long fileId, String url) {
-        if (fileId == null && url == null) return null;
+        if (fileId == null) return null;
         return FileRef.of(fileId, url);
     }
 

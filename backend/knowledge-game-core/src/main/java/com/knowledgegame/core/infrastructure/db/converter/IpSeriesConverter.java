@@ -68,8 +68,10 @@ public interface IpSeriesConverter {
         if (domain.getDescription() != null) {
             po.setDescription(domain.getDescription());
         }
-        po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
-        po.setCoverImageUrl(urlOf(domain.getCoverImage()));
+        if (domain.getCoverImage() != null) {
+            po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
+            po.setCoverImageUrl(urlOf(domain.getCoverImage()));
+        }
         if (domain.getStatus() != null) {
             po.setStatus(domain.getStatus());
         }

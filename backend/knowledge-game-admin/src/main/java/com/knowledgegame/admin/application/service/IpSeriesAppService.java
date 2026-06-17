@@ -28,6 +28,7 @@ public class IpSeriesAppService {
     private final IpSeriesRepositoryPort ipSeriesRepositoryPort;
     private final FileServiceClient fileServiceClient;
 
+
     public IpSeriesAppService(IpSeriesRepositoryPort ipSeriesRepositoryPort,
                                FileServiceClient fileServiceClient) {
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
@@ -135,7 +136,9 @@ public class IpSeriesAppService {
             throw new BusinessException(400, "文件类型不匹配，期望 " + expectedBizType);
         }
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (!Objects.equals(currentUserId, metadata.get("userId"))) {
+        Object metaUserId = metadata.get("userId");
+        Long metaUserIdLong = metaUserId instanceof Number ? ((Number) metaUserId).longValue() : null;
+        if (!Objects.equals(currentUserId, metaUserIdLong)) {
             throw new BusinessException(403, "无权使用该文件");
         }
         return FileRef.of(fileId, info.getUrl());

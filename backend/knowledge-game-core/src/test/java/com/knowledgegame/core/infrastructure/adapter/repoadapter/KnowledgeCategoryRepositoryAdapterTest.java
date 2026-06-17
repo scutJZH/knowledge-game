@@ -100,8 +100,10 @@ class KnowledgeCategoryRepositoryAdapterTest {
         po.setParentId(null);
         po.setName(name);
         po.setDescription("测试描述");
+        po.setIconFileId(1L);
         po.setIconUrl("https://example.com/icon.png");
         po.setColor("#FF0000");
+        po.setCoverImageFileId(2L);
         po.setCoverImageUrl("https://example.com/cover.png");
         po.setSortOrder(1);
         po.setStatus(status);

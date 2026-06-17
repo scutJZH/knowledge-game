@@ -79,13 +79,13 @@ class CardTemplateConverterTest {
         }
 
         @Test
-        @DisplayName("null FileRef 应清空 PO 双字段")
-        void shouldClearDualFieldsWhenFileRefNull() {
+        @DisplayName("null FileRef 应保留 PO 原值")
+        void shouldKeepOldValuesWhenFileRefNull() {
             CardTemplatePO po = buildPO(1L, 9L, "/old.png");
             CardTemplate domain = buildDomain(null);
             CardTemplateConverter.INSTANCE.updatePO(po, domain);
-            assertNull(po.getImageFileId());
-            assertNull(po.getImageUrl());
+            assertEquals(9L, po.getImageFileId());
+            assertEquals("/old.png", po.getImageUrl());
         }
     }
 

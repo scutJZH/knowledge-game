@@ -55,13 +55,17 @@ public interface KnowledgeCategoryConverter {
         if (domain.getDescription() != null) {
             po.setDescription(domain.getDescription());
         }
-        po.setIconFileId(fileIdOf(domain.getIcon()));
-        po.setIconUrl(urlOf(domain.getIcon()));
+        if (domain.getIcon() != null) {
+            po.setIconFileId(fileIdOf(domain.getIcon()));
+            po.setIconUrl(urlOf(domain.getIcon()));
+        }
         if (domain.getColor() != null) {
             po.setColor(domain.getColor());
         }
-        po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
-        po.setCoverImageUrl(urlOf(domain.getCoverImage()));
+        if (domain.getCoverImage() != null) {
+            po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
+            po.setCoverImageUrl(urlOf(domain.getCoverImage()));
+        }
         if (domain.getStatus() != null) {
             po.setStatus(domain.getStatus());
         }

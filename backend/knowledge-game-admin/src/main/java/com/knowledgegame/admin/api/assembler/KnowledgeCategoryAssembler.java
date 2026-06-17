@@ -26,6 +26,7 @@ public interface KnowledgeCategoryAssembler {
     @Mapping(target = "updatedAt", expression = "java(toEpochMilli(category.getUpdatedAt()))")
     KnowledgeCategoryResponse toResponse(KnowledgeCategory category);
 
+    @Mapping(target = "iconUrl", expression = "java(urlOf(category.getIcon()))")
     @Mapping(target = "status", expression = "java(category.getStatus().name())")
     @Mapping(target = "children", ignore = true)
     KnowledgeCategoryTreeResponse toTreeNode(KnowledgeCategory category);

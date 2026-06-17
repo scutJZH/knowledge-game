@@ -17,7 +17,9 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
+import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.springframework.stereotype.Service;
@@ -32,15 +34,19 @@ public class CardTemplateAppService {
     private final CardTemplateDomainService cardTemplateDomainService;
     private final CardTemplateRepositoryPort cardTemplateRepositoryPort;
     private final IpSeriesRepositoryPort ipSeriesRepositoryPort;
+    private final IpSeriesDomainService ipSeriesDomainService;
     private final FileServiceClient fileServiceClient;
+
 
     public CardTemplateAppService(CardTemplateDomainService cardTemplateDomainService,
                                   CardTemplateRepositoryPort cardTemplateRepositoryPort,
                                   IpSeriesRepositoryPort ipSeriesRepositoryPort,
+                                  IpSeriesDomainService ipSeriesDomainService,
                                   FileServiceClient fileServiceClient) {
         this.cardTemplateDomainService = cardTemplateDomainService;
         this.cardTemplateRepositoryPort = cardTemplateRepositoryPort;
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
+        this.ipSeriesDomainService = ipSeriesDomainService;
         this.fileServiceClient = fileServiceClient;
     }
 
@@ -145,6 +151,36 @@ public class CardTemplateAppService {
                 .orElse("未知");
     }
 
+    /**
+     * 批量启用卡牌模板
+     */
+    @Transactional
+    public void batchActivate(List<Long> ids) {
+        List<Long> distinctIds = ids.stream().distinct().toList();
+        List<CardTemplate> cards = cardTemplateRepositoryPort.findAllByIdIn(distinctIds);
+        if (cards.size() != distinctIds.size()) {
+            throw new BusinessException("部分卡牌 ID 不存在");
+        }
+        List<CardTemplate> toActivate = cards.stream()
+                .filter(c -> c.getStatus() != CardTemplateStatus.ACTIVE)
+                .toList();
+        ipSeriesDomainService.validateCardsActivatable(toActivate);
+        cardTemplateRepositoryPort.batchUpdateStatus(distinctIds, CardTemplateStatus.ACTIVE);
+    }
+
+    /**
+     * 批量停用卡牌模板
+     */
+    @Transactional
+    public void batchDeactivate(List<Long> ids) {
+        List<Long> distinctIds = ids.stream().distinct().toList();
+        List<CardTemplate> cards = cardTemplateRepositoryPort.findAllByIdIn(distinctIds);
+        if (cards.size() != distinctIds.size()) {
+            throw new BusinessException("部分卡牌 ID 不存在");
+        }
+        cardTemplateRepositoryPort.batchUpdateStatus(distinctIds, CardTemplateStatus.INACTIVE);
+    }
+
     private FileRef verifyFileRef(Long fileId, String expectedBizType) {
         if (fileId == null) {
             return null;
@@ -159,7 +195,9 @@ public class CardTemplateAppService {
             throw new BusinessException(400, "文件类型不匹配，期望 " + expectedBizType);
         }
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (!Objects.equals(currentUserId, metadata.get("userId"))) {
+        Object metaUserId = metadata.get("userId");
+        Long metaUserIdLong = metaUserId instanceof Number ? ((Number) metaUserId).longValue() : null;
+        if (!Objects.equals(currentUserId, metaUserIdLong)) {
             throw new BusinessException(403, "无权使用该文件");
         }
         return FileRef.of(fileId, info.getUrl());

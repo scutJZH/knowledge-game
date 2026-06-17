@@ -27,6 +27,7 @@ m2m:
 
 knowledgegame:
   file:
+    public-base-url: http://localhost:8083
     storage:
       type: local
       local:

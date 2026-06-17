@@ -161,6 +161,7 @@ class CardTemplateRepositoryAdapterTest {
         po.setRarity(rarity);
         po.setDescription("测试描述");
         po.setStatus(status);
+        po.setImageFileId(1L);
         po.setImageUrl("https://example.com/card.png");
         po.setCreatedAt(LocalDateTime.of(2025, 1, 1, 0, 0));
         po.setUpdatedAt(LocalDateTime.of(2025, 1, 1, 0, 0));

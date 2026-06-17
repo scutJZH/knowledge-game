@@ -6,6 +6,7 @@ import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import org.junit.jupiter.api.DisplayName;
@@ -168,14 +169,14 @@ class IpSeriesDomainServiceTest {
 
     private CardTemplate buildCardTemplate(Long id, Long ipSeriesId, String name, CardTemplateStatus status) {
         return CardTemplate.reconstruct(id, ipSeriesId, "CODE", name,
-                CardRarity.N, "描述", status, "https://example.com/img.png",
+                CardRarity.N, "描述", status, null,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 1, 0, 0));
     }
 
     private IpSeries buildIpSeries(Long id, String name, IpSeriesStatus status) {
         return IpSeries.reconstruct(id, "CODE", name, "描述",
-                "https://cover.jpg", status,
+                null, status,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 1, 0, 0));
     }

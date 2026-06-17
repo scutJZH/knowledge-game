@@ -32,6 +32,8 @@ spring:
 
 knowledgegame:
   file:
+    # 对外暴露的访问基址（不含末尾斜杠），用于 getFileInfo 返回绝对 URL
+    public-base-url: http://localhost:8083
     storage:
       type: local
       local:

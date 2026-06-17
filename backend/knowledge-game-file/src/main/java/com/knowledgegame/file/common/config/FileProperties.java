@@ -16,6 +16,11 @@ import java.util.List;
 public class FileProperties {
 
     /**
+     * 对外暴露的访问基址
+     */
+    private String publicBaseUrl = "http://localhost:8083";
+
+    /**
      * 存储配置
      */
     private Storage storage = new Storage();

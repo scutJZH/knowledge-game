@@ -45,13 +45,15 @@ public interface CardTemplateConverter {
         if (domain.getRarity() != null) po.setRarity(domain.getRarity());
         if (domain.getDescription() != null) po.setDescription(domain.getDescription());
         if (domain.getStatus() != null) po.setStatus(domain.getStatus());
-        po.setImageFileId(fileIdOf(domain.getImage()));
-        po.setImageUrl(urlOf(domain.getImage()));
+        if (domain.getImage() != null) {
+            po.setImageFileId(fileIdOf(domain.getImage()));
+            po.setImageUrl(urlOf(domain.getImage()));
+        }
         po.setUpdatedAt(domain.getUpdatedAt());
     }
 
     default FileRef toFileRef(Long fileId, String url) {
-        if (fileId == null && url == null) return null;
+        if (fileId == null) return null;
         return FileRef.of(fileId, url);
     }
 

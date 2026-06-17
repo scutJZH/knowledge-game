@@ -39,6 +39,7 @@ public class UserAppService {
     private final TokenBlacklist tokenBlacklist;
     private final FileServiceClient fileServiceClient;
 
+
     public UserAppService(UserRepositoryPort userRepositoryPort, PasswordEncoder passwordEncoder,
                           JwtTokenProvider jwtTokenProvider, TokenBlacklist tokenBlacklist,
                           FileServiceClient fileServiceClient) {
@@ -163,7 +164,9 @@ public class UserAppService {
         if (metadata == null || !expectedBizType.equals(metadata.get("bizType")))
             throw new BusinessException(400, "文件类型不匹配，期望 " + expectedBizType);
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        if (!Objects.equals(currentUserId, metadata.get("userId")))
+        Object metaUserId = metadata.get("userId");
+        Long metaUserIdLong = metaUserId instanceof Number ? ((Number) metaUserId).longValue() : null;
+        if (!Objects.equals(currentUserId, metaUserIdLong))
             throw new BusinessException(403, "无权使用该文件");
         return FileRef.of(fileId, info.getUrl());
     }

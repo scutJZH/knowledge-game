@@ -128,7 +128,22 @@ public class FileAppService {
     public FileInfoResponse getFileInfo(Long fileId) {
         FileInfo fileInfo = fileInfoRepository.findById(fileId)
                 .orElseThrow(() -> new BusinessException(404, "文件不存在"));
-        return FileInfoAssembler.INSTANCE.toResponse(fileInfo);
+        FileInfoResponse resp = FileInfoAssembler.INSTANCE.toResponse(fileInfo);
+        // 前缀补全为绝对 URL（兼容历史数据中存储的相对路径）
+        if (resp.getUrl() != null && !resp.getUrl().startsWith("http")) {
+            resp = FileInfoResponse.builder()
+                    .fileId(resp.getFileId())
+                    .url(properties.getPublicBaseUrl() + resp.getUrl())
+                    .originalName(resp.getOriginalName())
+                    .contentType(resp.getContentType())
+                    .fileSize(resp.getFileSize())
+                    .basePath(resp.getBasePath())
+                    .uploaderId(resp.getUploaderId())
+                    .createdAt(resp.getCreatedAt())
+                    .metadata(resp.getMetadata())
+                    .build();
+        }
+        return resp;
     }
 
     /**
