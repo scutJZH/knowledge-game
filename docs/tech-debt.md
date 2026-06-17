@@ -55,3 +55,48 @@
 - **修复计划：** 后续前端需求统一处理
 - **触发条件：** 分类管理页或卡牌管理页前端迭代时
 
+## DD-6: verifyFileRef 在 4 个 AppService 中重复定义
+
+- **发现日期：** 2026-06-17
+- **来源需求：** REQ-93（代码审查）
+- **问题：** `IpSeriesAppService`、`KnowledgeCategoryAppService`、`CardTemplateAppService`、`UserAppService` 四个类中 `verifyFileRef(Long, String)` 方法完全一致，仅 `expectedBizType` 常量不同
+- **暂缓原因：** PRD 明确 YAGNI，当前 4 个 bizType 均共享同一校验模板
+- **修复计划：** 当某 bizType 需要额外 metadata 校验字段（如 categoryId）时，抽 `FileRefVerifier` 工具类或策略接口
+- **触发条件：** 新聚合根接入 FileRef 时，或现有 bizType 需要扩展 metadata 校验逻辑时
+
+## DD-7: admin/app FileController 错误处理不对称
+
+- **发现日期：** 2026-06-16
+- **来源需求：** REQ-93（第一轮审查 #13）
+- **问题：** admin 端 `FileController.getCredential` 用 try-catch 捕获 FeignException 包装为 BusinessException，app 端直接调用无 try-catch。两端逻辑相同的代码风格不一致
+- **暂缓原因：** YAGNI，两个 Controller 维护成本可接受
+- **修复计划：** 统一抽取共享类或基类处理 Feign 异常
+- **触发条件：** 新增第三个调用方或现有调用方出现 Feign 异常未处理的问题时
+
+## DD-8: 文件上传磁盘孤儿无回滚
+
+- **发现日期：** 2026-06-16
+- **来源需求：** REQ-93（第二轮审查 R2-6）
+- **问题：** `FileAppService.uploadFile` 流程：磁盘存储 → DB 保存（事务）→ 凭证消费（内存）。若 DB 保存失败或凭证过期，磁盘文件已保存但事务回滚，产生孤儿文件。`batchUploadFiles` 更严重——N 个文件全存盘后才回滚
+- **暂缓原因：** 历史问题（REQ-83 引入），非 REQ-93 新增
+- **修复计划：** 可选方案：① 凭证消费前置（先消费再存盘）；② `@TransactionalEventListener` 监听回滚事件删除磁盘文件；③ `cleanupDeletedFiles` 定期清理补充孤儿检测
+- **触发条件：** 文件服务可靠性优化需求
+
+## DD-9: UploadCredentialService 凭证过期清理有 2 倍宽限期
+
+- **发现日期：** 2026-06-16
+- **来源需求：** REQ-93（第二轮审查 R2-9）
+- **问题：** `safetyThreshold = now - expireMinutes * 60 * 2`，已过期凭证需等 2 倍过期时间才被清理。设计意图可能是给传输中的文件 buffer，但未在 javadoc 说明。metadata 中可能含敏感信息（userId），滞留时间不确定
+- **暂缓原因：** 历史设计（REQ-83 引入），低优
+- **修复计划：** javadoc 中说明 safetyThreshold 设计意图；评估是否缩减为 1.5 倍或 1 倍
+- **触发条件：** UploadCredentialService 重构或迁移 Redis 时（与 REQ-81 协同）
+
+## DD-10: 4 个聚合根的 Converter 单元测试覆盖但缺少 @DataJpaTest
+
+- **发现日期：** 2026-06-17
+- **来源需求：** REQ-93（第二轮审查 R2-12 + 集成测试补充）
+- **问题：** `@JdbcTypeCode(SqlTypes.JSON)` 的 MySQL JSON 列仅在 file 模块有 `@DataJpaTest` 覆盖（`FileInfoJpaRepositoryTest`），core 模块 4 个 PO 的 metadata 相关字段（`cover_image_file_id` 等）无真实 SQL 执行验证。纯 Mock 测试无法发现 JSON 序列化往返的类型转换问题（如 Long→Integer）
+- **暂缓原因：** core 是 Spring Boot Starter 库模块，`@DataJpaTest` 缺少测试基础设施（同 DD-1）
+- **修复计划：** admin 或 app 模块集成测试搭建时，通过 `@SpringBootTest` 天然覆盖 JPA 真实执行
+- **触发条件：** 下一次 admin/app 端 API 集成测试需求
+
