@@ -47,8 +47,9 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [internalUrl, setInternalUrl] = useState<string | undefined>(undefined);
+  const [removed, setRemoved] = useState(false);
 
-  const displayUrl = internalUrl ?? url;
+  const displayUrl = removed ? undefined : internalUrl ?? url;
 
   const fileList: UploadFile[] = displayUrl
     ? [{ uid: '-1', name: 'image', status: 'done', url: displayUrl }]
@@ -84,6 +85,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
         userInfo.id,
       );
       setInternalUrl(result.url);
+      setRemoved(false);
       onChange?.(result.fileId);
       onSuccess?.({ url: result.url });
     } catch (e: any) {
@@ -96,6 +98,7 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
 
   const handleRemove = () => {
     setInternalUrl(undefined);
+    setRemoved(true);
     onChange?.(undefined);
     return true;
   };

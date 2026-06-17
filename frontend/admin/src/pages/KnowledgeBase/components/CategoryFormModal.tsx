@@ -54,9 +54,9 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
             parentId: values.parentId ?? null,
             name: values.name,
             description: values.description || undefined,
-            iconUrl: values.iconUrl || undefined,
+            iconFileId: values.iconFileId ?? undefined,
             color: values.color || undefined,
-            coverImageUrl: values.coverImageUrl || undefined,
+            coverImageFileId: values.coverImageFileId ?? undefined,
             sortOrder: values.sortOrder ?? undefined,
           };
 
