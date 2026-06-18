@@ -13,13 +13,13 @@ interface CategoryFormModalProps {
   onCancel: () => void;
 }
 
-/** 将分类树转为 TreeSelect 的 treeData 格式 */
+/** 将分类树转为 TreeSelect 的 treeData 格式（过滤 INACTIVE + 排除自身） */
 function toTreeSelectData(
   nodes: CategoryTreeNode[],
   excludeId?: number,
 ): { title: string; value: number; children?: any[] }[] {
   return nodes
-    .filter((n) => n.id !== excludeId)
+    .filter((n) => n.id !== excludeId && n.status === 'ACTIVE')
     .map((node) => ({
       title: node.name,
       value: node.id,
