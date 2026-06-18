@@ -109,3 +109,21 @@
 - **修复计划：** 评估方向：① 改为前缀匹配 `code + "%"`（牺牲模糊匹配能力）；② 加全文索引 `FULLTEXT INDEX`（MySQL 8.0+ 支持 ngram 分词中文）；③ 数据量 > 10 万行时迁移到 Elasticsearch
 - **触发条件：** 任一表数据量 > 10 万行，或 LIKE 查询 P95 延迟 > 100ms 时
 
+## DD-12: SortFieldSpec 错误消息中 allowedFields 顺序不稳定
+
+- **发现日期：** 2026-06-18
+- **来源需求：** REQ-86（ISSUE-8 黑盒测试发现）
+- **问题：** PRD §4.3 错误消息示例是 `[code, name, status, createdAt, updatedAt]` 有序列表格式；但 `SortFieldSpec` 实现使用 `Set<String>.toString()`，HashSet 顺序不可控，错误消息中字段顺序随机。功能正确但显示不一致（前端可读性差，日志难复现）
+- **暂缓原因：** 不影响功能正确性（前端只关心字段是否在白名单内）
+- **修复计划：** 改造为 `new ArrayList<>(allowedFields)` 或排序后再拼接，保证消息稳定
+- **触发条件：** 下次 SortFieldSpec 重构或前端依赖稳定顺序时
+
+## DD-11: 列表查询 code/name 字段 LIKE 全模糊匹配的性能上限
+
+- **发现日期：** 2026-06-18
+- **来源需求：** REQ-86（code 搜索 + 列头排序）
+- **问题：** IpSeries/CardTemplate/KnowledgeCategory 的 `findByConditions` 中 `code`/`name` 字段使用 `cb.like(root.get("code"), "%" + code + "%")` 双侧通配模糊匹配，B-tree 失效会全表扫描。当前数据量 < 5k 行时可接受（< 10ms），但数据量增长后会出现明显性能下降
+- **暂缓原因：** 当前数据量小，性能可接受；优化方案需评估索引策略或迁移到 ES（增加架构复杂度）
+- **修复计划：** 评估方向：① 改为前缀匹配 `code + "%"`（牺牲模糊匹配能力）；② 加全文索引 `FULLTEXT INDEX`（MySQL 8.0+ 支持 ngram 分词中文）；③ 数据量 > 10 万行时迁移到 Elasticsearch
+- **触发条件：** 任一表数据量 > 10 万行，或 LIKE 查询 P95 延迟 > 100ms 时
+

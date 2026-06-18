@@ -7,8 +7,8 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * 本测试聚焦：
  * <ul>
  *   <li>空白名单边界</li>
- *   <li>错误消息精确契约（PRD §4.3：消息必须包含非法字段名 + 允许字段集合的 toString 形式）</li>
+ *   <li>错误消息精确契约（PRD §4.3：消息必须包含非法字段名 + 允许字段中文名集合的 toString 形式）</li>
  *   <li>字段名与白名单成员的相等性契约（不 trim、严格 equals）</li>
  *   <li>SortFieldSpec 不吞 SortField 构造器抛出的 NPE（值对象不变性由构造器保证）</li>
  * </ul>
@@ -34,12 +34,12 @@ class SortFieldSpecBlackBoxTest {
     class EmptyWhitelistContract {
 
         @Test
-        @DisplayName("validate 字段非空但 allowedFields 为 emptySet → 抛 BusinessException(400)")
+        @DisplayName("validate 字段非空但 allowedFields 为 emptyMap → 抛 BusinessException(400)")
         void validate_shouldThrowWhenWhitelistIsEmpty() {
             SortField input = new SortField("createdAt", SortField.Direction.DESC);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> SortFieldSpec.validate(input, Collections.emptySet()));
+                    () -> SortFieldSpec.validate(input, Collections.emptyMap()));
 
             assertEquals(400, ex.getCode());
         }
@@ -49,7 +49,6 @@ class SortFieldSpecBlackBoxTest {
         void validate_shouldThrowNpeWhenWhitelistIsNull() {
             SortField input = new SortField("createdAt", SortField.Direction.DESC);
 
-            // 白名单为 null 是调用方编程错误，spec 不应静默吞掉
             assertThrows(RuntimeException.class,
                     () -> SortFieldSpec.validate(input, null));
         }
@@ -60,43 +59,49 @@ class SortFieldSpecBlackBoxTest {
     class ErrorMessageContract {
 
         @Test
-        @DisplayName("消息格式：'不支持的排序字段: {field}，允许的字段: {allowedFields.toString()}'")
+        @DisplayName("消息格式：'不支持的排序字段: {field}，允许的字段: {allowedFields.values()}'")
         void validate_errorMessageShouldContainFieldAndAllowedFields() {
-            // 用 LinkedHashSet 保证 toString 顺序确定（Set.toString 默认 [a, b, c] 形式）
-            Set<String> allowed = new LinkedHashSet<>();
-            allowed.add("code");
-            allowed.add("name");
-            allowed.add("status");
+            Map<String, String> allowed = new LinkedHashMap<>();
+            allowed.put("code", "编码");
+            allowed.put("name", "名称");
+            allowed.put("status", "状态");
 
             SortField input = new SortField("hacker_field", SortField.Direction.ASC);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> SortFieldSpec.validate(input, allowed));
 
-            // PRD §4.3：消息必须含非法字段名
             assertEquals(true, ex.getMessage().contains("hacker_field"),
                     "消息应包含非法字段名: " + ex.getMessage());
-            // PRD §4.3：消息必须含允许字段提示语
             assertEquals(true, ex.getMessage().contains("允许的字段"),
                     "消息应包含允许字段提示: " + ex.getMessage());
-            // Set.toString 输出格式为 [a, b, c]
             assertEquals(true, ex.getMessage().contains("["),
-                    "消息应使用 Set.toString 的 [..] 格式: " + ex.getMessage());
+                    "消息应使用 Map.values() toString 的 [..] 格式: " + ex.getMessage());
+            // 消息必须包含所有中文名
+            for (String chineseName : allowed.values()) {
+                assertEquals(true, ex.getMessage().contains(chineseName),
+                        "消息应包含允许字段中文名 " + chineseName + ": " + ex.getMessage());
+            }
         }
 
         @Test
-        @DisplayName("消息中应包含每一个允许字段（不论 Set 顺序）")
+        @DisplayName("消息中应包含每一个允许字段的中文名（不论 Map 顺序）")
         void validate_errorMessageShouldContainEveryAllowedFieldRegardlessOfOrder() {
-            Set<String> allowed = Set.of("code", "name", "status", "createdAt", "updatedAt");
+            Map<String, String> allowed = new LinkedHashMap<>();
+            allowed.put("code", "编码");
+            allowed.put("name", "名称");
+            allowed.put("status", "状态");
+            allowed.put("createdAt", "创建时间");
+            allowed.put("updatedAt", "更新时间");
 
             SortField input = new SortField("foo", SortField.Direction.DESC);
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> SortFieldSpec.validate(input, allowed));
 
-            for (String field : allowed) {
-                assertEquals(true, ex.getMessage().contains(field),
-                        "消息应包含允许字段 " + field + ": " + ex.getMessage());
+            for (String chineseName : allowed.values()) {
+                assertEquals(true, ex.getMessage().contains(chineseName),
+                        "消息应包含允许字段中文名 " + chineseName + ": " + ex.getMessage());
             }
         }
 
@@ -106,7 +111,7 @@ class SortFieldSpecBlackBoxTest {
             SortField input = new SortField("foo", SortField.Direction.DESC);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> SortFieldSpec.validate(input, Set.of("a")));
+                    () -> SortFieldSpec.validate(input, Map.of("a", "字段A")));
 
             assertEquals(400, ex.getCode());
         }
@@ -122,7 +127,7 @@ class SortFieldSpecBlackBoxTest {
             SortField input = new SortField(" createdAt ", SortField.Direction.DESC);
 
             assertThrows(BusinessException.class,
-                    () -> SortFieldSpec.validate(input, Set.of("createdAt")));
+                    () -> SortFieldSpec.validate(input, Map.of("createdAt", "创建时间")));
         }
 
         @Test
@@ -131,7 +136,7 @@ class SortFieldSpecBlackBoxTest {
             SortField input = new SortField("CREATEDAT", SortField.Direction.DESC);
 
             assertThrows(BusinessException.class,
-                    () -> SortFieldSpec.validate(input, Set.of("createdAt")));
+                    () -> SortFieldSpec.validate(input, Map.of("createdAt", "创建时间")));
         }
 
         @Test
@@ -139,9 +144,11 @@ class SortFieldSpecBlackBoxTest {
         void validate_shouldAcceptEmptyStringFieldWhenInWhitelist() {
             SortField input = new SortField("", SortField.Direction.ASC);
 
-            SortField result = SortFieldSpec.validate(input, Set.of("", "createdAt"));
+            Map<String, String> allowed = new LinkedHashMap<>();
+            allowed.put("", "空");
+            allowed.put("createdAt", "创建时间");
+            SortField result = SortFieldSpec.validate(input, allowed);
 
-            // 返回原对象（同一实例）
             assertSame(input, result);
         }
 
@@ -150,7 +157,10 @@ class SortFieldSpecBlackBoxTest {
         void validate_shouldReturnSameInstanceWhenFieldMatches() {
             SortField input = new SortField("createdAt", SortField.Direction.DESC);
 
-            SortField result = SortFieldSpec.validate(input, Set.of("createdAt", "updatedAt"));
+            Map<String, String> allowed = new LinkedHashMap<>();
+            allowed.put("createdAt", "创建时间");
+            allowed.put("updatedAt", "更新时间");
+            SortField result = SortFieldSpec.validate(input, allowed);
 
             assertSame(input, result);
         }
@@ -163,8 +173,6 @@ class SortFieldSpecBlackBoxTest {
         @Test
         @DisplayName("Direction 为 null 的 SortField 在 validate 前就抛 NPE：spec 不会捕获")
         void validate_shouldPropagateConstructorNpeForNullDirection() {
-            // 该 SortField 实例化时 Direction=null 会抛 NPE，无法构造，故 validate 永远拿不到此对象。
-            // 这里断言构造器自身防御，而非 spec 的行为，确认 spec 不需要重复防御。
             assertThrows(NullPointerException.class,
                     () -> new SortField("createdAt", null));
         }
@@ -173,12 +181,15 @@ class SortFieldSpecBlackBoxTest {
     @Test
     @DisplayName("validate(sortField=null, 非空 allowedFields) → null：null 入参永远返回 null")
     void validate_shouldReturnNullWhenSortFieldIsNull() {
-        assertNull(SortFieldSpec.validate(null, Set.of("createdAt", "updatedAt")));
+        Map<String, String> allowed = new LinkedHashMap<>();
+        allowed.put("createdAt", "创建时间");
+        allowed.put("updatedAt", "更新时间");
+        assertNull(SortFieldSpec.validate(null, allowed));
     }
 
     @Test
     @DisplayName("validate(sortField=null, 空白名单) → null：null 入参不受白名单影响")
     void validate_shouldReturnNullWhenSortFieldIsNullAndWhitelistEmpty() {
-        assertNull(SortFieldSpec.validate(null, Collections.emptySet()));
+        assertNull(SortFieldSpec.validate(null, Collections.emptyMap()));
     }
 }

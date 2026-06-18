@@ -24,10 +24,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -37,9 +37,15 @@ import java.util.stream.Collectors;
 public class QuestionRepositoryAdapter implements QuestionRepository {
 
     /**
-     * 列表查询允许的排序字段白名单（PO 字段名）
+     * 列表查询允许的排序字段白名单（PO 字段名 → 中文显示名，保持插入顺序供错误消息稳定输出）
      */
-    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("createdAt", "updatedAt", "difficulty");
+    private static final Map<String, String> ALLOWED_SORT_FIELDS = new LinkedHashMap<>() {{
+        put("id", "ID");
+        put("type", "题型");
+        put("difficulty", "难度");
+        put("createdAt", "创建时间");
+        put("updatedAt", "更新时间");
+    }};
 
     private final QuestionJpaRepository questionJpaRepository;
     private final QuestionCategoryRelationJpaRepository relationJpaRepository;

@@ -18,9 +18,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * IP 系列仓储适配器（实现领域层出端口，注入 JPA Repository）
@@ -29,9 +30,16 @@ import java.util.Set;
 public class IpSeriesRepositoryAdapter implements IpSeriesRepositoryPort {
 
     /**
-     * 列表查询允许的排序字段白名单（PO 字段名）
+     * 列表查询允许的排序字段白名单（PO 字段名 → 中文显示名，保持插入顺序供错误消息稳定输出）
      */
-    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("code", "name", "status", "createdAt", "updatedAt");
+    private static final Map<String, String> ALLOWED_SORT_FIELDS = new LinkedHashMap<>() {{
+        put("id", "ID");
+        put("code", "编码");
+        put("name", "名称");
+        put("status", "状态");
+        put("createdAt", "创建时间");
+        put("updatedAt", "更新时间");
+    }};
 
     private final IpSeriesJpaRepository ipSeriesJpaRepository;
 
