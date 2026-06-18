@@ -80,15 +80,7 @@ public class CardTemplateController {
     @PutMapping("/{id}")
     public Result<CardTemplateResponse> update(@PathVariable Long id,
                                                 @Valid @RequestBody UpdateCardTemplateRequest request) {
-        CardTemplateResponse response = cardTemplateAppService.updateCardTemplate(
-                id,
-                request.getCode(),
-                request.getName(),
-                request.getRarity(),
-                request.getDescription(),
-                request.getStatus(),
-                request.getImageFileId()
-        );
+        CardTemplateResponse response = cardTemplateAppService.update(id, request);
         return Result.success(response);
     }
 

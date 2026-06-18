@@ -156,14 +156,14 @@ describe('updateCardTemplate', () => {
     });
   });
 
-  it('应支持更新图片 URL', async () => {
-    request.mockResolvedValue({ id: 1, imageUrl: 'https://example.com/new-card.png' });
+  it('应支持更新 imageFileId', async () => {
+    request.mockResolvedValue({ id: 1, imageFileId: 42 });
 
-    await updateCardTemplate(1, { imageUrl: 'https://example.com/new-card.png' });
+    await updateCardTemplate(1, { imageFileId: 42 });
 
     expect(request).toHaveBeenCalledWith('/api/admin/card-templates/1', {
       method: 'PUT',
-      data: { imageUrl: 'https://example.com/new-card.png' },
+      data: { imageFileId: 42 },
     });
   });
 

@@ -12,10 +12,12 @@ import com.knowledgegame.app.api.dto.response.UserResponse;
 import com.knowledgegame.app.application.command.LoginCommand;
 import com.knowledgegame.app.application.command.RegisterCommand;
 import com.knowledgegame.app.application.service.UserAppService;
+import com.knowledgegame.app.config.JacksonConfig;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.core.common.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -28,6 +30,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -45,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * UserController 单元测试（禁用 Spring Security Filter，专注测试 Controller 逻辑）
  */
 @WebMvcTest(controllers = UserController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, JacksonConfig.class})
 @AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {
 
@@ -295,7 +300,7 @@ class UserControllerTest {
     void update_success() throws Exception {
         UpdateUserRequest request = new UpdateUserRequest();
         request.setNickname("新昵称");
-        request.setAvatarFileId(1L);
+        request.setAvatarFileId(JsonNullable.of(1L));
 
         UserResponse response = UserResponse.builder()
                 .id(1L)
@@ -304,7 +309,7 @@ class UserControllerTest {
                 .avatarUrl("new_avatar.png")
                 .role("USER")
                 .build();
-        given(userAppService.updateUser(eq(1L), eq("新昵称"), eq(1L)))
+        given(userAppService.update(eq(1L), any(UpdateUserRequest.class)))
                 .willReturn(response);
 
         mockMvc.perform(put("/api/users/1")
@@ -315,7 +320,72 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.data.nickname").value("新昵称"))
                 .andExpect(jsonPath("$.data.avatarUrl").value("new_avatar.png"));
 
-        verify(userAppService).updateUser(1L, "新昵称", 1L);
+        verify(userAppService).update(eq(1L), any(UpdateUserRequest.class));
+    }
+
+    /**
+     * Jackson 三态反序列化：缺失字段 → undefined
+     */
+    @Test
+    @DisplayName("PUT /api/users/{id} - 缺失 avatarFileId 反序列化为 undefined")
+    void update_shouldDeserializeMissingFieldAsUndefined() throws Exception {
+        UserResponse response = UserResponse.builder()
+                .id(1L).username("testuser").nickname("新昵称").role("USER").build();
+        given(userAppService.update(eq(1L), any(UpdateUserRequest.class))).willReturn(response);
+
+        mockMvc.perform(put("/api/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"新昵称\"}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<UpdateUserRequest> captor = ArgumentCaptor.forClass(UpdateUserRequest.class);
+        verify(userAppService).update(eq(1L), captor.capture());
+        UpdateUserRequest req = captor.getValue();
+        assertFalse(req.getAvatarFileId().isPresent());
+    }
+
+    /**
+     * Jackson 三态反序列化：null 字段 → of(null)
+     */
+    @Test
+    @DisplayName("PUT /api/users/{id} - null avatarFileId 反序列化为 of(null)")
+    void update_shouldDeserializeNullFieldAsNullableOfNull() throws Exception {
+        UserResponse response = UserResponse.builder()
+                .id(1L).username("testuser").nickname("新昵称").role("USER").build();
+        given(userAppService.update(eq(1L), any(UpdateUserRequest.class))).willReturn(response);
+
+        mockMvc.perform(put("/api/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"新昵称\",\"avatarFileId\":null}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<UpdateUserRequest> captor = ArgumentCaptor.forClass(UpdateUserRequest.class);
+        verify(userAppService).update(eq(1L), captor.capture());
+        UpdateUserRequest req = captor.getValue();
+        assertTrue(req.getAvatarFileId().isPresent());
+        assertNull(req.getAvatarFileId().get());
+    }
+
+    /**
+     * Jackson 三态反序列化：数值字段 → of(value)
+     */
+    @Test
+    @DisplayName("PUT /api/users/{id} - 数值 avatarFileId 反序列化为 of(value)")
+    void update_shouldDeserializeValueFieldAsNullableOfValue() throws Exception {
+        UserResponse response = UserResponse.builder()
+                .id(1L).username("testuser").nickname("新昵称").role("USER").build();
+        given(userAppService.update(eq(1L), any(UpdateUserRequest.class))).willReturn(response);
+
+        mockMvc.perform(put("/api/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"新昵称\",\"avatarFileId\":200}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<UpdateUserRequest> captor = ArgumentCaptor.forClass(UpdateUserRequest.class);
+        verify(userAppService).update(eq(1L), captor.capture());
+        UpdateUserRequest req = captor.getValue();
+        assertTrue(req.getAvatarFileId().isPresent());
+        assertThat(req.getAvatarFileId().get()).isEqualTo(200L);
     }
 
     // ==================== 删除接口 ====================

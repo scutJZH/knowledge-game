@@ -23,6 +23,38 @@ import type {
 } from '@/services/ipSeries';
 import ImageUploadField from '@/components/ImageUploadField';
 
+/**
+ * 构造更新负载：按字段对比，未变更字段不发送（undefined 三态）。
+ * 必填字段（code/name/status）保持原值，可清空字段（description/coverImageFileId）
+ * 与原值不同则发送新值（含 null=清空）。
+ */
+function buildUpdatePayload(
+  original: IpSeriesResponse,
+  values: CreateIpSeriesRequest,
+): UpdateIpSeriesRequest {
+  const payload: UpdateIpSeriesRequest = {};
+
+  if (values.code !== original.code) {
+    payload.code = values.code;
+  }
+  if (values.name !== original.name) {
+    payload.name = values.name;
+  }
+  if (values.status !== original.status) {
+    payload.status = values.status;
+  }
+  const nextDesc = values.description || null;
+  if (nextDesc !== (original.description || null)) {
+    payload.description = nextDesc;
+  }
+  const nextCover = values.coverImageFileId ?? null;
+  if (nextCover !== original.coverImageFileId) {
+    payload.coverImageFileId = nextCover;
+  }
+
+  return payload;
+}
+
 /** IP 系列管理页 */
 const IpSeries: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -115,18 +147,15 @@ const IpSeries: React.FC = () => {
   };
 
   /** 创建/编辑提交 */
-  const handleFinish = async (values: CreateIpSeriesRequest | UpdateIpSeriesRequest) => {
+  const handleFinish = async (values: CreateIpSeriesRequest) => {
     setSubmitLoading(true);
     try {
       if (editingRecord) {
-        const updateData = {
-          ...values,
-          coverImageFileId: values.coverImageFileId ?? null,
-        };
-        await updateIpSeries(editingRecord.id, updateData as UpdateIpSeriesRequest);
+        const updateData = buildUpdatePayload(editingRecord, values);
+        await updateIpSeries(editingRecord.id, updateData);
         message.success('更新成功');
       } else {
-        await createIpSeries(values as CreateIpSeriesRequest);
+        await createIpSeries(values);
         message.success('创建成功');
       }
       setModalOpen(false);

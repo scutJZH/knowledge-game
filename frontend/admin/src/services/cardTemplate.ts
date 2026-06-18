@@ -52,15 +52,20 @@ export interface CreateCardTemplateRequest {
   imageUrl?: string;
 }
 
-/** 更新卡牌模板请求 */
+/**
+ * 更新卡牌模板请求（三态语义）
+ * - 字段缺失（undefined）：不更新
+ * - 字段为 null：清空（仅可清空字段：description / imageFileId）
+ * - 字段有值：更新
+ * 必填字段（code/name/rarity/status/ipSeriesId）不可清空
+ */
 export interface UpdateCardTemplateRequest {
   code?: string;
   name?: string;
   rarity?: CardRarity;
-  description?: string;
+  description?: string | null;
   status?: CardTemplateStatus;
-  imageFileId?: number;
-  imageUrl?: string;
+  imageFileId?: number | null;
 }
 
 /** 分页查询参数 */

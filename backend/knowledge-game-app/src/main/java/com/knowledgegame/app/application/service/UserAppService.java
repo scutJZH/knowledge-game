@@ -1,6 +1,7 @@
 package com.knowledgegame.app.application.service;
 
 import com.knowledgegame.app.api.assembler.UserAssembler;
+import com.knowledgegame.app.api.dto.request.UpdateUserRequest;
 import com.knowledgegame.app.api.dto.response.LoginResponse;
 import com.knowledgegame.app.api.dto.response.RefreshTokenResponse;
 import com.knowledgegame.app.api.dto.response.UserResponse;
@@ -17,15 +18,16 @@ import com.knowledgegame.core.common.result.ResultCode;
 import com.knowledgegame.core.domain.model.entity.User;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.UserRepositoryPort;
-
-import java.util.Map;
-import java.util.Objects;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * 用户应用服务（流程编排 + 事务）
@@ -142,17 +144,42 @@ public class UserAppService {
     }
 
     /**
-     * 更新用户信息
+     * 更新用户信息（支持 JsonNullable 三态）
+     * <p>
+     * nickname 必填，null=不更新；avatarFileId 可清空，三态语义。
      */
     @Transactional
-    public UserResponse updateUser(Long id, String nickname, Long avatarFileId) {
+    public UserResponse update(Long id, UpdateUserRequest req) {
         User user = userRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND.getCode(),
                         ResultCode.USER_NOT_FOUND.getMessage() + ": " + id));
-        FileRef avatar = verifyFileRef(avatarFileId, "USER_AVATAR");
-        user.updateProfile(nickname, avatar);
+
+        // 必填字段：null=不更新
+        user.updateProfile(req.getNickname());
+
+        // 可清空 FileRef：avatar
+        applyFileRefField(req.getAvatarFileId(), "USER_AVATAR",
+                user::clearAvatar, user::updateAvatar);
+
         User saved = userRepositoryPort.save(user);
         return UserAssembler.INSTANCE.toResponse(saved);
+    }
+
+    /**
+     * 三态分派工具：处理 JsonNullable<Long>（FileRef fileId）字段
+     */
+    private void applyFileRefField(JsonNullable<Long> fileIdField, String bizType,
+                                   Runnable clear, Consumer<FileRef> update) {
+        if (fileIdField == null || !fileIdField.isPresent()) {
+            return;
+        }
+        Long fileId = fileIdField.get();
+        if (fileId == null) {
+            clear.run();
+        } else {
+            FileRef verified = verifyFileRef(fileId, bizType);
+            update.accept(verified);
+        }
     }
 
     private FileRef verifyFileRef(Long fileId, String expectedBizType) {

@@ -1,5 +1,6 @@
 package com.knowledgegame.app.application.service;
 
+import com.knowledgegame.app.api.dto.request.UpdateUserRequest;
 import com.knowledgegame.app.api.dto.response.LoginResponse;
 import com.knowledgegame.app.api.dto.response.RefreshTokenResponse;
 import com.knowledgegame.app.api.dto.response.UserResponse;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.openapitools.jackson.nullable.JsonNullable;
 import com.knowledgegame.auth.security.JwtTokenProvider;
 import com.knowledgegame.auth.security.JwtProperties;
 import com.knowledgegame.auth.security.InMemoryTokenBlacklist;
@@ -204,7 +206,7 @@ class UserAppServiceTest {
         }
     }
 
-    // ==================== updateUser ====================
+    // ==================== update ====================
 
     @Nested
     @DisplayName("更新用户信息")
@@ -212,7 +214,7 @@ class UserAppServiceTest {
 
         @Test
         @DisplayName("正常更新用户昵称和头像")
-        void updateUser_success() {
+        void update_shouldSucceed_whenBothFieldsProvided() {
             try (MockedStatic<SecurityUtils> mockedSecurity = mockStatic(SecurityUtils.class)) {
                 mockedSecurity.when(SecurityUtils::getCurrentUserId).thenReturn(1L);
 
@@ -225,30 +227,96 @@ class UserAppServiceTest {
                     .url("https://example.com/new-avatar.png")
                     .metadata(Map.of("bizType", "USER_AVATAR", "userId", 1L))
                     .build();
-            when(fileServiceClient.getFileInfo(2L)).thenReturn(Result.success(fileInfo));
+                when(fileServiceClient.getFileInfo(2L)).thenReturn(Result.success(fileInfo));
+                when(userRepositoryPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            User updatedUser = User.reconstruct(1L, "testuser", "hash", "新昵称",
-                    FileRef.of(2L, "https://example.com/new-avatar.png"), UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
-            when(userRepositoryPort.save(any(User.class))).thenReturn(updatedUser);
+                UpdateUserRequest req = new UpdateUserRequest();
+                req.setNickname("新昵称");
+                req.setAvatarFileId(JsonNullable.of(2L));
 
-            UserResponse response = userAppService.updateUser(1L, "新昵称", 2L);
+                UserResponse response = userAppService.update(1L, req);
 
-            assertThat(response).isNotNull();
-            assertThat(response.getNickname()).isEqualTo("新昵称");
-            assertThat(response.getAvatarUrl()).isEqualTo("https://example.com/new-avatar.png");
-            // 验证保存被调用
-            verify(userRepositoryPort).save(any(User.class));
+                assertThat(response).isNotNull();
+                assertThat(originalUser.getNickname()).isEqualTo("新昵称");
+                assertThat(originalUser.getAvatar()).isEqualTo(FileRef.of(2L, "https://example.com/new-avatar.png"));
+                verify(userRepositoryPort).save(any(User.class));
             }
         }
 
         @Test
         @DisplayName("更新不存在的用户时抛出 BusinessException")
-        void updateUser_notFound_throws() {
+        void update_shouldThrow_whenNotFound() {
             when(userRepositoryPort.findById(999L)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> userAppService.updateUser(999L, "昵称", null))
+            UpdateUserRequest req = new UpdateUserRequest();
+            req.setNickname("昵称");
+
+            assertThatThrownBy(() -> userAppService.update(999L, req))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("用户不存在: 999");
+        }
+
+        /**
+         * 三态场景 1：avatarFileId undefined → 不更新头像，保持原值
+         */
+        @Test
+        @DisplayName("avatarFileId undefined 时保持原值")
+        void update_shouldKeepAvatar_whenUndefined() {
+            User originalUser = User.reconstruct(1L, "testuser", "hash", "旧昵称",
+                    FileRef.of(1L, "https://example.com/avatar.png"), UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+            when(userRepositoryPort.findById(1L)).thenReturn(Optional.of(originalUser));
+            when(userRepositoryPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateUserRequest req = new UpdateUserRequest();
+            req.setNickname("新昵称");
+            // avatarFileId 未设置，保持 undefined()
+
+            userAppService.update(1L, req);
+
+            // nickname 更新了，avatar 保持原值
+            assertThat(originalUser.getNickname()).isEqualTo("新昵称");
+            assertThat(originalUser.getAvatar()).isEqualTo(FileRef.of(1L, "https://example.com/avatar.png"));
+        }
+
+        /**
+         * 三态场景 2：JsonNullable.of(null) → 清空头像
+         */
+        @Test
+        @DisplayName("avatarFileId=null 时清空头像")
+        void update_shouldClearAvatar_whenOfNull() {
+            User originalUser = User.reconstruct(1L, "testuser", "hash", "旧昵称",
+                    FileRef.of(1L, "https://example.com/avatar.png"), UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+            when(userRepositoryPort.findById(1L)).thenReturn(Optional.of(originalUser));
+            when(userRepositoryPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateUserRequest req = new UpdateUserRequest();
+            req.setAvatarFileId(JsonNullable.of(null));
+
+            userAppService.update(1L, req);
+
+            assertThat(originalUser.getAvatar()).isNull();
+            // nickname 未传，保持原值（NOT NULL 保护）
+            assertThat(originalUser.getNickname()).isEqualTo("旧昵称");
+        }
+
+        /**
+         * 必填字段保护：nickname=null 时保持原值，不触发 DB NOT NULL 失败
+         */
+        @Test
+        @DisplayName("nickname=null 时保持原值（NOT NULL 保护）")
+        void update_shouldKeepNickname_whenNull() {
+            User originalUser = User.reconstruct(1L, "testuser", "hash", "原昵称",
+                    null, UserRole.USER, LocalDateTime.now(), LocalDateTime.now());
+            when(userRepositoryPort.findById(1L)).thenReturn(Optional.of(originalUser));
+            when(userRepositoryPort.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateUserRequest req = new UpdateUserRequest();
+            req.setNickname(null);  // 显式 null
+
+            userAppService.update(1L, req);
+
+            // nickname 保持原值
+            assertThat(originalUser.getNickname()).isEqualTo("原昵称");
         }
     }
 

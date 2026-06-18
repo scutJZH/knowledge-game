@@ -2,6 +2,7 @@ package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.assembler.KnowledgeCategoryAssembler;
 import com.knowledgegame.admin.api.dto.request.BatchSortItem;
+import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeCategoryRequest;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryTreeResponse;
 import com.knowledgegame.auth.security.SecurityUtils;
@@ -16,6 +17,7 @@ import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * 知识点分类管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -96,21 +99,35 @@ public class KnowledgeCategoryAppService {
 
     /**
      * 更新知识点分类
+     * <p>
+     * 接收整个 Request DTO（不逐字段拆包），以便解析 JsonNullable 三态：
+     * - undefined：不更新
+     * - of(null)：清空
+     * - of(value)：更新为新值
      */
     @Transactional
-    public KnowledgeCategoryResponse update(Long id, String name, String description,
-                                            Long iconFileId, String color, Long coverImageFileId,
-                                            Integer sortOrder) {
+    public KnowledgeCategoryResponse update(Long id, UpdateKnowledgeCategoryRequest req) {
         KnowledgeCategory category = categoryRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("知识点分类不存在: " + id));
-        if (name != null && !name.equals(category.getName())) {
-            if (categoryRepositoryPort.existsByNameAndParentId(name, category.getParentId())) {
-                throw new BusinessException("同一父级下已存在同名分类: " + name);
+        if (req.getName() != null && !req.getName().equals(category.getName())) {
+            if (categoryRepositoryPort.existsByNameAndParentId(req.getName(), category.getParentId())) {
+                throw new BusinessException("同一父级下已存在同名分类: " + req.getName());
             }
         }
-        FileRef icon = verifyFileRef(iconFileId, "CATEGORY_ICON");
-        FileRef coverImage = verifyFileRef(coverImageFileId, "CATEGORY_COVER");
-        category.update(name, description, icon, color, coverImage, sortOrder);
+
+        // 必填字段：null=不更新
+        category.update(req.getName(), req.getSortOrder());
+
+        // 可清空 String：description / color
+        applyField(req.getDescription(), category::clearDescription, category::updateDescription);
+        applyField(req.getColor(), category::clearColor, category::updateColor);
+
+        // 可清空 FileRef：icon / coverImage
+        applyFileRefField(req.getIconFileId(), "CATEGORY_ICON",
+                category::clearIcon, category::updateIcon);
+        applyFileRefField(req.getCoverImageFileId(), "CATEGORY_COVER",
+                category::clearCoverImage, category::updateCoverImage);
+
         KnowledgeCategory saved = categoryRepositoryPort.save(category);
         return KnowledgeCategoryAssembler.INSTANCE.toResponse(saved);
     }
@@ -128,7 +145,7 @@ public class KnowledgeCategoryAppService {
                 ? categoryRepositoryPort.findMaxSortOrderByParentId(newParentId)
                 : categoryRepositoryPort.findMaxSortOrderForRoot();
         int newSortOrder = maxSortOrder != null ? maxSortOrder + 1 : 0;
-        category.update(null, null, null, null, null, newSortOrder);
+        category.update(null, newSortOrder);
         KnowledgeCategory saved = categoryRepositoryPort.save(category);
         return KnowledgeCategoryAssembler.INSTANCE.toResponse(saved);
     }
@@ -153,7 +170,7 @@ public class KnowledgeCategoryAppService {
         }
         for (BatchSortItem item : items) {
             KnowledgeCategory category = categoryMap.get(item.getId());
-            category.update(null, null, null, null, null, item.getSortOrder());
+            category.update(null, item.getSortOrder());
             categoryRepositoryPort.save(category);
         }
     }
@@ -168,6 +185,46 @@ public class KnowledgeCategoryAppService {
         categoryDomainService.validateDelete(id);
         category.deactivate();
         categoryRepositoryPort.save(category);
+    }
+
+    /**
+     * 三态分派工具：处理 JsonNullable<String> 字段
+     * <p>
+     * - undefined：跳过（不更新）
+     * - of(null)：调用 clear
+     * - of(value)：调用 update
+     */
+    private static <T> void applyField(JsonNullable<T> field, Runnable clear, Consumer<T> update) {
+        if (field == null || !field.isPresent()) {
+            return;
+        }
+        T value = field.get();
+        if (value == null) {
+            clear.run();
+        } else {
+            update.accept(value);
+        }
+    }
+
+    /**
+     * 三态分派工具：处理 JsonNullable<Long>（FileRef fileId）字段
+     * <p>
+     * - undefined：跳过（不更新）
+     * - of(null)：调用 clear（清空图片）
+     * - of(value)：调 verifyFileRef 校验后调用 update
+     */
+    private void applyFileRefField(JsonNullable<Long> fileIdField, String bizType,
+                                   Runnable clear, Consumer<FileRef> update) {
+        if (fileIdField == null || !fileIdField.isPresent()) {
+            return;
+        }
+        Long fileId = fileIdField.get();
+        if (fileId == null) {
+            clear.run();
+        } else {
+            FileRef verified = verifyFileRef(fileId, bizType);
+            update.accept(verified);
+        }
     }
 
     private FileRef verifyFileRef(Long fileId, String expectedBizType) {

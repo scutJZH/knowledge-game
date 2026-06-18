@@ -24,14 +24,17 @@ export interface CreateIpSeriesRequest {
 }
 
 /**
- * 更新 IP 系列请求
- * 字段可选，但编辑表单应预填全部字段并提交完整对象
+ * 更新 IP 系列请求（三态语义）
+ * - 字段缺失（undefined）：不更新
+ * - 字段为 null：清空（仅可清空字段：description / coverImageFileId）
+ * - 字段有值：更新
+ * 必填字段（code/name/status）不可清空
  */
 export interface UpdateIpSeriesRequest {
   code?: string;
   name?: string;
-  description?: string;
-  coverImageFileId?: number;
+  description?: string | null;
+  coverImageFileId?: number | null;
   status?: 'ACTIVE' | 'INACTIVE';
 }
 

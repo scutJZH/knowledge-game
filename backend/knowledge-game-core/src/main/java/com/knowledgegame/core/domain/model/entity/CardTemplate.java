@@ -65,10 +65,9 @@ public class CardTemplate {
     }
 
     /**
-     * 更新基础字段（null 不修改）
+     * 更新必填字段（不支持清空）。可清空字段（description/image）请用对应的 updateXxx / clearXxx 方法
      */
-    public void update(String code, String name, CardRarity rarity,
-                       String description, CardTemplateStatus status, FileRef image) {
+    public void update(String code, String name, CardRarity rarity, CardTemplateStatus status) {
         if (code != null) {
             this.code = code;
         }
@@ -78,15 +77,51 @@ public class CardTemplate {
         if (rarity != null) {
             this.rarity = rarity;
         }
-        if (description != null) {
-            this.description = description;
-        }
         if (status != null) {
             this.status = status;
         }
-        if (image != null) {
-            this.image = image;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 更新描述（清空请用 clearDescription）
+     *
+     * @throws IllegalArgumentException description 为 null 时抛出
+     */
+    public void updateDescription(String description) {
+        if (description == null) {
+            throw new IllegalArgumentException("description 清空请用 clearDescription()");
         }
+        this.description = description;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 清空描述
+     */
+    public void clearDescription() {
+        this.description = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 更新卡面图（清空请用 clearImage）
+     *
+     * @throws IllegalArgumentException image 为 null 时抛出
+     */
+    public void updateImage(FileRef image) {
+        if (image == null) {
+            throw new IllegalArgumentException("image 清空请用 clearImage()");
+        }
+        this.image = image;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 清空卡面图
+     */
+    public void clearImage() {
+        this.image = null;
         this.updatedAt = LocalDateTime.now();
     }
 

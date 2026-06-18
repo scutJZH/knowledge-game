@@ -5,9 +5,13 @@ import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 /**
- * 更新卡牌模板请求 DTO（基础字段可选，null 不修改）
+ * 更新卡牌模板请求 DTO
+ * <p>
+ * 必填字段（code/name/rarity/status）保持原 Java 类型，沿用 null=不更新 语义。
+ * 可清空字段（description/imageFileId）包装为 JsonNullable，支持三态。
  */
 @Getter
 @Setter
@@ -21,10 +25,9 @@ public class UpdateCardTemplateRequest {
 
     private CardRarity rarity;
 
-    @Size(max = 500, message = "描述最长 500")
-    private String description;
+    private JsonNullable<String> description = JsonNullable.undefined();
 
     private CardTemplateStatus status;
 
-    private Long imageFileId;
+    private JsonNullable<Long> imageFileId = JsonNullable.undefined();
 }

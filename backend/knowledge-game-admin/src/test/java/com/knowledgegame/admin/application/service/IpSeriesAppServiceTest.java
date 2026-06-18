@@ -1,5 +1,6 @@
 package com.knowledgegame.admin.application.service;
 
+import com.knowledgegame.admin.api.dto.request.UpdateIpSeriesRequest;
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
 import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.core.common.exception.BusinessException;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -147,30 +150,30 @@ class IpSeriesAppServiceTest {
     }
 
     @Test
-    void updateIpSeries_shouldSucceed_whenCodeAndNameNotChanged() {
+    void update_shouldSucceed_whenCodeAndNameNotChanged() {
         Long id = 1L;
         String code = "MARVEL";
         String name = "漫威宇宙";
-        String newDescription = "新描述";
         IpSeriesStatus status = IpSeriesStatus.ACTIVE;
 
         IpSeries existing = buildIpSeries(id, code, name, "旧描述", IpSeriesStatus.ACTIVE);
         when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-        IpSeries saved = buildIpSeries(id, code, name, newDescription, status);
-        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenReturn(saved);
+        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        IpSeriesResponse result = ipSeriesAppService.updateIpSeries(
-                id, code, name, newDescription, null, status);
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        req.setCode(code);
+        req.setName(name);
+        req.setStatus(status);
+
+        IpSeriesResponse result = ipSeriesAppService.update(id, req);
 
         assertNotNull(result);
-        assertEquals(id, result.getId());
-        assertEquals(newDescription, result.getDescription());
         verify(ipSeriesRepositoryPort).findById(id);
         verify(ipSeriesRepositoryPort).save(any(IpSeries.class));
     }
 
     @Test
-    void updateIpSeries_shouldThrow_whenCodeDuplicateExcludingSelf() {
+    void update_shouldThrow_whenCodeDuplicateExcludingSelf() {
         Long id = 1L;
         String newCode = "DC";
         String name = "漫威宇宙";
@@ -181,13 +184,18 @@ class IpSeriesAppServiceTest {
         IpSeries conflict = buildIpSeries(2L, newCode, "DC宇宙", "描述", status);
         when(ipSeriesRepositoryPort.findByCode(newCode)).thenReturn(Optional.of(conflict));
 
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        req.setCode(newCode);
+        req.setName(name);
+        req.setStatus(status);
+
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> ipSeriesAppService.updateIpSeries(id, newCode, name, "描述", null, status));
+                () -> ipSeriesAppService.update(id, req));
         assertEquals("IP 系列编码已存在: " + newCode, exception.getMessage());
     }
 
     @Test
-    void updateIpSeries_shouldThrow_whenNameDuplicateExcludingSelf() {
+    void update_shouldThrow_whenNameDuplicateExcludingSelf() {
         Long id = 1L;
         String code = "MARVEL";
         String newName = "DC宇宙";
@@ -198,13 +206,18 @@ class IpSeriesAppServiceTest {
         IpSeries conflict = buildIpSeries(2L, "DC", newName, "描述", status);
         when(ipSeriesRepositoryPort.findByName(newName)).thenReturn(Optional.of(conflict));
 
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        req.setCode(code);
+        req.setName(newName);
+        req.setStatus(status);
+
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> ipSeriesAppService.updateIpSeries(id, code, newName, "描述", null, status));
+                () -> ipSeriesAppService.update(id, req));
         assertEquals("IP 系列名称已存在: " + newName, exception.getMessage());
     }
 
     @Test
-    void updateIpSeries_shouldAllowCaseChangeOnName() {
+    void update_shouldAllowCaseChangeOnName() {
         Long id = 1L;
         String code = "MARVEL";
         String originalName = "pokemon";
@@ -215,11 +228,81 @@ class IpSeriesAppServiceTest {
         when(ipSeriesRepositoryPort.findByName("POKEMON")).thenReturn(Optional.of(existing));
         when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        IpSeriesResponse result = ipSeriesAppService.updateIpSeries(
-                id, code, "POKEMON", "描述", null, status);
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        req.setCode(code);
+        req.setName("POKEMON");
+        req.setStatus(status);
+
+        IpSeriesResponse result = ipSeriesAppService.update(id, req);
 
         assertNotNull(result);
         verify(ipSeriesRepositoryPort).save(any(IpSeries.class));
+    }
+
+    /**
+     * 三态场景 1：所有可清空字段 undefined → 字段保持原值
+     */
+    @Test
+    void update_shouldSkipClearableFields_whenAllUndefined() {
+        Long id = 1L;
+        IpSeries existing = buildIpSeries(id, "MARVEL", "漫威", "原描述",
+                IpSeriesStatus.ACTIVE);
+        // 给 existing 设置一个 coverImage
+        IpSeries withCover = IpSeries.reconstruct(id, "MARVEL", "漫威", "原描述",
+                FileRef.of(1L, "/static/c.jpg"), IpSeriesStatus.ACTIVE,
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(withCover));
+        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        // 所有 JsonNullable 字段未设置，保持 undefined()
+
+        ipSeriesAppService.update(id, req);
+
+        // 字段保持原值
+        assertEquals("原描述", withCover.getDescription());
+        assertEquals(FileRef.of(1L, "/static/c.jpg"), withCover.getCoverImage());
+    }
+
+    /**
+     * 三态场景 2：JsonNullable.of(null) → 调用 clearXxx()
+     */
+    @Test
+    void update_shouldCallClear_whenFieldsAreNull() {
+        Long id = 1L;
+        IpSeries existing = IpSeries.reconstruct(id, "MARVEL", "漫威", "原描述",
+                FileRef.of(1L, "/static/c.jpg"), IpSeriesStatus.ACTIVE,
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        req.setDescription(JsonNullable.of(null));
+        req.setCoverImageFileId(JsonNullable.of(null));
+
+        ipSeriesAppService.update(id, req);
+
+        assertNull(existing.getDescription());
+        assertNull(existing.getCoverImage());
+    }
+
+    /**
+     * 三态场景 3：JsonNullable.of(value) String 字段 → 调用 updateXxx(value)
+     */
+    @Test
+    void update_shouldCallUpdate_whenStringFieldHasValue() {
+        Long id = 1L;
+        IpSeries existing = buildIpSeries(id, "MARVEL", "漫威", "原描述",
+                IpSeriesStatus.ACTIVE);
+        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        req.setDescription(JsonNullable.of("新描述"));
+
+        ipSeriesAppService.update(id, req);
+
+        assertEquals("新描述", existing.getDescription());
     }
 
     @Test

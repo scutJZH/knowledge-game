@@ -1,9 +1,49 @@
-import { useEffect } from 'react';
 import { ModalForm, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormTreeSelect } from '@ant-design/pro-components';
 import { message } from 'antd';
-import type { CategoryDetail, CategoryTreeNode, CategoryFormData } from '@/services/knowledge-category';
+import type { CategoryDetail, CategoryTreeNode, CategoryFormData, CategoryUpdateData } from '@/services/knowledge-category';
 import { create, update } from '@/services/knowledge-category';
 import ImageUploadField from '@/components/ImageUploadField';
+
+/**
+ * 构造更新负载：按字段对比，未变更的字段不发送（undefined 三态）。
+ * 必填字段（name/sortOrder/parentId）保持原值，可清空字段（description/iconFileId/color/coverImageFileId）
+ * 与原值不同则发送新值（含 null=清空）。
+ */
+function buildUpdatePayload(
+  original: CategoryDetail,
+  values: CategoryFormData,
+): CategoryUpdateData {
+  const payload: CategoryUpdateData = {};
+
+  if (values.name !== original.name) {
+    payload.name = values.name;
+  }
+  if ((values.sortOrder ?? null) !== (original.sortOrder ?? null)) {
+    payload.sortOrder = values.sortOrder;
+  }
+  if ((values.parentId ?? null) !== (original.parentId ?? null)) {
+    payload.parentId = values.parentId ?? null;
+  }
+
+  const nextDesc = values.description || null;
+  if (nextDesc !== original.description) {
+    payload.description = nextDesc;
+  }
+  const nextIcon = values.iconFileId ?? null;
+  if (nextIcon !== original.iconFileId) {
+    payload.iconFileId = nextIcon;
+  }
+  const nextCover = values.coverImageFileId ?? null;
+  if (nextCover !== original.coverImageFileId) {
+    payload.coverImageFileId = nextCover;
+  }
+  const nextColor = values.color || null;
+  if (nextColor !== original.color) {
+    payload.color = nextColor;
+  }
+
+  return payload;
+}
 
 interface CategoryFormModalProps {
   visible: boolean;
@@ -50,20 +90,20 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
       open={visible}
       onFinish={async (values) => {
         try {
-          const formData: CategoryFormData = {
-            parentId: values.parentId ?? null,
-            name: values.name,
-            description: values.description || undefined,
-            iconFileId: values.iconFileId ?? undefined,
-            color: values.color || undefined,
-            coverImageFileId: values.coverImageFileId ?? undefined,
-            sortOrder: values.sortOrder ?? undefined,
-          };
-
           if (isEdit) {
-            await update(editingCategory.id, formData);
+            const payload = buildUpdatePayload(editingCategory, values as CategoryFormData);
+            await update(editingCategory.id, payload);
             message.success('更新成功');
           } else {
+            const formData: CategoryFormData = {
+              parentId: values.parentId ?? null,
+              name: values.name,
+              description: values.description || undefined,
+              iconFileId: values.iconFileId ?? undefined,
+              color: values.color || undefined,
+              coverImageFileId: values.coverImageFileId ?? undefined,
+              sortOrder: values.sortOrder ?? undefined,
+            };
             await create(formData);
             message.success('创建成功');
           }
@@ -127,7 +167,7 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
         <ImageUploadField
           bizType="CATEGORY_ICON"
           placeholder="上传图标"
-          url={editingCategory?.iconUrl}
+          url={editingCategory?.iconUrl ?? undefined}
         />
       </ProForm.Item>
 
@@ -135,7 +175,7 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
         <ImageUploadField
           bizType="CATEGORY_COVER"
           placeholder="上传封面图"
-          url={editingCategory?.coverImageUrl}
+          url={editingCategory?.coverImageUrl ?? undefined}
         />
       </ProForm.Item>
 

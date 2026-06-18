@@ -27,6 +27,41 @@ import type {
 import { listIpSeries } from '@/services/ipSeries';
 import ImageUploadField from '@/components/ImageUploadField';
 
+/**
+ * 构造更新负载：按字段对比，未变更字段不发送（undefined 三态）。
+ * 必填字段（code/name/rarity/status/ipSeriesId）保持原值，可清空字段（description/imageFileId）
+ * 与原值不同则发送新值（含 null=清空）。
+ */
+function buildUpdatePayload(
+  original: CardTemplateResponse,
+  values: CardTemplateFormValues,
+): UpdateCardTemplateRequest {
+  const payload: UpdateCardTemplateRequest = {};
+
+  if (values.code !== original.code) {
+    payload.code = values.code;
+  }
+  if (values.name !== original.name) {
+    payload.name = values.name;
+  }
+  if (values.rarity !== original.rarity) {
+    payload.rarity = values.rarity;
+  }
+  if (values.status !== original.status) {
+    payload.status = values.status;
+  }
+  const nextDesc = values.description || null;
+  if (nextDesc !== (original.description || null)) {
+    payload.description = nextDesc;
+  }
+  const nextImage = values.imageFileId ?? null;
+  if (nextImage !== (original.imageFileId ?? null)) {
+    payload.imageFileId = nextImage;
+  }
+
+  return payload;
+}
+
 /** 表单值类型（基础字段 + 图片） */
 type CardTemplateFormValues = UpdateCardTemplateRequest & {
   ipSeriesId?: number;
@@ -179,13 +214,14 @@ const CardTemplate: React.FC = () => {
   const handleFinish = async (values: CardTemplateFormValues) => {
     setSubmitLoading(true);
     try {
-      const { ipSeriesId, ...payload } = values;
+      const { ipSeriesId, ...rest } = values;
 
       if (editingRecord) {
-        await updateCardTemplate(editingRecord.id, payload as UpdateCardTemplateRequest);
+        const payload = buildUpdatePayload(editingRecord, values);
+        await updateCardTemplate(editingRecord.id, payload);
         message.success('更新成功');
       } else {
-        await createCardTemplate({ ...payload, ipSeriesId } as CreateCardTemplateRequest);
+        await createCardTemplate({ ...rest, ipSeriesId } as CreateCardTemplateRequest);
         message.success('创建成功');
       }
 

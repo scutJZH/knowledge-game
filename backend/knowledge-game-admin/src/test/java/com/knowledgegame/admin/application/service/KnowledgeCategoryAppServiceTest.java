@@ -1,11 +1,14 @@
 package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.dto.request.BatchSortItem;
+import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeCategoryRequest;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryTreeResponse;
+import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
+import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
@@ -15,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -24,6 +28,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -42,6 +47,9 @@ class KnowledgeCategoryAppServiceTest {
 
     @Mock
     private KnowledgeCategoryDomainService categoryDomainService;
+
+    @Mock
+    private FileServiceClient fileServiceClient;
 
     @InjectMocks
     private KnowledgeCategoryAppService appService;
@@ -63,7 +71,7 @@ class KnowledgeCategoryAppServiceTest {
         when(categoryRepositoryPort.save(any())).thenReturn(saved);
 
         KnowledgeCategoryResponse result = appService.create(
-                "编程", null, null, null, null, null, Integer.valueOf(0));
+                "编程", null, null, null, null, null, 0);
 
         assertNotNull(result);
         assertEquals(1L, result.getId());
@@ -154,8 +162,10 @@ class KnowledgeCategoryAppServiceTest {
         assertTrue(tree.isEmpty());
     }
 
+    // ============ update 三态分派 ============
+
     /**
-     * 更新 - 名称不变时正常更新
+     * 更新 - 名称不变时正常更新（新签名）
      */
     @Test
     void update_shouldSucceed_whenNameNotChanged() {
@@ -165,8 +175,10 @@ class KnowledgeCategoryAppServiceTest {
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
         when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        KnowledgeCategoryResponse result = appService.update(
-                1L, "编程", "新描述", null, null, null, null);
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        req.setName("编程");
+
+        KnowledgeCategoryResponse result = appService.update(1L, req);
 
         assertNotNull(result);
         verify(categoryRepositoryPort).save(any());
@@ -183,9 +195,143 @@ class KnowledgeCategoryAppServiceTest {
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
         when(categoryRepositoryPort.existsByNameAndParentId("重复名", null)).thenReturn(true);
 
-        assertThrows(BusinessException.class,
-                () -> appService.update(1L, "重复名", null, null, null, null, null));
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        req.setName("重复名");
+
+        assertThrows(BusinessException.class, () -> appService.update(1L, req));
     }
+
+    /**
+     * 三态场景 1：所有可清空字段 undefined → 不调任何 clear/update 方法
+     */
+    @Test
+    void update_shouldSkipAllClearableFields_whenAllUndefined() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", "原描述", FileRef.of(1L, "u1"), "#FF5500",
+                FileRef.of(2L, "u2"), 0, KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        // 所有 JsonNullable 字段未设置，保持 undefined()
+
+        KnowledgeCategoryResponse result = appService.update(1L, req);
+
+        assertNotNull(result);
+        // 字段保持原值
+        assertEquals("原描述", existing.getDescription());
+        assertEquals(FileRef.of(1L, "u1"), existing.getIcon());
+        assertEquals("#FF5500", existing.getColor());
+        assertEquals(FileRef.of(2L, "u2"), existing.getCoverImage());
+    }
+
+    /**
+     * 三态场景 2：JsonNullable.of(null) → 调用 clearXxx()
+     */
+    @Test
+    void update_shouldCallClear_whenFieldsAreNull() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", "原描述", FileRef.of(1L, "u1"), "#FF5500",
+                FileRef.of(2L, "u2"), 0, KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        req.setDescription(JsonNullable.of(null));
+        req.setIconFileId(JsonNullable.of(null));
+        req.setColor(JsonNullable.of(null));
+        req.setCoverImageFileId(JsonNullable.of(null));
+
+        appService.update(1L, req);
+
+        assertNull(existing.getDescription());
+        assertNull(existing.getIcon());
+        assertNull(existing.getColor());
+        assertNull(existing.getCoverImage());
+    }
+
+    /**
+     * 三态场景 3：JsonNullable.of(value) String 字段 → 调用 updateXxx(value)
+     */
+    @Test
+    void update_shouldCallUpdate_whenStringFieldsHaveValue() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", "原描述", null, "#FF5500",
+                null, 0, KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        req.setDescription(JsonNullable.of("新描述"));
+        req.setColor(JsonNullable.of("#00AA00"));
+
+        appService.update(1L, req);
+
+        assertEquals("新描述", existing.getDescription());
+        assertEquals("#00AA00", existing.getColor());
+    }
+
+    /**
+     * 三态场景 4：JsonNullable.of(value) FileRef 字段 → verifyFileRef + 调用 updateXxx(FileRef)
+     */
+    @Test
+    void update_shouldVerifyAndUpdate_whenFileRefHasValue() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null,
+                0, KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        // mock verifyFileRef 链路：fileServiceClient.getFileInfo 返回合法 metadata
+        com.knowledgegame.components.feign.dto.FileInfoResponse fileInfo =
+                com.knowledgegame.components.feign.dto.FileInfoResponse.builder()
+                        .fileId(100L)
+                        .url("/static/new.png")
+                        .metadata(java.util.Map.of("bizType", "CATEGORY_ICON", "userId", 1L))
+                        .build();
+        when(fileServiceClient.getFileInfo(100L))
+                .thenReturn(com.knowledgegame.core.common.result.Result.success(fileInfo));
+        // mock SecurityUtils.getCurrentUserId 返回 1（与 metadata.userId 一致）
+        try (org.mockito.MockedStatic<com.knowledgegame.auth.security.SecurityUtils> mocked =
+                     org.mockito.Mockito.mockStatic(com.knowledgegame.auth.security.SecurityUtils.class)) {
+            mocked.when(com.knowledgegame.auth.security.SecurityUtils::getCurrentUserId).thenReturn(1L);
+
+            UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+            req.setIconFileId(JsonNullable.of(100L));
+
+            appService.update(1L, req);
+
+            assertEquals(FileRef.of(100L, "/static/new.png"), existing.getIcon());
+        }
+    }
+
+    /**
+     * 三态场景 5：verifyFileRef 失败（bizType 不匹配）→ 抛 BusinessException，不调用领域方法
+     */
+    @Test
+    void update_shouldThrow_whenFileBizTypeMismatch() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, FileRef.of(1L, "old"), null, null,
+                0, KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        com.knowledgegame.components.feign.dto.FileInfoResponse wrongBizTypeInfo =
+                com.knowledgegame.components.feign.dto.FileInfoResponse.builder()
+                        .fileId(100L)
+                        .url("/static/x.png")
+                        .metadata(java.util.Map.of("bizType", "CARD_TEMPLATE", "userId", 1L))
+                        .build();
+        when(fileServiceClient.getFileInfo(100L))
+                .thenReturn(com.knowledgegame.core.common.result.Result.success(wrongBizTypeInfo));
+
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        req.setIconFileId(JsonNullable.of(100L));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appService.update(1L, req));
+        assertTrue(ex.getMessage().contains("文件类型不匹配"));
+        // 原 icon 保持不变
+        assertEquals(FileRef.of(1L, "old"), existing.getIcon());
+    }
+
+    // ============ 其他不变 ============
 
     /**
      * 移动 - 正常移动并自动设置 sortOrder

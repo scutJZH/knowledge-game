@@ -73,14 +73,7 @@ public class IpSeriesController {
     @PutMapping("/{id}")
     public Result<IpSeriesResponse> update(@PathVariable Long id,
                                            @Valid @RequestBody UpdateIpSeriesRequest request) {
-        IpSeriesResponse response = ipSeriesAppService.updateIpSeries(
-                id,
-                request.getCode(),
-                request.getName(),
-                request.getDescription(),
-                request.getCoverImageFileId(),
-                request.getStatus()
-        );
+        IpSeriesResponse response = ipSeriesAppService.update(id, request);
         return Result.success(response);
     }
 

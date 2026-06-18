@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class CardTemplateTest {
 
@@ -100,35 +101,35 @@ class CardTemplateTest {
     }
 
     @Test
-    @DisplayName("update() 传入非 null 值时应更新所有字段")
-    void update_shouldModifyAllFieldsWhenNonNull() {
+    @DisplayName("update() 必填字段传入非 null 值时更新；可清空字段保持原值")
+    void update_shouldModifyRequiredFieldsWhenNonNull() {
         CardTemplate template = CardTemplate.reconstruct(
                 1L, 10L, "OLD_CODE", "旧名称", CardRarity.N,
                 "旧描述", CardTemplateStatus.ACTIVE, IMG_OLD,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 1, 0, 0));
 
-        template.update("NEW_CODE", "新名称", CardRarity.SSR, "新描述",
-                CardTemplateStatus.INACTIVE, IMG_NEW);
+        template.update("NEW_CODE", "新名称", CardRarity.SSR, CardTemplateStatus.INACTIVE);
 
         assertEquals("NEW_CODE", template.getCode());
         assertEquals("新名称", template.getName());
         assertEquals(CardRarity.SSR, template.getRarity());
-        assertEquals("新描述", template.getDescription());
         assertEquals(CardTemplateStatus.INACTIVE, template.getStatus());
-        assertEquals(IMG_NEW, template.getImage());
+        // 可清空字段未触碰
+        assertEquals("旧描述", template.getDescription());
+        assertEquals(IMG_OLD, template.getImage());
     }
 
     @Test
-    @DisplayName("update() 传入 null 时所有字段保持原值")
-    void update_shouldKeepOriginalWhenNullPassed() {
+    @DisplayName("update() 必填字段传入 null 时保持原值")
+    void update_shouldKeepRequiredOriginalWhenNull() {
         CardTemplate template = CardTemplate.reconstruct(
                 1L, 10L, "ORIGINAL_CODE", "原始名称", CardRarity.SR,
                 "原始描述", CardTemplateStatus.ACTIVE, IMG_ORIG,
                 LocalDateTime.of(2025, 1, 1, 0, 0),
                 LocalDateTime.of(2025, 1, 1, 0, 0));
 
-        template.update(null, null, null, null, null, null);
+        template.update(null, null, null, null);
 
         assertEquals("ORIGINAL_CODE", template.getCode());
         assertEquals("原始名称", template.getName());
@@ -136,25 +137,6 @@ class CardTemplateTest {
         assertEquals("原始描述", template.getDescription());
         assertEquals(CardTemplateStatus.ACTIVE, template.getStatus());
         assertEquals(IMG_ORIG, template.getImage());
-    }
-
-    @Test
-    @DisplayName("update() 部分更新：只传 FileRef，其他字段不变")
-    void update_shouldOnlyUpdateImageWhenThatsTheOnlyNonNull() {
-        CardTemplate template = CardTemplate.reconstruct(
-                1L, 10L, "CODE", "名称", CardRarity.N,
-                "描述", CardTemplateStatus.ACTIVE, null,
-                LocalDateTime.of(2025, 1, 1, 0, 0),
-                LocalDateTime.of(2025, 1, 1, 0, 0));
-
-        template.update(null, null, null, null, null, IMG_ONLY);
-
-        assertEquals("CODE", template.getCode());
-        assertEquals("名称", template.getName());
-        assertEquals(CardRarity.N, template.getRarity());
-        assertEquals("描述", template.getDescription());
-        assertEquals(CardTemplateStatus.ACTIVE, template.getStatus());
-        assertEquals(IMG_ONLY, template.getImage());
     }
 
     @Test
@@ -166,10 +148,70 @@ class CardTemplateTest {
                 "描述", CardTemplateStatus.ACTIVE, null,
                 LocalDateTime.of(2020, 1, 1, 0, 0), oldUpdated);
 
-        template.update("NEW_CODE", null, null, null, null, null);
+        template.update("NEW_CODE", null, null, null);
 
         assertNotNull(template.getUpdatedAt());
         assertNotEquals(oldUpdated, template.getUpdatedAt());
+    }
+
+    // ============ updateDescription / clearDescription ============
+
+    @Test
+    @DisplayName("updateDescription() 应写入新描述")
+    void updateDescription_shouldWriteNewValue() {
+        CardTemplate template = CardTemplate.create(10L, "CODE", "名称", CardRarity.N,
+                "旧", CardTemplateStatus.ACTIVE, null);
+        template.updateDescription("新描述");
+        assertEquals("新描述", template.getDescription());
+    }
+
+    @Test
+    @DisplayName("updateDescription(null) 应抛 IllegalArgumentException")
+    void updateDescription_shouldThrowWhenNull() {
+        CardTemplate template = CardTemplate.create(10L, "CODE", "名称", CardRarity.N,
+                "旧", CardTemplateStatus.ACTIVE, null);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> template.updateDescription(null));
+        assertEquals("description 清空请用 clearDescription()", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("clearDescription() 应清空描述")
+    void clearDescription_shouldSetNull() {
+        CardTemplate template = CardTemplate.create(10L, "CODE", "名称", CardRarity.N,
+                "旧描述", CardTemplateStatus.ACTIVE, null);
+        template.clearDescription();
+        assertNull(template.getDescription());
+    }
+
+    // ============ updateImage / clearImage ============
+
+    @Test
+    @DisplayName("updateImage() 应写入新图片")
+    void updateImage_shouldWriteNewValue() {
+        CardTemplate template = CardTemplate.create(10L, "CODE", "名称", CardRarity.N,
+                null, CardTemplateStatus.ACTIVE, IMG_OLD);
+        template.updateImage(IMG_NEW);
+        assertEquals(IMG_NEW, template.getImage());
+    }
+
+    @Test
+    @DisplayName("updateImage(null) 应抛 IllegalArgumentException")
+    void updateImage_shouldThrowWhenNull() {
+        CardTemplate template = CardTemplate.create(10L, "CODE", "名称", CardRarity.N,
+                null, CardTemplateStatus.ACTIVE, IMG_OLD);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> template.updateImage(null));
+        assertEquals("image 清空请用 clearImage()", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("clearImage() 应清空图片")
+    void clearImage_shouldSetNull() {
+        CardTemplate template = CardTemplate.create(10L, "CODE", "名称", CardRarity.N,
+                null, CardTemplateStatus.ACTIVE, IMG_OLD);
+        template.clearImage();
+        assertNull(template.getImage());
     }
 
     @Test

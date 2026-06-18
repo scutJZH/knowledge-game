@@ -5,6 +5,7 @@ import com.knowledgegame.admin.api.dto.request.CreateIpSeriesRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateIpSeriesRequest;
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
 import com.knowledgegame.admin.application.service.IpSeriesAppService;
+import com.knowledgegame.admin.config.JacksonConfig;
 import com.knowledgegame.admin.config.WebMvcConfig;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.core.common.exception.BusinessException;
@@ -15,6 +16,7 @@ import com.knowledgegame.core.infrastructure.adapter.repoadapter.UserRepositoryA
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -27,6 +29,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
@@ -52,7 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 }
         )
 )
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, JacksonConfig.class})
 @AutoConfigureMockMvc(addFilters = false)
 class IpSeriesControllerTest {
 
@@ -240,7 +247,7 @@ class IpSeriesControllerTest {
     void update_shouldReturn200_whenValidRequest() throws Exception {
         UpdateIpSeriesRequest request = new UpdateIpSeriesRequest();
         request.setName("火影忍者-更新");
-        request.setDescription("更新后的描述");
+        request.setDescription(JsonNullable.of("更新后的描述"));
 
         IpSeriesResponse updatedResponse = IpSeriesResponse.builder()
                 .id(1L).code("NARUTO").name("火影忍者-更新")
@@ -249,10 +256,7 @@ class IpSeriesControllerTest {
                 .status("ACTIVE")
                 .createdAt(1767225600000L).updatedAt(1780315200000L)
                 .build();
-        when(ipSeriesAppService.updateIpSeries(
-                eq(1L), isNull(), eq("火影忍者-更新"), eq("更新后的描述"),
-                isNull(), isNull()
-        )).thenReturn(updatedResponse);
+        when(ipSeriesAppService.update(eq(1L), any(UpdateIpSeriesRequest.class))).thenReturn(updatedResponse);
 
         mockMvc.perform(put("/api/admin/ip-series/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -262,6 +266,79 @@ class IpSeriesControllerTest {
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.name").value("火影忍者-更新"))
                 .andExpect(jsonPath("$.data.description").value("更新后的描述"));
+    }
+
+    /**
+     * Jackson 三态反序列化：缺失字段 → JsonNullable.undefined()
+     */
+    @Test
+    @DisplayName("更新 IP 系列 - 缺失字段反序列化为 undefined")
+    void update_shouldDeserializeMissingFieldAsUndefined() throws Exception {
+        IpSeriesResponse response = IpSeriesResponse.builder()
+                .id(1L).code("NARUTO").name("火影").status("ACTIVE").build();
+        when(ipSeriesAppService.update(eq(1L), any(UpdateIpSeriesRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/ip-series/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"火影\"}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateIpSeriesRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateIpSeriesRequest.class);
+        verify(ipSeriesAppService).update(eq(1L), captor.capture());
+        UpdateIpSeriesRequest req = captor.getValue();
+        assertFalse(req.getDescription().isPresent(), "缺失字段应为 undefined");
+        assertFalse(req.getCoverImageFileId().isPresent());
+    }
+
+    /**
+     * Jackson 三态反序列化：null 字段 → JsonNullable.of(null)
+     */
+    @Test
+    @DisplayName("更新 IP 系列 - null 字段反序列化为 of(null)（清空）")
+    void update_shouldDeserializeNullFieldAsNullableOfNull() throws Exception {
+        IpSeriesResponse response = IpSeriesResponse.builder()
+                .id(1L).code("NARUTO").name("火影").status("ACTIVE").build();
+        when(ipSeriesAppService.update(eq(1L), any(UpdateIpSeriesRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/ip-series/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"火影\",\"description\":null,\"coverImageFileId\":null}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateIpSeriesRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateIpSeriesRequest.class);
+        verify(ipSeriesAppService).update(eq(1L), captor.capture());
+        UpdateIpSeriesRequest req = captor.getValue();
+        assertTrue(req.getDescription().isPresent(), "null 字段应为 present");
+        assertNull(req.getDescription().get());
+        assertTrue(req.getCoverImageFileId().isPresent());
+        assertNull(req.getCoverImageFileId().get());
+    }
+
+    /**
+     * Jackson 三态反序列化：数值字段 → JsonNullable.of(value)
+     */
+    @Test
+    @DisplayName("更新 IP 系列 - 数值字段反序列化为 of(value)")
+    void update_shouldDeserializeValueFieldAsNullableOfValue() throws Exception {
+        IpSeriesResponse response = IpSeriesResponse.builder()
+                .id(1L).code("NARUTO").name("火影").status("ACTIVE").build();
+        when(ipSeriesAppService.update(eq(1L), any(UpdateIpSeriesRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/ip-series/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"火影\",\"description\":\"新描述\",\"coverImageFileId\":200}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateIpSeriesRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateIpSeriesRequest.class);
+        verify(ipSeriesAppService).update(eq(1L), captor.capture());
+        UpdateIpSeriesRequest req = captor.getValue();
+        assertTrue(req.getDescription().isPresent());
+        assertEquals("新描述", req.getDescription().get());
+        assertTrue(req.getCoverImageFileId().isPresent());
+        assertEquals(200L, req.getCoverImageFileId().get());
     }
 
     // ========== 删除 ==========
