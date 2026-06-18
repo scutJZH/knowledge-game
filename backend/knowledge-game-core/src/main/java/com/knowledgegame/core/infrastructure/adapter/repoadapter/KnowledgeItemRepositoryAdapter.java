@@ -130,6 +130,8 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
     @Override
     public void saveCategoryRelations(Long itemId, List<Long> categoryIds) {
         relationJpaRepository.deleteByItemId(itemId);
+        // 强制 flush DELETE，避免 Hibernate 先 INSERT 后 DELETE 触发唯一键冲突
+        relationJpaRepository.flush();
         if (categoryIds != null && !categoryIds.isEmpty()) {
             List<KnowledgeItemCategoryRelationPO> relations = categoryIds.stream()
                     .map(catId -> KnowledgeItemCategoryRelationPO.builder()

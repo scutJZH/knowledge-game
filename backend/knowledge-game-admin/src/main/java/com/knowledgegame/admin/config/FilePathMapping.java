@@ -18,7 +18,8 @@ public final class FilePathMapping {
             "IP_SERIES", "ip-series",
             "CARD_TEMPLATE", "card-template",
             "CATEGORY_ICON", "category-icon",
-            "CATEGORY_COVER", "category-cover"
+            "CATEGORY_COVER", "category-cover",
+            "KNOWLEDGE_ITEM_COVER", "knowledge-item-cover"
     );
 
     /**

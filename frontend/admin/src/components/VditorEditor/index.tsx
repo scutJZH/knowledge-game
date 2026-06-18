@@ -1,3 +1,4 @@
+import 'vditor/dist/index.css';
 import { message } from 'antd';
 import { useEffect, useRef } from 'react';
 
@@ -11,25 +12,22 @@ const VditorEditor: React.FC<VditorEditorProps> = ({ value, onChange }) => {
   const vditorRef = useRef<any>(null);
 
   useEffect(() => {
-    let vditor: any = null;
+    const container = containerRef.current;
+    if (!container) return;
 
     import('vditor').then((VditorModule) => {
       const Vditor = VditorModule.default || VditorModule;
-      vditor = new Vditor(containerRef.current!, {
+      vditorRef.current = new Vditor(container, {
         mode: 'wysiwyg',
         height: 400,
         cache: { enable: false },
         preview: { hljs: { style: 'github' } },
         upload: {
-          handler: (files: File[]) => {
-            // 凭证式上传，由上层通过 fileUpload service 处理
+          handler: (_files: File[]) => {
             return '';
           },
         },
         value: value || '',
-        after: () => {
-          vditorRef.current = vditor;
-        },
         input: (md: string) => {
           onChange?.(md);
         },
@@ -39,7 +37,14 @@ const VditorEditor: React.FC<VditorEditorProps> = ({ value, onChange }) => {
     });
 
     return () => {
-      vditor?.destroy();
+      if (vditorRef.current) {
+        try {
+          vditorRef.current.destroy();
+        } catch {
+          // DOM 可能已被 React 移除，忽略 destroy 异常
+        }
+        vditorRef.current = null;
+      }
     };
   }, []);
 

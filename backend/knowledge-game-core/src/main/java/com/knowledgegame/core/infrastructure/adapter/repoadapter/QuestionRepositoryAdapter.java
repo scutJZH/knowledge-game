@@ -149,6 +149,7 @@ public class QuestionRepositoryAdapter implements QuestionRepository {
     public void saveCategoryRelations(Long questionId, List<Long> categoryIds) {
         // 先删除旧关联，再批量插入新关联
         relationJpaRepository.deleteByQuestionId(questionId);
+        relationJpaRepository.flush();
         if (categoryIds != null && !categoryIds.isEmpty()) {
             List<QuestionCategoryRelationPO> relations = categoryIds.stream()
                     .map(catId -> QuestionCategoryRelationPO.builder()
