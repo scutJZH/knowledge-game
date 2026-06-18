@@ -16,7 +16,7 @@ import java.util.List;
 public class BatchSortRequest {
 
     @NotEmpty(message = "items 不能为空")
-    @Size(max = 50, message = "一次最多排序 50 个分类")
+    @Size(max = 50, message = "一次最多排序 50 条")
     @Valid
     private List<BatchSortItem> items;
 }

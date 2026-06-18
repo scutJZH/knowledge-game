@@ -3,10 +3,12 @@ package com.knowledgegame.core.config;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
+import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
 import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
+import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
 import com.knowledgegame.core.domain.service.QuestionDomainService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -40,8 +42,9 @@ public class KnowledgeGameCoreAutoConfiguration {
     @Bean
     public KnowledgeCategoryDomainService knowledgeCategoryDomainService(
             KnowledgeCategoryRepositoryPort categoryRepositoryPort,
-            QuestionRepository questionRepository) {
-        return new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+            QuestionRepository questionRepository,
+            KnowledgeItemRepository itemRepository) {
+        return new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
     }
 
     /**
@@ -59,5 +62,15 @@ public class KnowledgeGameCoreAutoConfiguration {
     @Bean
     public QuestionDomainService questionDomainService(QuestionRepository questionRepository) {
         return new QuestionDomainService(questionRepository);
+    }
+
+    /**
+     * 注册知识条目领域服务（纯 POJO，需手动注册）
+     */
+    @Bean
+    public KnowledgeItemDomainService knowledgeItemDomainService(
+            KnowledgeItemRepository itemRepository,
+            KnowledgeCategoryRepositoryPort categoryRepositoryPort) {
+        return new KnowledgeItemDomainService(itemRepository, categoryRepositoryPort);
     }
 }

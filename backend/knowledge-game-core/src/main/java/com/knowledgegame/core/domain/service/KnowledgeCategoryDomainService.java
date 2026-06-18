@@ -5,6 +5,7 @@ import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
+import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 
 import java.util.List;
@@ -16,11 +17,14 @@ public class KnowledgeCategoryDomainService {
 
     private final KnowledgeCategoryRepositoryPort categoryRepositoryPort;
     private final QuestionRepository questionRepository;
+    private final KnowledgeItemRepository itemRepository;
 
     public KnowledgeCategoryDomainService(KnowledgeCategoryRepositoryPort categoryRepositoryPort,
-                                           QuestionRepository questionRepository) {
+                                           QuestionRepository questionRepository,
+                                           KnowledgeItemRepository itemRepository) {
         this.categoryRepositoryPort = categoryRepositoryPort;
         this.questionRepository = questionRepository;
+        this.itemRepository = itemRepository;
     }
 
     /**
@@ -106,6 +110,11 @@ public class KnowledgeCategoryDomainService {
         long activeQuestionCount = questionRepository.countActiveByCategoryId(categoryId);
         if (activeQuestionCount > 0) {
             throw new BusinessException("知识点分类关联 " + activeQuestionCount + " 道 ACTIVE 题目，无法删除");
+        }
+        // 知识条目关联校验：仅统计 ACTIVE 条目
+        long activeItemCount = itemRepository.countActiveByCategoryId(categoryId);
+        if (activeItemCount > 0) {
+            throw new BusinessException("知识点分类关联 " + activeItemCount + " 个 ACTIVE 知识条目，无法删除");
         }
     }
 }

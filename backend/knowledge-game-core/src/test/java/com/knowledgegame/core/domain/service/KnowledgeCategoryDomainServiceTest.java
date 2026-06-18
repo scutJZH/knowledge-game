@@ -4,6 +4,7 @@ import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
+import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,9 @@ class KnowledgeCategoryDomainServiceTest {
     @Mock
     private QuestionRepository questionRepository;
 
+    @Mock
+    private KnowledgeItemRepository itemRepository;
+
     /**
      * 创建 - 正常创建顶级分类
      */
@@ -39,7 +43,7 @@ class KnowledgeCategoryDomainServiceTest {
     void validateAndCreate_shouldSucceed_whenTopLevel() {
         when(categoryRepositoryPort.existsByNameAndParentId("编程", null)).thenReturn(false);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         KnowledgeCategory result = service.validateAndCreate(
                 "编程", null, null, null, null, null, 0);
 
@@ -59,7 +63,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.existsByNameAndParentId("Java", 1L)).thenReturn(false);
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(parent));
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         KnowledgeCategory result = service.validateAndCreate(
                 "Java", null, 1L, null, null, null, 0);
 
@@ -75,7 +79,7 @@ class KnowledgeCategoryDomainServiceTest {
     void validateAndCreate_shouldThrow_whenNameDuplicate() {
         when(categoryRepositoryPort.existsByNameAndParentId("编程", null)).thenReturn(true);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateAndCreate("编程", null, null, null, null, null, 0));
         assertEquals("同一父级下已存在同名分类: 编程", ex.getMessage());
@@ -89,7 +93,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.existsByNameAndParentId("Java", 99L)).thenReturn(false);
         when(categoryRepositoryPort.findById(99L)).thenReturn(Optional.empty());
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateAndCreate("Java", null, 99L, null, null, null, 0));
         assertEquals("父级分类不存在: 99", ex.getMessage());
@@ -106,7 +110,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.existsByNameAndParentId("Java", 1L)).thenReturn(false);
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(parent));
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateAndCreate("Java", null, 1L, null, null, null, 0));
         assertEquals("父级分类未启用: 编程", ex.getMessage());
@@ -128,7 +132,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.findDescendantIds(1L)).thenReturn(Collections.emptyList());
         when(categoryRepositoryPort.existsByNameAndParentId("Java", 5L)).thenReturn(false);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         service.validateMove(1L, 5L);
     }
 
@@ -143,7 +147,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(current));
         when(categoryRepositoryPort.existsByNameAndParentId("Java", null)).thenReturn(false);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         service.validateMove(1L, null);
     }
 
@@ -152,7 +156,7 @@ class KnowledgeCategoryDomainServiceTest {
      */
     @Test
     void validateMove_shouldThrow_whenMoveToSelf() {
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateMove(1L, 1L));
         assertEquals("不能将分类移动到自身下", ex.getMessage());
@@ -169,7 +173,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.findById(3L)).thenReturn(Optional.of(target));
         when(categoryRepositoryPort.findDescendantIds(1L)).thenReturn(List.of(2L, 3L));
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateMove(1L, 3L));
         assertEquals("不能将分类移动到自己的后代分类下", ex.getMessage());
@@ -185,7 +189,7 @@ class KnowledgeCategoryDomainServiceTest {
                 KnowledgeCategoryStatus.INACTIVE, null, null);
         when(categoryRepositoryPort.findById(5L)).thenReturn(Optional.of(target));
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateMove(1L, 5L));
         assertEquals("目标分类未启用: 目标", ex.getMessage());
@@ -206,7 +210,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(current));
         when(categoryRepositoryPort.existsByNameAndParentId("Java", 5L)).thenReturn(true);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateMove(1L, 5L));
         assertEquals("目标父级下已存在同名分类: Java", ex.getMessage());
@@ -220,8 +224,9 @@ class KnowledgeCategoryDomainServiceTest {
     void validateDelete_shouldPass_whenNoActiveChildrenAndNoActiveQuestions() {
         when(categoryRepositoryPort.countActiveByParentId(1L)).thenReturn(0L);
         when(questionRepository.countActiveByCategoryId(1L)).thenReturn(0L);
+        when(itemRepository.countActiveByCategoryId(1L)).thenReturn(0L);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         service.validateDelete(1L);
         // 无异常即通过
     }
@@ -234,7 +239,7 @@ class KnowledgeCategoryDomainServiceTest {
     void validateDelete_shouldThrow_whenHasActiveChildren() {
         when(categoryRepositoryPort.countActiveByParentId(1L)).thenReturn(3L);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateDelete(1L));
         assertEquals("知识点分类下存在 3 个 ACTIVE 子分类，无法删除", ex.getMessage());
@@ -249,21 +254,37 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.countActiveByParentId(1L)).thenReturn(0L);
         when(questionRepository.countActiveByCategoryId(1L)).thenReturn(5L);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateDelete(1L));
         assertEquals("知识点分类关联 5 道 ACTIVE 题目，无法删除", ex.getMessage());
     }
 
     /**
-     * 删除校验 - 同时存在 ACTIVE 子分类和 ACTIVE 题目时仅报告子分类（校验顺序：子分类→题目）
+     * 删除校验 - 无 ACTIVE 子分类和题目但有 ACTIVE 知识条目时抛异常
+     */
+    @Test
+    @DisplayName("validateDelete 有 ACTIVE 知识条目关联时应抛异常")
+    void validateDelete_shouldThrow_whenHasActiveItems() {
+        when(categoryRepositoryPort.countActiveByParentId(1L)).thenReturn(0L);
+        when(questionRepository.countActiveByCategoryId(1L)).thenReturn(0L);
+        when(itemRepository.countActiveByCategoryId(1L)).thenReturn(5L);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.validateDelete(1L));
+        assertEquals("知识点分类关联 5 个 ACTIVE 知识条目，无法删除", ex.getMessage());
+    }
+
+    /**
+     * 删除校验 - 同时存在 ACTIVE 子分类和题目时仅报告第一个失败（子分类）
      */
     @Test
     @DisplayName("validateDelete 同时存在 ACTIVE 子分类和题目时仅报告第一个失败（子分类）")
     void validateDelete_shouldThrowFirst_whenBothActive() {
         when(categoryRepositoryPort.countActiveByParentId(1L)).thenReturn(2L);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateDelete(1L));
         assertEquals("知识点分类下存在 2 个 ACTIVE 子分类，无法删除", ex.getMessage());
@@ -277,7 +298,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.existsByNameAndParentId("编程", null)).thenReturn(false);
         when(categoryRepositoryPort.findMaxSortOrderForRoot()).thenReturn(null);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         KnowledgeCategory result = service.validateAndCreate(
                 "编程", null, null, null, null, null, null);
 
@@ -293,7 +314,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.existsByNameAndParentId("数学", null)).thenReturn(false);
         when(categoryRepositoryPort.findMaxSortOrderForRoot()).thenReturn(3);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         KnowledgeCategory result = service.validateAndCreate(
                 "数学", null, null, null, null, null, null);
 
@@ -313,7 +334,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(parent));
         when(categoryRepositoryPort.findMaxSortOrderByParentId(1L)).thenReturn(null);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         KnowledgeCategory result = service.validateAndCreate(
                 "Java", null, 1L, null, null, null, null);
 
@@ -333,7 +354,7 @@ class KnowledgeCategoryDomainServiceTest {
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(parent));
         when(categoryRepositoryPort.findMaxSortOrderByParentId(1L)).thenReturn(5);
 
-        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         KnowledgeCategory result = service.validateAndCreate(
                 "Python", null, 1L, null, null, null, null);
 
