@@ -109,7 +109,7 @@ class KnowledgeCategoryDomainServiceTest {
         KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateAndCreate("Java", null, 1L, null, null, null, 0));
-        assertEquals("父级分类未启用: 1", ex.getMessage());
+        assertEquals("父级分类未启用: 编程", ex.getMessage());
     }
 
     /**
@@ -188,7 +188,7 @@ class KnowledgeCategoryDomainServiceTest {
         KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateMove(1L, 5L));
-        assertEquals("目标分类未启用: 5", ex.getMessage());
+        assertEquals("目标分类未启用: 目标", ex.getMessage());
     }
 
     /**

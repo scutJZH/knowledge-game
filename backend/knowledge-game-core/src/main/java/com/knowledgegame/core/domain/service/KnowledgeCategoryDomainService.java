@@ -40,7 +40,7 @@ public class KnowledgeCategoryDomainService {
             KnowledgeCategory parent = categoryRepositoryPort.findById(parentId)
                     .orElseThrow(() -> new BusinessException("父级分类不存在: " + parentId));
             if (parent.getStatus() != KnowledgeCategoryStatus.ACTIVE) {
-                throw new BusinessException("父级分类未启用: " + parentId);
+                throw new BusinessException("父级分类未启用: " + parent.getName());
             }
         }
         // 自动计算 sortOrder
@@ -76,7 +76,7 @@ public class KnowledgeCategoryDomainService {
             KnowledgeCategory target = categoryRepositoryPort.findById(newParentId)
                     .orElseThrow(() -> new BusinessException("目标分类不存在: " + newParentId));
             if (target.getStatus() != KnowledgeCategoryStatus.ACTIVE) {
-                throw new BusinessException("目标分类未启用: " + newParentId);
+                throw new BusinessException("目标分类未启用: " + target.getName());
             }
             // 不能移到自己的后代下
             List<Long> descendantIds = categoryRepositoryPort.findDescendantIds(categoryId);

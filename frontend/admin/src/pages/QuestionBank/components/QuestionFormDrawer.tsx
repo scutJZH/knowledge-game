@@ -14,7 +14,7 @@ import {
 } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { CategoryTreeNode } from '@/services/knowledge-category';
-import { convertToTreeData } from '@/services/knowledge-category';
+import { convertToTreeDataActiveOnly } from '@/services/knowledge-category';
 import type { QuestionResponse, CreateQuestionRequest, UpdateQuestionRequest } from '@/services/questionBank';
 import {
   DIFFICULTY_OPTIONS,
@@ -641,10 +641,9 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
           <TreeSelect
             multiple
             placeholder="请选择知识点分类（选填）"
-            treeData={convertToTreeData(categoryTree)}
-            treeCheckable
-            showCheckedStrategy={TreeSelect.SHOW_PARENT}
+            treeData={convertToTreeDataActiveOnly(categoryTree)}
             allowClear
+            treeDefaultExpandAll
           />
         </Form.Item>
       </Form>

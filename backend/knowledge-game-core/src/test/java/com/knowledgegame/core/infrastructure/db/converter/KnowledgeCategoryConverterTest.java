@@ -98,6 +98,22 @@ class KnowledgeCategoryConverterTest {
             assertEquals(9L, po.getCoverImageFileId());
             assertEquals("/old.jpg", po.getCoverImageUrl());
         }
+
+        @Test
+        @DisplayName("sortOrder 应无条件更新（修复 Bug：编辑/拖拽排序号不生效）")
+        void shouldUpdateSortOrderUnconditionally() {
+            // PO 初始 sortOrder=0（buildPO 默认值）
+            KnowledgeCategoryPO po = buildPO(1L, null, null, null, null);
+            // domain sortOrder=5（模拟编辑/拖拽后的新排序号）
+            KnowledgeCategory domain = KnowledgeCategory.reconstruct(
+                    1L, null, "测试", "描述",
+                    null, "#FFF", null, 5,
+                    KnowledgeCategoryStatus.ACTIVE,
+                    LocalDateTime.now(), LocalDateTime.now());
+            KnowledgeCategoryConverter.INSTANCE.updatePO(po, domain);
+            assertEquals(5, po.getSortOrder(),
+                    "updatePO 必须更新 sortOrder，否则编辑排序号/拖拽排序将失效");
+        }
     }
 
     private KnowledgeCategoryPO buildPO(Long id, Long iconFid, String iconUrl, Long coverFid, String coverUrl) {

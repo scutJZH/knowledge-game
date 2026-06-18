@@ -69,6 +69,11 @@ public interface KnowledgeCategoryConverter {
         if (domain.getStatus() != null) {
             po.setStatus(domain.getStatus());
         }
+        // sortOrder 是 int 基本类型（无 null 语义），无条件写回。
+        // AppService.update/batchSort 调用 category.update() 时若 sortOrder 未变会跳过 setter，
+        // domain.sortOrder 保持原值；此时写回等于原值，无副作用。
+        // 关键场景：编辑排序号、拖拽 batch-sort、move 后自动重排 都依赖此行生效。
+        po.setSortOrder(domain.getSortOrder());
         po.setUpdatedAt(domain.getUpdatedAt());
     }
 

@@ -66,6 +66,22 @@ export function convertToTreeData(nodes: CategoryTreeNode[]): TreeDataNode[] {
   }));
 }
 
+/**
+ * 与 convertToTreeData 相同，但过滤 INACTIVE 节点（题库等业务表单禁止选已停用分类）。
+ * 注意：保留包含 ACTIVE 子节点的 INACTIVE 父级链路不被截断不易处理且场景罕见，
+ * 因此本函数对 INACTIVE 节点直接整体剪枝（含其所有子节点），不保留子树。
+ */
+export function convertToTreeDataActiveOnly(nodes: CategoryTreeNode[]): TreeDataNode[] {
+  return nodes
+    .filter((node) => node.status === 'ACTIVE')
+    .map((node) => ({
+      title: node.name,
+      value: node.id,
+      key: node.id,
+      children: node.children ? convertToTreeDataActiveOnly(node.children) : undefined,
+    }));
+}
+
 /** 获取分类树 */
 export async function getTree(): Promise<CategoryTreeNode[]> {
   return request('/api/admin/knowledge-categories/tree');
