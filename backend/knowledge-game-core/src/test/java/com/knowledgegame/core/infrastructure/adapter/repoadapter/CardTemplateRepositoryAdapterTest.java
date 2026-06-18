@@ -1,17 +1,24 @@
 package com.knowledgegame.core.infrastructure.adapter.repoadapter;
 
+import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.infrastructure.db.converter.CardTemplateConverter;
 import com.knowledgegame.core.infrastructure.db.entity.CardTemplatePO;
 import com.knowledgegame.core.infrastructure.db.repository.CardTemplateJpaRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -19,6 +26,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -147,6 +155,93 @@ class CardTemplateRepositoryAdapterTest {
         boolean result = adapter.existsById(1L);
 
         assertTrue(result);
+    }
+
+    // --- findByConditions 排序白名单（REQ-86 ISSUE-4） ---
+    //
+    // Mock 策略：用 ArgumentCaptor<PageRequest> 捕获 adapter 内部调用
+    // cardTemplateJpaRepository.findAll(spec, pageRequest) 时传入的 PageRequest，
+    // 断言 captor.getValue().getSort() 的字段名与方向。
+
+    /**
+     * sort=null 走默认 createdAt DESC
+     */
+    @Test
+    @DisplayName("findByConditions sort=null 时使用默认 createdAt DESC")
+    void findByConditions_sortNull_fallbackToCreatedAtDesc() {
+        when(cardTemplateJpaRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(emptyPage());
+
+        adapter.findByConditions(null, null, null, null, null, null, 0, 20);
+
+        PageRequest captured = capturePageRequest();
+        Sort.Order order = captured.getSort().getOrderFor("createdAt");
+        assertEquals(Sort.Direction.DESC, order.getDirection());
+    }
+
+    /**
+     * sort=code&order=asc 走 ASC
+     */
+    @Test
+    @DisplayName("findByConditions sort=code&order=asc 时使用 ASC")
+    void findByConditions_sortCodeAsc_returnsCodeAscSort() {
+        when(cardTemplateJpaRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(emptyPage());
+
+        adapter.findByConditions(null, null, null, null, null,
+                new SortField("code", SortField.Direction.ASC), 0, 20);
+
+        PageRequest captured = capturePageRequest();
+        Sort.Order order = captured.getSort().getOrderFor("code");
+        assertEquals(Sort.Direction.ASC, order.getDirection());
+    }
+
+    /**
+     * sort=rarity&order=desc 走 rarity DESC
+     */
+    @Test
+    @DisplayName("findByConditions sort=rarity&order=desc 时使用 rarity DESC")
+    void findByConditions_sortRarityDesc_returnsRarityDescSort() {
+        when(cardTemplateJpaRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(emptyPage());
+
+        adapter.findByConditions(null, null, null, null, null,
+                new SortField("rarity", SortField.Direction.DESC), 0, 20);
+
+        PageRequest captured = capturePageRequest();
+        Sort.Order order = captured.getSort().getOrderFor("rarity");
+        assertEquals(Sort.Direction.DESC, order.getDirection());
+    }
+
+    /**
+     * sort=foo 非法字段抛 BusinessException(400)，不再静默回退
+     */
+    @Test
+    @DisplayName("findByConditions sort=foo 时抛 BusinessException(400)")
+    void findByConditions_sortInvalid_throws400() {
+        SortField invalid = new SortField("foo", SortField.Direction.DESC);
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                adapter.findByConditions(null, null, null, null, null, invalid, 0, 20));
+
+        assertEquals(400, ex.getCode());
+    }
+
+    /**
+     * 捕获 adapter 传给 findAll 的 PageRequest 参数
+     */
+    private PageRequest capturePageRequest() {
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(cardTemplateJpaRepository).findAll(any(Specification.class), captor.capture());
+        return captor.getValue();
+    }
+
+    /**
+     * 构造空 Page，仅用于让 findAll 返回非 null 结果
+     */
+    @SuppressWarnings("unchecked")
+    private Page<CardTemplatePO> emptyPage() {
+        return (Page<CardTemplatePO>) org.mockito.Mockito.mock(Page.class);
     }
 
     // --- 辅助方法 ---

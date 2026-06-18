@@ -12,6 +12,7 @@ import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,13 +64,15 @@ public class IpSeriesAppService {
     }
 
     /**
-     * 分页查询
+     * 分页查询（支持 name/code 模糊搜索、状态筛选、参数化排序）
      */
-    public PageResult<IpSeriesResponse> listIpSeries(String name, String status,
+    public PageResult<IpSeriesResponse> listIpSeries(String name, String code, String status,
+                                                      String sort, String order,
                                                       int pageNumber, int pageSize) {
         IpSeriesStatus statusEnum = EnumUtils.valueOfNullable(IpSeriesStatus.class, status);
+        SortField sortField = SortField.parse(sort, order);
         PageResult<IpSeries> domainPage = ipSeriesRepositoryPort.findByConditions(
-                name, statusEnum, pageNumber, pageSize);
+                name, code, statusEnum, sortField, pageNumber, pageSize);
         return PageResult.<IpSeriesResponse>builder()
                 .content(domainPage.getContent().stream()
                         .map(IpSeriesAssembler.INSTANCE::toResponse).toList())

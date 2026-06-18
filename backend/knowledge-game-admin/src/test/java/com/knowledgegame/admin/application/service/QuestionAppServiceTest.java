@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -163,7 +164,7 @@ class QuestionAppServiceTest {
     }
 
     /**
-     * 分页查询 - 正常返回
+     * 分页查询 - 正常返回（sort=null 时 SortField.parse 返回 null，由 Adapter 决定默认排序）
      */
     @Test
     void list_shouldReturnPagedResult() {
@@ -179,7 +180,7 @@ class QuestionAppServiceTest {
                 .build();
         when(questionRepository.findByConditions(
                 eq(null), eq(null), eq(null), eq(null), eq(null), eq(null),
-                any(SortField.class), eq(0), eq(20)))
+                isNull(), eq(0), eq(20)))
                 .thenReturn(mockPage);
 
         PageResult<QuestionResponse> result = appService.list(

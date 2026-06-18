@@ -66,9 +66,12 @@ export interface UpdateCardTemplateRequest {
 /** 分页查询参数 */
 export interface CardTemplateQuery {
   name?: string;
+  code?: string;
   ipSeriesId?: number;
   rarity?: string;
   status?: string;
+  sort?: string;
+  order?: 'asc' | 'desc';
   page?: number;
   size?: number;
 }

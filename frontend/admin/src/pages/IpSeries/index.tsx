@@ -32,8 +32,8 @@ const IpSeries: React.FC = () => {
 
   const columns: ProColumns<IpSeriesResponse>[] = [
     { title: 'ID', dataIndex: 'id', search: false, width: 80 },
-    { title: '编码', dataIndex: 'code', search: false },
-    { title: '名称', dataIndex: 'name' },
+    { title: '编码', dataIndex: 'code', sorter: true },
+    { title: '名称', dataIndex: 'name', sorter: true },
     {
       title: '描述',
       dataIndex: 'description',
@@ -65,14 +65,15 @@ const IpSeries: React.FC = () => {
         ACTIVE: { text: '启用', status: 'Success' },
         INACTIVE: { text: '停用', status: 'Default' },
       },
+      sorter: true,
       render: (_, record) => (
         <Tag color={record.status === 'ACTIVE' ? 'green' : 'default'}>
           {record.status === 'ACTIVE' ? '启用' : '停用'}
         </Tag>
       ),
     },
-    { title: '创建时间', dataIndex: 'createdAt', search: false, valueType: 'dateTime' },
-    { title: '更新时间', dataIndex: 'updatedAt', search: false, valueType: 'dateTime' },
+    { title: '创建时间', dataIndex: 'createdAt', search: false, valueType: 'dateTime', sorter: true },
+    { title: '更新时间', dataIndex: 'updatedAt', search: false, valueType: 'dateTime', sorter: true },
     {
       title: '操作',
       key: 'action',
@@ -148,13 +149,23 @@ const IpSeries: React.FC = () => {
         actionRef={actionRef}
         rowKey="id"
         columns={columns}
-        request={async (params) => {
-          const { current, pageSize, name, status } = params;
+        request={async (params, sort) => {
+          const { current, pageSize, name, code, status } = params;
+          let sortField: string | undefined;
+          let sortOrder: 'asc' | 'desc' | undefined;
+          if (sort && typeof sort === 'object' && Object.keys(sort).length > 0) {
+            const key = Object.keys(sort)[0];
+            sortField = key;
+            sortOrder = (sort as Record<string, string>)[key] === 'ascend' ? 'asc' : 'desc';
+          }
           const result = await listIpSeries({
             page: (current ?? 1) - 1,
             size: pageSize,
             name,
+            code,
             status,
+            sort: sortField,
+            order: sortOrder,
           });
           return {
             data: result.content,

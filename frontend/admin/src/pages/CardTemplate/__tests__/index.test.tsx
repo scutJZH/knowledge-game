@@ -23,7 +23,7 @@ jest.mock('@/utils/token', () => ({
   getUserInfo: jest.fn().mockReturnValue({ id: 1 }),
 }));
 
-/** Mock ImageUploadField 为可控 input */
+/** Mock ImageUploadField 为可控 input（REQ-93 后 value 是 fileId: number） */
 jest.mock('@/components/ImageUploadField', () => ({
   __esModule: true,
   default: ({ bizType, placeholder, value, onChange }: {
@@ -31,15 +31,18 @@ jest.mock('@/components/ImageUploadField', () => ({
     placeholder?: string;
     preview?: boolean;
     allowRemove?: boolean;
-    value?: string;
-    onChange?: (value: string | undefined) => void;
+    value?: number;
+    onChange?: (fileId: number | undefined) => void;
   }) => (
     <input
       data-testid="image-upload-field"
       type="text"
       placeholder={placeholder}
-      value={value || ''}
-      onChange={(e) => onChange?.(e.target.value || undefined)}
+      value={value !== undefined ? String(value) : ''}
+      onChange={(e) => {
+        const raw = e.target.value;
+        onChange?.(raw ? Number(raw) : undefined);
+      }}
     />
   ),
 }));
@@ -269,7 +272,7 @@ describe('创建卡牌模板', () => {
     expect(starInputs.length).toBe(0);
   });
 
-  it('表单提交应调用 createCardTemplate 并包含 imageUrl', async () => {
+  it('表单提交应调用 createCardTemplate 并包含 imageFileId', async () => {
     (listCardTemplates as jest.Mock).mockResolvedValue(mockPageResult([]));
     (listIpSeries as jest.Mock).mockResolvedValue(
       mockPageResult([{ id: 1, name: '测试IP', code: 'IP001', status: 'ACTIVE' }]),
@@ -297,15 +300,14 @@ describe('创建卡牌模板', () => {
     const nameInput = screen.getByPlaceholderText('请输入名称');
     fireEvent.change(nameInput, { target: { value: '新卡牌' } });
 
-    // 填写 imageUrl
+    // 填写 imageFileId（mock 后通过数字字符串交互）
     const imageInput = screen.getByTestId('image-upload-field');
-    fireEvent.change(imageInput, { target: { value: 'http://example.com/new-card.png' } });
+    fireEvent.change(imageInput, { target: { value: '99' } });
 
     // 选择 IP 系列（第一个 Select 选择器）
     const selectSelectors = document.querySelectorAll('.ant-modal .ant-select-selector');
     if (selectSelectors.length > 0) {
       fireEvent.mouseDown(selectSelectors[0]);
-      // 等待下拉选项出现并点击第一个
       await waitFor(() => {
         const firstOption = document.querySelector('.ant-select-item-option-content');
         if (firstOption) fireEvent.click(firstOption);
@@ -318,7 +320,6 @@ describe('创建卡牌模板', () => {
       fireEvent.mouseDown(raritySelector);
       await waitFor(() => {
         const options = document.querySelectorAll('.ant-select-item-option-content');
-        // SR 是第三个稀有度选项
         if (options.length > 2) fireEvent.click(options[2]);
       });
     }
@@ -331,7 +332,7 @@ describe('创建卡牌模板', () => {
     await waitFor(() => {
       expect(createCardTemplate).toHaveBeenCalledWith(
         expect.objectContaining({
-          imageUrl: 'http://example.com/new-card.png',
+          imageFileId: 99,
         }),
       );
       expect(message.success).toHaveBeenCalledWith('创建成功');
@@ -363,12 +364,12 @@ describe('创建卡牌模板', () => {
 });
 
 describe('编辑卡牌模板', () => {
-  it('点击编辑应打开弹窗并预填数据（含 imageUrl）', async () => {
+  it('点击编辑应打开弹窗并预填数据（含 imageFileId）', async () => {
     (listCardTemplates as jest.Mock).mockResolvedValue(
       mockPageResult([mockCardRecord()]),
     );
     (getCardTemplateById as jest.Mock).mockResolvedValue(
-      mockCardDetail({ imageUrl: 'http://example.com/card.png' }),
+      mockCardDetail({ imageFileId: 99 }),
     );
 
     render(<CardTemplate />);
@@ -391,20 +392,20 @@ describe('编辑卡牌模板', () => {
     expect(codeInput.value).toBe('CT001');
     expect(nameInput.value).toBe('测试卡牌');
 
-    // imageUrl 预填
+    // imageFileId 预填（mock 后 input.value 是数字字符串）
     const imageInput = screen.getByTestId('image-upload-field') as HTMLInputElement;
-    expect(imageInput.value).toBe('http://example.com/card.png');
+    expect(imageInput.value).toBe('99');
   });
 
-  it('修改基础字段后提交应调用 updateCardTemplate（含 imageUrl）', async () => {
+  it('修改基础字段后提交应调用 updateCardTemplate（含 imageFileId）', async () => {
     (listCardTemplates as jest.Mock).mockResolvedValue(
       mockPageResult([mockCardRecord()]),
     );
     (getCardTemplateById as jest.Mock).mockResolvedValue(
-      mockCardDetail({ imageUrl: 'http://example.com/card.png' }),
+      mockCardDetail({ imageFileId: 99 }),
     );
     (updateCardTemplate as jest.Mock).mockResolvedValue(
-      mockCardDetail({ id: 1, name: '改名后的卡牌', imageUrl: 'http://example.com/updated.png' }),
+      mockCardDetail({ id: 1, name: '改名后的卡牌', imageFileId: 100 }),
     );
 
     render(<CardTemplate />);
@@ -423,7 +424,7 @@ describe('编辑卡牌模板', () => {
     fireEvent.change(nameInput, { target: { value: '改名后的卡牌' } });
 
     const imageInput = screen.getByTestId('image-upload-field');
-    fireEvent.change(imageInput, { target: { value: 'http://example.com/updated.png' } });
+    fireEvent.change(imageInput, { target: { value: '100' } });
 
     const modal = document.querySelector('.ant-modal')!;
     const submitBtn = modal.querySelector('.ant-btn-primary') as HTMLElement;
@@ -434,7 +435,7 @@ describe('编辑卡牌模板', () => {
         1,
         expect.objectContaining({
           name: '改名后的卡牌',
-          imageUrl: 'http://example.com/updated.png',
+          imageFileId: 100,
         }),
       );
       expect(message.success).toHaveBeenCalledWith('更新成功');
@@ -601,12 +602,12 @@ describe('ImageUploadField 区域', () => {
     expect(imageUploads.length).toBe(1);
   });
 
-  it('打开编辑弹窗时 imageUrl 预填值应来自详情接口', async () => {
+  it('打开编辑弹窗时 imageFileId 预填值应来自详情接口', async () => {
     (listCardTemplates as jest.Mock).mockResolvedValue(
       mockPageResult([mockCardRecord()]),
     );
     (getCardTemplateById as jest.Mock).mockResolvedValue(
-      mockCardDetail({ imageUrl: 'http://example.com/specific-card.png' }),
+      mockCardDetail({ imageFileId: 77 }),
     );
 
     render(<CardTemplate />);
@@ -619,16 +620,16 @@ describe('ImageUploadField 区域', () => {
 
     await waitFor(() => {
       const imageInput = screen.getByTestId('image-upload-field') as HTMLInputElement;
-      expect(imageInput.value).toBe('http://example.com/specific-card.png');
+      expect(imageInput.value).toBe('77');
     });
   });
 
-  it('详情接口无 imageUrl 时应为空', async () => {
+  it('详情接口无 imageFileId 时应为空', async () => {
     (listCardTemplates as jest.Mock).mockResolvedValue(
       mockPageResult([mockCardRecord()]),
     );
     (getCardTemplateById as jest.Mock).mockResolvedValue(
-      mockCardDetail({ imageUrl: undefined }),
+      mockCardDetail({ imageFileId: undefined }),
     );
 
     render(<CardTemplate />);
@@ -642,6 +643,61 @@ describe('ImageUploadField 区域', () => {
     await waitFor(() => {
       const imageInput = screen.getByTestId('image-upload-field') as HTMLInputElement;
       expect(imageInput.value).toBe('');
+    });
+  });
+});
+
+describe('REQ-86 排序与 code 搜索', () => {
+  it('在编码搜索框输入并提交应携带 code 参数', async () => {
+    (listCardTemplates as jest.Mock).mockResolvedValue(mockPageResult([]));
+    (listIpSeries as jest.Mock).mockResolvedValue(mockPageResult([]));
+
+    render(<CardTemplate />);
+
+    await waitFor(() => {
+      expect(screen.getByText('卡牌管理')).toBeInTheDocument();
+    });
+
+    // ProTable 查询表单中"编码"输入框（dataIndex=code 的列自动渲染查询字段）
+    const labels = document.querySelectorAll('.ant-form-item-label');
+    const codeLabel = Array.from(labels).find((el) => el.textContent === '编码');
+    expect(codeLabel).toBeDefined();
+    const codeFormItem = codeLabel?.parentElement?.parentElement;
+    const codeInput = codeFormItem?.querySelector('input') as HTMLInputElement;
+    expect(codeInput).toBeInTheDocument();
+    fireEvent.change(codeInput, { target: { value: 'CT001' } });
+
+    const submitBtn = screen.getByRole('button', { name: /查 询|查询/ });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      const lastCall = (listCardTemplates as jest.Mock).mock.calls.at(-1)?.[0];
+      expect(lastCall).toMatchObject({ code: 'CT001' });
+    });
+  });
+
+  it('点击编码列头排序按钮应携带 sort/order 参数', async () => {
+    (listCardTemplates as jest.Mock).mockResolvedValue(mockPageResult([]));
+    (listIpSeries as jest.Mock).mockResolvedValue(mockPageResult([]));
+
+    const { container } = render(<CardTemplate />);
+
+    await waitFor(() => {
+      expect(screen.getByText('卡牌管理')).toBeInTheDocument();
+    });
+
+    const initialCall = (listCardTemplates as jest.Mock).mock.calls.at(-1)?.[0];
+    expect(initialCall?.sort).toBeUndefined();
+    expect(initialCall?.order).toBeUndefined();
+
+    const sorterBtn = container.querySelector('.ant-table-column-sorter-up') as HTMLElement;
+    expect(sorterBtn).toBeInTheDocument();
+    fireEvent.click(sorterBtn);
+
+    await waitFor(() => {
+      const lastCall = (listCardTemplates as jest.Mock).mock.calls.at(-1)?.[0];
+      expect(lastCall?.sort).toBe('code');
+      expect(lastCall?.order).toBe('asc');
     });
   });
 });

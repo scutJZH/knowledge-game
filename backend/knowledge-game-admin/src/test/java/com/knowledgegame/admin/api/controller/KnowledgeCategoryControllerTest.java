@@ -94,13 +94,32 @@ class KnowledgeCategoryControllerTest {
     void list_shouldReturn200() throws Exception {
         PageResult<KnowledgeCategoryResponse> page = PageResult.<KnowledgeCategoryResponse>builder()
                 .content(List.of()).totalElements(0).pageNumber(0).pageSize(20).totalPages(0).build();
-        when(appService.list(any(), any(), any(), anyInt(), anyInt())).thenReturn(page);
+        when(appService.list(any(), any(), any(), any(), any(), anyInt(), anyInt())).thenReturn(page);
 
         mockMvc.perform(get("/api/admin/knowledge-categories")
                         .param("page", "0")
                         .param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    /**
+     * 分页查询 - sort/order 参数透传到 AppService
+     */
+    @Test
+    void list_shouldPassSortAndOrder() throws Exception {
+        PageResult<KnowledgeCategoryResponse> page = PageResult.<KnowledgeCategoryResponse>builder()
+                .content(List.of()).totalElements(0).pageNumber(0).pageSize(20).totalPages(0).build();
+        when(appService.list(any(), any(), any(), any(), any(), anyInt(), anyInt())).thenReturn(page);
+
+        mockMvc.perform(get("/api/admin/knowledge-categories")
+                        .param("sort", "name")
+                        .param("order", "asc")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk());
+
+        verify(appService).list(eq(null), eq(null), eq(null), eq("name"), eq("asc"), eq(0), eq(20));
     }
 
     /**

@@ -4,6 +4,7 @@ import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,10 +30,11 @@ public interface CardTemplateRepositoryPort {
     Optional<CardTemplate> findByIpSeriesIdAndCode(Long ipSeriesId, String code);
 
     /**
-     * 分页查询（支持名称模糊 + IP 系列 + 稀有度 + 状态筛选）
+     * 分页查询（支持名称/编码模糊 + IP 系列 + 稀有度 + 状态筛选 + 排序）
      */
-    PageResult<CardTemplate> findByConditions(String name, Long ipSeriesId,
+    PageResult<CardTemplate> findByConditions(String name, String code, Long ipSeriesId,
                                               CardRarity rarity, CardTemplateStatus status,
+                                              SortField sortField,
                                               int pageNumber, int pageSize);
 
     /**

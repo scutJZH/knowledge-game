@@ -60,10 +60,14 @@ public class IpSeriesController {
     @GetMapping
     public Result<PageResult<IpSeriesResponse>> list(
             @RequestParam(required = false) String name,
+            @RequestParam(required = false) String code,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String order,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        PageResult<IpSeriesResponse> result = ipSeriesAppService.listIpSeries(name, status, page, size);
+        PageResult<IpSeriesResponse> result = ipSeriesAppService.listIpSeries(
+                name, code, status, sort, order, page, size);
         return Result.success(result);
     }
 

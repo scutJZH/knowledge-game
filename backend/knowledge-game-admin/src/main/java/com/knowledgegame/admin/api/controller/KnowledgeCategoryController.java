@@ -69,9 +69,11 @@ public class KnowledgeCategoryController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long parentId,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String order,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        PageResult<KnowledgeCategoryResponse> result = appService.list(keyword, status, parentId, page, size);
+        PageResult<KnowledgeCategoryResponse> result = appService.list(keyword, status, parentId, sort, order, page, size);
         return Result.success(result);
     }
 

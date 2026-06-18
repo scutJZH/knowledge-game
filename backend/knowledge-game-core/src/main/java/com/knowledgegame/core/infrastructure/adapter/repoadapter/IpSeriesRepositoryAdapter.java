@@ -3,7 +3,10 @@ package com.knowledgegame.core.infrastructure.adapter.repoadapter;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.domain.spec.SortFieldSpec;
+import com.knowledgegame.core.infrastructure.adapter.support.SortFields;
 import com.knowledgegame.core.infrastructure.db.converter.IpSeriesConverter;
 import com.knowledgegame.core.infrastructure.db.entity.IpSeriesPO;
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesJpaRepository;
@@ -17,12 +20,18 @@ import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * IP 系列仓储适配器（实现领域层出端口，注入 JPA Repository）
  */
 @Repository
 public class IpSeriesRepositoryAdapter implements IpSeriesRepositoryPort {
+
+    /**
+     * 列表查询允许的排序字段白名单（PO 字段名）
+     */
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("code", "name", "status", "createdAt", "updatedAt");
 
     private final IpSeriesJpaRepository ipSeriesJpaRepository;
 
@@ -60,20 +69,24 @@ public class IpSeriesRepositoryAdapter implements IpSeriesRepositoryPort {
     }
 
     @Override
-    public PageResult<IpSeries> findByConditions(String name, IpSeriesStatus status,
-                                                  int pageNumber, int pageSize) {
+    public PageResult<IpSeries> findByConditions(String name, String code, IpSeriesStatus status,
+                                                  SortField sortField, int pageNumber, int pageSize) {
         Specification<IpSeriesPO> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (name != null && !name.isBlank()) {
                 predicates.add(cb.like(root.get("name"), "%" + name + "%"));
+            }
+            if (code != null && !code.isBlank()) {
+                predicates.add(cb.like(root.get("code"), "%" + code + "%"));
             }
             if (status != null) {
                 predicates.add(cb.equal(root.get("status"), status));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+        Sort springSort = toSpringSort(sortField);
         Page<IpSeriesPO> springPage = ipSeriesJpaRepository.findAll(spec,
-                PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(pageNumber, pageSize, springSort));
         return PageResult.<IpSeries>builder()
                 .content(springPage.getContent().stream()
                         .map(IpSeriesConverter.INSTANCE::toDomain).toList())
@@ -82,6 +95,20 @@ public class IpSeriesRepositoryAdapter implements IpSeriesRepositoryPort {
                 .pageSize(springPage.getSize())
                 .totalPages(springPage.getTotalPages())
                 .build();
+    }
+
+    /**
+     * 将领域排序字段转为 Spring Data Sort
+     * <p>
+     * 非法字段由 SortFieldSpec.validate 抛 BusinessException(400)。
+     * sortField 为 null 时使用默认 createdAt DESC。
+     */
+    private Sort toSpringSort(SortField sortField) {
+        SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
+        if (validated == null) {
+            return Sort.by(Sort.Direction.DESC, "createdAt");
+        }
+        return SortFields.toSpringSort(validated);
     }
 
     @Override

@@ -64,13 +64,16 @@ public class CardTemplateController {
     @GetMapping
     public Result<PageResult<CardTemplateListResponse>> list(
             @RequestParam(required = false) String name,
+            @RequestParam(required = false) String code,
             @RequestParam(required = false) Long ipSeriesId,
             @RequestParam(required = false) String rarity,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String order,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         PageResult<CardTemplateListResponse> result = cardTemplateAppService.listCardTemplates(
-                name, ipSeriesId, rarity, status, page, size);
+                name, code, ipSeriesId, rarity, status, sort, order, page, size);
         return Result.success(result);
     }
 
