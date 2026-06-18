@@ -7,7 +7,7 @@ import CategoryDetailPanel from './components/CategoryDetail';
 import CategoryFormModal from './components/CategoryFormModal';
 import MoveModal from './components/MoveModal';
 
-const KnowledgeBase: React.FC = () => {
+const Category: React.FC = () => {
   // 分类树数据
   const [treeData, setTreeData] = useState<CategoryTreeNode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -196,4 +196,4 @@ function findNodeById(
   return null;
 }
 
-export default KnowledgeBase;
+export default Category;
