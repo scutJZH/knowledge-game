@@ -1,0 +1,328 @@
+package com.knowledgegame.admin.application.service;
+
+import com.knowledgegame.admin.api.dto.request.BatchSortItem;
+import com.knowledgegame.admin.api.dto.request.BatchSortRequest;
+import com.knowledgegame.admin.api.dto.request.CreateKnowledgeItemRequest;
+import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeItemRequest;
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
+import com.knowledgegame.components.feign.client.FileServiceClient;
+import com.knowledgegame.components.feign.dto.FileInfoResponse;
+import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.common.result.Result;
+import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
+import com.knowledgegame.core.domain.model.domainenum.KnowledgeItemStatus;
+import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
+import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
+import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
+import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
+import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
+import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
+import com.knowledgegame.core.infrastructure.markdown.MarkdownRenderer;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class KnowledgeItemAppServiceTest {
+
+    @Mock
+    private KnowledgeItemRepository itemRepository;
+
+    @Mock
+    private KnowledgeItemDomainService itemDomainService;
+
+    @Mock
+    private KnowledgeCategoryRepositoryPort categoryRepositoryPort;
+
+    @Mock
+    private FileServiceClient fileServiceClient;
+
+    @Mock
+    private MarkdownRenderer markdownRenderer;
+
+    @InjectMocks
+    private KnowledgeItemAppService appService;
+
+    /**
+     * create - 正常创建
+     */
+    @Test
+    void create_shouldSucceed() {
+        CreateKnowledgeItemRequest req = buildCreateRequest();
+        KnowledgeItem item = buildItem(1L);
+        when(markdownRenderer.render(anyString())).thenReturn("<p>内容</p>");
+        when(itemDomainService.validateAndCreate(anyString(), anyString(), any(), anyList(), anyInt(), anyList()))
+                .thenReturn(item);
+        when(itemRepository.save(any())).thenReturn(item);
+        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of(1L));
+
+        KnowledgeItemResponse response = appService.create(req);
+
+        assertNotNull(response);
+        assertEquals(1L, response.getId());
+        assertEquals(List.of(1L), response.getCategoryIds());
+        verify(itemRepository).saveCategoryRelations(anyLong(), anyList());
+    }
+
+    /**
+     * create - Markdown 渲染调用
+     */
+    @Test
+    void create_shouldRenderMarkdown() {
+        CreateKnowledgeItemRequest req = buildCreateRequest();
+        KnowledgeItem item = buildItem(1L);
+        when(markdownRenderer.render("内容")).thenReturn("<p>内容</p>");
+        when(itemDomainService.validateAndCreate(anyString(), anyString(), any(), anyList(), anyInt(), anyList()))
+                .thenReturn(item);
+        when(itemRepository.save(any())).thenReturn(item);
+        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of());
+
+        appService.create(req);
+
+        verify(markdownRenderer).render("内容");
+    }
+
+    /**
+     * getById - 存在
+     */
+    @Test
+    void getById_shouldReturn_whenExists() {
+        KnowledgeItem item = buildItem(1L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of(1L, 2L));
+
+        KnowledgeItemResponse response = appService.getById(1L);
+
+        assertNotNull(response);
+        assertEquals(List.of(1L, 2L), response.getCategoryIds());
+    }
+
+    /**
+     * getById - 不存在抛异常
+     */
+    @Test
+    void getById_shouldThrow_whenNotExists() {
+        when(itemRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThrows(BusinessException.class, () -> appService.getById(999L));
+    }
+
+    /**
+     * delete - 调 domainService.validateDelete + deactivate
+     */
+    @Test
+    void delete_shouldDeactivate() {
+        KnowledgeItem item = buildItem(1L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(itemRepository.save(any())).thenReturn(item);
+
+        appService.delete(1L);
+
+        assertEquals(KnowledgeItemStatus.INACTIVE, item.getStatus());
+    }
+
+    /**
+     * batchActivate - 全部 ACTIVE 通过
+     */
+    @Test
+    void batchActivate_shouldSucceed() {
+        KnowledgeItem item = buildItem(1L);
+        when(itemRepository.findByIds(List.of(1L))).thenReturn(List.of(item));
+        when(itemRepository.findCategoryIdsByItemIds(List.of(1L))).thenReturn(Map.of(1L, List.of(10L)));
+        KnowledgeCategory cat = buildCategory(10L, "分类", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAllByIdIn(List.of(10L))).thenReturn(List.of(cat));
+
+        appService.batchActivate(List.of(1L));
+
+        verify(itemRepository).batchUpdateStatus(List.of(1L), KnowledgeItemStatus.ACTIVE);
+    }
+
+    /**
+     * batchActivate - ID 不匹配抛异常
+     */
+    @Test
+    void batchActivate_shouldThrow_whenIdMismatch() {
+        when(itemRepository.findByIds(List.of(1L, 2L))).thenReturn(List.of(buildItem(1L)));
+
+        assertThrows(BusinessException.class, () -> appService.batchActivate(List.of(1L, 2L)));
+    }
+
+    /**
+     * batchDeactivate
+     */
+    @Test
+    void batchDeactivate_shouldSucceed() {
+        appService.batchDeactivate(List.of(1L, 2L));
+
+        verify(itemRepository).batchUpdateStatus(List.of(1L, 2L), KnowledgeItemStatus.INACTIVE);
+    }
+
+    /**
+     * batchSort - 逐条更新排序号
+     */
+    @Test
+    void batchSort_shouldUpdateSortOrder() {
+        KnowledgeItem item1 = buildItem(1L);
+        KnowledgeItem item2 = buildItem(2L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item1));
+        when(itemRepository.findById(2L)).thenReturn(Optional.of(item2));
+        when(itemRepository.save(any())).thenReturn(item1, item2);
+
+        BatchSortItem si1 = new BatchSortItem();
+        si1.setId(1L);
+        si1.setSortOrder(3);
+        BatchSortItem si2 = new BatchSortItem();
+        si2.setId(2L);
+        si2.setSortOrder(5);
+        BatchSortRequest req = new BatchSortRequest();
+        req.setItems(List.of(si1, si2));
+        appService.batchSort(req);
+
+        assertEquals(3, item1.getSortOrder());
+        assertEquals(5, item2.getSortOrder());
+        verify(itemRepository).save(item1);
+        verify(itemRepository).save(item2);
+    }
+
+    /**
+     * batchSort - 不存在抛异常
+     */
+    @Test
+    void batchSort_shouldThrow_whenNotExists() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.empty());
+
+        BatchSortItem si = new BatchSortItem();
+        si.setId(1L);
+        si.setSortOrder(1);
+        BatchSortRequest req = new BatchSortRequest();
+        req.setItems(List.of(si));
+        assertThrows(BusinessException.class, () -> appService.batchSort(req));
+    }
+
+    /**
+     * list - 分页查询
+     */
+    @Test
+    void list_shouldReturnPage() {
+        KnowledgeItem item = buildItem(1L);
+        PageResult<KnowledgeItem> domainPage = PageResult.<KnowledgeItem>builder()
+                .content(List.of(item)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+        when(itemRepository.findByConditions(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(domainPage);
+        when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
+                .thenReturn(Map.of(1L, List.of(10L)));
+
+        PageResult<KnowledgeItemResponse> result = appService.list(
+                null, null, null, null, null, null, 0, 20);
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals(List.of(10L), result.getContent().get(0).getCategoryIds());
+    }
+
+    /**
+     * update - content 变更时重新渲染
+     */
+    @Test
+    void update_shouldReRender_whenContentChanged() {
+        UpdateKnowledgeItemRequest req = new UpdateKnowledgeItemRequest();
+        req.setContent("新内容");
+        KnowledgeItem item = buildItem(1L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(markdownRenderer.render("新内容")).thenReturn("<p>新</p>");
+        when(itemRepository.save(any())).thenReturn(item);
+        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of());
+
+        appService.update(1L, req);
+
+        verify(markdownRenderer).render("新内容");
+    }
+
+    /**
+     * update - content 不变时不重新渲染
+     */
+    @Test
+    void update_shouldNotReRender_whenContentNull() {
+        UpdateKnowledgeItemRequest req = new UpdateKnowledgeItemRequest();
+        req.setTitle("新标题");
+        KnowledgeItem item = buildItem(1L);
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        when(itemRepository.save(any())).thenReturn(item);
+        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of());
+
+        appService.update(1L, req);
+
+        verify(markdownRenderer, never()).render(anyString());
+    }
+
+    /**
+     * getCategoryIds
+     */
+    @Test
+    void getCategoryIds_shouldReturn() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(buildItem(1L)));
+        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of(10L, 20L));
+
+        List<Long> result = appService.getCategoryIds(1L);
+
+        assertEquals(List.of(10L, 20L), result);
+    }
+
+    /**
+     * updateCategories
+     */
+    @Test
+    void updateCategories_shouldReplace() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(buildItem(1L)));
+        KnowledgeCategory cat = buildCategory(10L, "分类", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findById(10L)).thenReturn(Optional.of(cat));
+
+        appService.updateCategories(1L, List.of(10L));
+
+        verify(itemRepository).saveCategoryRelations(1L, List.of(10L));
+    }
+
+    private CreateKnowledgeItemRequest buildCreateRequest() {
+        CreateKnowledgeItemRequest req = new CreateKnowledgeItemRequest();
+        req.setTitle("标题");
+        req.setContent("内容");
+        req.setCoverImageFileId(null);
+        req.setTags(List.of("Java"));
+        req.setSortOrder(0);
+        req.setCategoryIds(List.of(1L));
+        return req;
+    }
+
+    private KnowledgeItem buildItem(Long id) {
+        return KnowledgeItem.reconstruct(id, "标题", "内容", "<p>内容</p>",
+                null, List.of("Java"), 0,
+                KnowledgeItemStatus.ACTIVE,
+                LocalDateTime.now(), LocalDateTime.now());
+    }
+
+    private KnowledgeCategory buildCategory(Long id, String name, KnowledgeCategoryStatus status) {
+        return KnowledgeCategory.reconstruct(id, null, name, null, null, null, null, 0,
+                status, null, null);
+    }
+}

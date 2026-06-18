@@ -39,6 +39,11 @@ export default [
         name: '分类管理',
         component: './Category',
       },
+      {
+        path: '/content/knowledge-item',
+        name: '知识条目管理',
+        component: './KnowledgeItem',
+      },
     ],
   },
   {
