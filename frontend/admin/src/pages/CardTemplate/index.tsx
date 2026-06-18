@@ -102,7 +102,7 @@ const CardTemplate: React.FC = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const columns: ProColumns<CardTemplateListResponse>[] = [
-    { title: 'ID', dataIndex: 'id', search: false, width: 80 },
+    { title: 'ID', dataIndex: 'id', search: false, width: 80, sorter: true },
     { title: '编码', dataIndex: 'code', sorter: true },
     { title: '名称', dataIndex: 'name', sorter: true },
     {

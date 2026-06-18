@@ -78,6 +78,7 @@ const QuestionBank: React.FC = () => {
         valueEnum: Object.fromEntries(
           QUESTION_TYPE_OPTIONS.map((o) => [o.value, { text: o.label }]),
         ),
+        sorter: true,
         render: (_, record) => {
           const opt = QUESTION_TYPE_OPTIONS.find((o) => o.value === record.type);
           return <Tag color={opt?.color}>{opt?.label || record.type}</Tag>;
