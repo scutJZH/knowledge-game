@@ -33,10 +33,10 @@ public class UserConverter {
         po.setUsername(user.getUsername());
         po.setPasswordHash(user.getPasswordHash());
         po.setNickname(user.getNickname());
-        if (user.getAvatar() != null) {
-            po.setAvatarFileId(fileIdOf(user.getAvatar()));
-            po.setAvatar(urlOf(user.getAvatar()));
-        }
+        // avatar 是 nullable，必须无条件写回 null，
+        // 否则领域 clearAvatar() 调用产生的 null 会被吞掉，导致「无法清空头像」bug
+        po.setAvatarFileId(fileIdOf(user.getAvatar()));
+        po.setAvatar(urlOf(user.getAvatar()));
         po.setRole(user.getRole());
         po.setUpdatedAt(user.getUpdatedAt());
     }

@@ -27,6 +27,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +38,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -116,6 +118,13 @@ public class QuestionAppService {
 
     /**
      * 更新题目
+     * <p>
+     * 接收整个 Request DTO（不逐字段拆包），以便解析 JsonNullable 三态：
+     * - undefined：不更新
+     * - of(null)：清空
+     * - of(value)：更新为新值
+     * <p>
+     * 注意：分类关联（categoryIds）通过独立的 PUT /questions/{id}/categories 接口更新，不在本方法处理。
      */
     @Transactional
     public QuestionResponse update(Long id, UpdateQuestionRequest request) {
@@ -127,14 +136,40 @@ public class QuestionAppService {
         Difficulty difficulty = request.getDifficulty() != null
                 ? Difficulty.fromLevel(request.getDifficulty()) : null;
 
+        // tags 仅在 present 时才需校验（undefined 跳过；null 表示清空，无需校验内容）
+        List<String> tagsForValidation = request.getTags().isPresent() ? request.getTags().get() : null;
         questionDomainService.validateUpdate(question, request.getContent(),
-                options, request.getAnswer(), request.getTags());
+                options, request.getAnswer(), tagsForValidation);
 
-        question.update(request.getContent(), options, request.getAnswer(),
-                difficulty, request.getExplanation(), request.getTags());
+        // 必填字段：null=不更新
+        question.update(request.getContent(), options, request.getAnswer(), difficulty);
+
+        // 可清空字段：三态分派
+        applyField(request.getExplanation(), question::clearExplanation, question::updateExplanation);
+        applyField(request.getTags(), question::clearTags, question::updateTags);
+
         Question saved = questionRepository.save(question);
 
         return toResponseWithCategories(saved);
+    }
+
+    /**
+     * 三态分派工具：处理 JsonNullable<T> 字段
+     * <p>
+     * - undefined：跳过（不更新）
+     * - of(null)：调用 clear
+     * - of(value)：调用 update
+     */
+    private static <T> void applyField(JsonNullable<T> field, Runnable clear, Consumer<T> update) {
+        if (field == null || !field.isPresent()) {
+            return;
+        }
+        T value = field.get();
+        if (value == null) {
+            clear.run();
+        } else {
+            update.accept(value);
+        }
     }
 
     /**

@@ -49,23 +49,19 @@ public interface KnowledgeCategoryConverter {
     }
 
     default void updatePO(@MappingTarget KnowledgeCategoryPO po, KnowledgeCategory domain) {
+        // name 是 NOT NULL 字段，保留 if-null 守卫作为防御（万一 domain.name 为 null 不至于触发 DB 异常）
         if (domain.getName() != null) {
             po.setName(domain.getName());
         }
-        if (domain.getDescription() != null) {
-            po.setDescription(domain.getDescription());
-        }
-        if (domain.getIcon() != null) {
-            po.setIconFileId(fileIdOf(domain.getIcon()));
-            po.setIconUrl(urlOf(domain.getIcon()));
-        }
-        if (domain.getColor() != null) {
-            po.setColor(domain.getColor());
-        }
-        if (domain.getCoverImage() != null) {
-            po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
-            po.setCoverImageUrl(urlOf(domain.getCoverImage()));
-        }
+        // 以下字段都是 nullable，必须无条件写回 null，
+        // 否则领域 clearXxx() 调用产生的 null 会被吞掉，导致「无法清空」bug
+        po.setDescription(domain.getDescription());
+        po.setIconFileId(fileIdOf(domain.getIcon()));
+        po.setIconUrl(urlOf(domain.getIcon()));
+        po.setColor(domain.getColor());
+        po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
+        po.setCoverImageUrl(urlOf(domain.getCoverImage()));
+        // status 是 NOT NULL 字段，保留 if-null 守卫作为防御
         if (domain.getStatus() != null) {
             po.setStatus(domain.getStatus());
         }

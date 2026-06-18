@@ -38,14 +38,17 @@ export interface CreateQuestionRequest {
   categoryIds?: number[];
 }
 
-/** 更新题目请求（不含 type 和 categoryIds，分类单独 PUT） */
+/** 更新题目请求（不含 type 和 categoryIds，分类单独 PUT）
+ *  explanation / tags 支持 null 表示清空（REQ-88 三态语义）。
+ *  字段缺失（undefined）= 不更新；显式 null = 清空；有值 = 更新为新值。
+ */
 export interface UpdateQuestionRequest {
   content?: string;
   options?: QuestionOption[] | null;
   answer?: string;
   difficulty?: 1 | 2 | 3;
-  explanation?: string;
-  tags?: string[];
+  explanation?: string | null;
+  tags?: string[] | null;
 }
 
 /** 分页查询参数 */

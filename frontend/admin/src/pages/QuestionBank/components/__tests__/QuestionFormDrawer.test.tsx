@@ -149,6 +149,51 @@ describe('QuestionFormDrawer — 提交编排', () => {
     expect(onSubmit).toHaveBeenCalled();
   });
 
+  it('编辑提交空 explanation/tags 时 payload 应显式传 null（REQ-88 三态语义）', async () => {
+    mockUpdateQuestion.mockResolvedValue({ id: 1 });
+    mockUpdateQuestionCategories.mockResolvedValue(undefined);
+    const user = userEvent.setup();
+
+    render(
+      <QuestionFormDrawer
+        open={true}
+        mode="edit"
+        initialValues={{
+          id: 1,
+          type: 'TRUE_FALSE',
+          content: 'Is Java compiled?',
+          options: null,
+          answer: 'true',
+          explanation: '',
+          difficulty: 2,
+          tags: [],
+          status: 'ACTIVE',
+          categoryIds: [],
+          createdAt: 0,
+          updatedAt: 0,
+        }}
+        categoryTree={emptyTree}
+        onSubmit={jest.fn()}
+        onClose={jest.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('对')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText('提 交'));
+
+    await waitFor(() => {
+      expect(mockUpdateQuestion).toHaveBeenCalledTimes(1);
+    });
+    // REQ-88 三态语义：空字符串 explanation / 空数组 tags 应显式序列化为 null
+    // （而不是 undefined，否则 axios 会省略字段，后端无法区分「不更新」与「清空」）
+    const payload = mockUpdateQuestion.mock.calls[0][1];
+    expect(payload).toHaveProperty('explanation', null);
+    expect(payload).toHaveProperty('tags', null);
+  });
+
   it('创建提交失败时不应关闭 Drawer', async () => {
     mockCreateQuestion.mockRejectedValue(new Error('后端错误'));
     const user = userEvent.setup();

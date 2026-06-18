@@ -277,11 +277,13 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
 
       if (isEdit && initialValues) {
         // 编辑模式：两次请求
+        // explanation / tags 显式传 null 表示清空，axios 会序列化为 "field": null
+        // （REQ-88 三态语义：undefined=不更新、null=清空、值=更新）
         const body: UpdateQuestionRequest = {
           content: values.content,
           difficulty: values.difficulty as 1 | 2 | 3,
-          explanation: values.explanation || undefined,
-          tags: values.tags?.length ? values.tags : undefined,
+          explanation: values.explanation || null,
+          tags: values.tags?.length ? values.tags : null,
           options: null,
           answer: serializeAnswer(values.type, answer),
         };
@@ -304,7 +306,7 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
 
         message.success('更新成功');
       } else {
-        // 创建模式：一次性提交
+        // 创建模式：一次性提交（CreateQuestionRequest 不支持三态，沿用旧 undefined 语义）
         const body: CreateQuestionRequest = {
           type: values.type as CreateQuestionRequest['type'],
           content: values.content,

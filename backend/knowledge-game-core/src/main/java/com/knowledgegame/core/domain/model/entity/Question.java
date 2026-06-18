@@ -71,10 +71,12 @@ public class Question {
     }
 
     /**
-     * 更新题目信息
+     * 更新必填字段（不支持清空）。可清空字段（explanation/tags）请用对应的 updateXxx / clearXxx 方法。
+     * <p>
+     * 各字段 null=不更新（沿用 REQ-88 必填字段语义）。
      */
     public void update(String content, List<QuestionOption> options, String answer,
-                       Difficulty difficulty, String explanation, List<String> tags) {
+                       Difficulty difficulty) {
         if (content != null) {
             this.content = content;
         }
@@ -87,12 +89,48 @@ public class Question {
         if (difficulty != null) {
             this.difficulty = difficulty;
         }
-        if (explanation != null) {
-            this.explanation = explanation;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 更新解析（清空请用 clearExplanation）
+     *
+     * @throws IllegalArgumentException explanation 为 null 时抛出
+     */
+    public void updateExplanation(String explanation) {
+        if (explanation == null) {
+            throw new IllegalArgumentException("explanation 清空请用 clearExplanation()");
         }
-        if (tags != null) {
-            this.tags = tags;
+        this.explanation = explanation;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 清空解析
+     */
+    public void clearExplanation() {
+        this.explanation = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 更新标签列表（清空请用 clearTags）
+     *
+     * @throws IllegalArgumentException tags 为 null 时抛出（清空意图请显式调用 clearTags()）
+     */
+    public void updateTags(List<String> tags) {
+        if (tags == null) {
+            throw new IllegalArgumentException("tags 清空请用 clearTags()");
         }
+        this.tags = tags;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 清空标签列表
+     */
+    public void clearTags() {
+        this.tags = null;
         this.updatedAt = LocalDateTime.now();
     }
 

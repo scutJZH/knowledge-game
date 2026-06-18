@@ -40,15 +40,16 @@ public interface CardTemplateConverter {
 
     default void updatePO(@MappingTarget CardTemplatePO po, CardTemplate domain) {
         if (domain == null) return;
+        // code/name/rarity/status 是 NOT NULL 字段，保留 if-null 守卫作为防御
         if (domain.getCode() != null) po.setCode(domain.getCode());
         if (domain.getName() != null) po.setName(domain.getName());
         if (domain.getRarity() != null) po.setRarity(domain.getRarity());
-        if (domain.getDescription() != null) po.setDescription(domain.getDescription());
+        // description / image 是 nullable，必须无条件写回 null，
+        // 否则领域 clearXxx() 调用产生的 null 会被吞掉，导致「无法清空」bug
+        po.setDescription(domain.getDescription());
         if (domain.getStatus() != null) po.setStatus(domain.getStatus());
-        if (domain.getImage() != null) {
-            po.setImageFileId(fileIdOf(domain.getImage()));
-            po.setImageUrl(urlOf(domain.getImage()));
-        }
+        po.setImageFileId(fileIdOf(domain.getImage()));
+        po.setImageUrl(urlOf(domain.getImage()));
         po.setUpdatedAt(domain.getUpdatedAt());
     }
 

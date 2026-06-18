@@ -59,19 +59,18 @@ public interface IpSeriesConverter {
      * 用领域模型更新已有 PO（显式赋值双字段，不依赖 MapStruct IGNORE 策略）
      */
     default void updatePO(@MappingTarget IpSeriesPO po, IpSeries domain) {
+        // code/name/status 是 NOT NULL 字段，保留 if-null 守卫作为防御
         if (domain.getCode() != null) {
             po.setCode(domain.getCode());
         }
         if (domain.getName() != null) {
             po.setName(domain.getName());
         }
-        if (domain.getDescription() != null) {
-            po.setDescription(domain.getDescription());
-        }
-        if (domain.getCoverImage() != null) {
-            po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
-            po.setCoverImageUrl(urlOf(domain.getCoverImage()));
-        }
+        // description / coverImage 是 nullable，必须无条件写回 null，
+        // 否则领域 clearXxx() 调用产生的 null 会被吞掉，导致「无法清空」bug
+        po.setDescription(domain.getDescription());
+        po.setCoverImageFileId(fileIdOf(domain.getCoverImage()));
+        po.setCoverImageUrl(urlOf(domain.getCoverImage()));
         if (domain.getStatus() != null) {
             po.setStatus(domain.getStatus());
         }

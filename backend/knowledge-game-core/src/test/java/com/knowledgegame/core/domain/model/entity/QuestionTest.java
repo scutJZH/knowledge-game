@@ -12,6 +12,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -106,7 +107,7 @@ class QuestionTest {
     }
 
     /**
-     * update - 更新题目信息
+     * update - 更新题目必填字段，explanation/tags 用独立方法更新
      */
     @Test
     void update_shouldModifyFields() {
@@ -118,7 +119,9 @@ class QuestionTest {
 
         question.update("新题目",
                 List.of(QuestionOption.of("A", "A"), QuestionOption.of("B", "B"), QuestionOption.of("C", "C")),
-                "B", Difficulty.HARD, "新解析", List.of("Java"));
+                "B", Difficulty.HARD);
+        question.updateExplanation("新解析");
+        question.updateTags(List.of("Java"));
 
         assertEquals("新题目", question.getContent());
         assertEquals(3, question.getOptions().size());
@@ -259,7 +262,7 @@ class QuestionTest {
     }
 
     /**
-     * update - 传入 null 字段不修改原值
+     * update - 必填字段 null=不更新，原值保持
      */
     @Test
     void update_shouldNotModify_whenNullFields() {
@@ -269,11 +272,12 @@ class QuestionTest {
                 "A", Difficulty.EASY, "原始解析", List.of("原始标签")
         );
 
-        question.update(null, null, null, null, null, null);
+        question.update(null, null, null, null);
 
         assertEquals("原始题目", question.getContent());
         assertEquals("A", question.getAnswer());
         assertEquals(Difficulty.EASY, question.getDifficulty());
+        // explanation/tags 不在 update 方法处理范围内（用专门方法）
         assertEquals("原始解析", question.getExplanation());
         assertEquals(List.of("原始标签"), question.getTags());
     }
@@ -289,7 +293,7 @@ class QuestionTest {
                 "A", Difficulty.EASY, null, null
         );
 
-        question.update("新题目", null, "B", null, null, null);
+        question.update("新题目", null, "B", null);
 
         assertEquals("新题目", question.getContent());
         assertEquals("B", question.getAnswer());
@@ -299,18 +303,112 @@ class QuestionTest {
     }
 
     /**
-     * update - 传入空标签列表应覆盖原标签
+     * updateExplanation - 正常更新解析
      */
     @Test
-    void update_shouldReplaceTags_whenEmptyList() {
+    void updateExplanation_shouldSetExplanation() {
+        Question question = Question.create(
+                QuestionType.TRUE_FALSE, "题目", null, "true",
+                Difficulty.EASY, null, null
+        );
+
+        question.updateExplanation("新解析");
+
+        assertEquals("新解析", question.getExplanation());
+    }
+
+    /**
+     * updateExplanation - null 抛 IllegalArgumentException
+     */
+    @Test
+    void updateExplanation_shouldThrow_whenNull() {
+        Question question = Question.create(
+                QuestionType.TRUE_FALSE, "题目", null, "true",
+                Difficulty.EASY, "旧解析", null
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> question.updateExplanation(null));
+        assertTrue(ex.getMessage().contains("clearExplanation"));
+        // 原值不变
+        assertEquals("旧解析", question.getExplanation());
+    }
+
+    /**
+     * clearExplanation - 清空解析
+     */
+    @Test
+    void clearExplanation_shouldSetNull() {
+        Question question = Question.create(
+                QuestionType.TRUE_FALSE, "题目", null, "true",
+                Difficulty.EASY, "旧解析", null
+        );
+
+        question.clearExplanation();
+
+        assertNull(question.getExplanation());
+    }
+
+    /**
+     * updateTags - 正常更新标签
+     */
+    @Test
+    void updateTags_shouldSetTags() {
         Question question = Question.create(
                 QuestionType.TRUE_FALSE, "题目", null, "true",
                 Difficulty.EASY, null, List.of("旧标签")
         );
 
-        question.update(null, null, null, null, null, List.of());
+        question.updateTags(List.of("新标签1", "新标签2"));
+
+        assertEquals(List.of("新标签1", "新标签2"), question.getTags());
+    }
+
+    /**
+     * updateTags - 传入空列表应覆盖原标签（与 clearTags 区分：空列表 ≠ null）
+     */
+    @Test
+    void updateTags_shouldReplaceWithEmptyList() {
+        Question question = Question.create(
+                QuestionType.TRUE_FALSE, "题目", null, "true",
+                Difficulty.EASY, null, List.of("旧标签")
+        );
+
+        question.updateTags(List.of());
 
         assertEquals(List.of(), question.getTags());
+    }
+
+    /**
+     * updateTags - null 抛 IllegalArgumentException
+     */
+    @Test
+    void updateTags_shouldThrow_whenNull() {
+        Question question = Question.create(
+                QuestionType.TRUE_FALSE, "题目", null, "true",
+                Difficulty.EASY, null, List.of("旧标签")
+        );
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> question.updateTags(null));
+        assertTrue(ex.getMessage().contains("clearTags"));
+        // 原值不变
+        assertEquals(List.of("旧标签"), question.getTags());
+    }
+
+    /**
+     * clearTags - 清空标签（tags 设为 null，区别于空列表）
+     */
+    @Test
+    void clearTags_shouldSetNull() {
+        Question question = Question.create(
+                QuestionType.TRUE_FALSE, "题目", null, "true",
+                Difficulty.EASY, null, List.of("旧标签")
+        );
+
+        question.clearTags();
+
+        assertNull(question.getTags());
     }
 
     /**
