@@ -1,5 +1,6 @@
 package com.knowledgegame.admin.application.service;
 
+import com.knowledgegame.admin.api.dto.request.UpdateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
 import com.knowledgegame.components.feign.client.FileServiceClient;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -144,20 +146,89 @@ class CardTemplateAppServiceTest {
 
     @Test
     @DisplayName("更新卡牌模板 - 正常更新")
-    void updateCardTemplate_shouldSucceed() {
+    void update_shouldSucceed() {
         Long id = 1L;
         CardTemplate existing = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
         when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-        CardTemplate saved = buildCardTemplate(id, "PIKACHU", "皮卡丘-改", CardRarity.SSR, CardTemplateStatus.ACTIVE);
-        when(cardTemplateRepositoryPort.save(any())).thenReturn(saved);
+        when(cardTemplateRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影忍者")));
 
-        CardTemplateResponse result = cardTemplateAppService.updateCardTemplate(
-                id, null, "皮卡丘-改", CardRarity.SSR, null, CardTemplateStatus.ACTIVE, null);
+        UpdateCardTemplateRequest req = new UpdateCardTemplateRequest();
+        req.setName("皮卡丘-改");
+        req.setRarity(CardRarity.SSR);
+
+        CardTemplateResponse result = cardTemplateAppService.update(id, req);
 
         assertNotNull(result);
-        assertEquals("皮卡丘-改", result.getName());
-        assertEquals("SSR", result.getRarity());
+        assertEquals("皮卡丘-改", existing.getName());
+        assertEquals(CardRarity.SSR, existing.getRarity());
+    }
+
+    /**
+     * 三态场景 1：可清空字段 undefined → 保持原值
+     */
+    @Test
+    @DisplayName("更新卡牌模板 - 可清空字段 undefined 时保持原值")
+    void update_shouldSkipClearableFields_whenAllUndefined() {
+        Long id = 1L;
+        CardTemplate existing = CardTemplate.reconstruct(id, 1L, "CODE", "皮卡丘", CardRarity.N,
+                "原描述", CardTemplateStatus.ACTIVE, FileRef.of(1L, "/static/old.png"),
+                LocalDateTime.now(), LocalDateTime.now());
+        when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        when(cardTemplateRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影")));
+
+        UpdateCardTemplateRequest req = new UpdateCardTemplateRequest();
+        // 所有 JsonNullable 字段未设置
+
+        cardTemplateAppService.update(id, req);
+
+        assertEquals("原描述", existing.getDescription());
+        assertEquals(FileRef.of(1L, "/static/old.png"), existing.getImage());
+    }
+
+    /**
+     * 三态场景 2：JsonNullable.of(null) → 调 clearXxx
+     */
+    @Test
+    @DisplayName("更新卡牌模板 - of(null) 调 clearXxx")
+    void update_shouldCallClear_whenFieldsAreNull() {
+        Long id = 1L;
+        CardTemplate existing = CardTemplate.reconstruct(id, 1L, "CODE", "皮卡丘", CardRarity.N,
+                "原描述", CardTemplateStatus.ACTIVE, FileRef.of(1L, "/static/old.png"),
+                LocalDateTime.now(), LocalDateTime.now());
+        when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        when(cardTemplateRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影")));
+
+        UpdateCardTemplateRequest req = new UpdateCardTemplateRequest();
+        req.setDescription(JsonNullable.of(null));
+        req.setImageFileId(JsonNullable.of(null));
+
+        cardTemplateAppService.update(id, req);
+
+        assertNull(existing.getDescription());
+        assertNull(existing.getImage());
+    }
+
+    /**
+     * 三态场景 3：JsonNullable.of(value) String 字段 → 调 updateXxx(value)
+     */
+    @Test
+    @DisplayName("更新卡牌模板 - of(value) String 字段调 updateXxx")
+    void update_shouldCallUpdate_whenStringFieldHasValue() {
+        Long id = 1L;
+        CardTemplate existing = buildCardTemplate(id, "CODE", "皮卡丘", CardRarity.N, CardTemplateStatus.ACTIVE);
+        when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        when(cardTemplateRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影")));
+
+        UpdateCardTemplateRequest req = new UpdateCardTemplateRequest();
+        req.setDescription(JsonNullable.of("新描述"));
+
+        cardTemplateAppService.update(id, req);
+
+        assertEquals("新描述", existing.getDescription());
     }
 
     @Test

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 /** 模拟 antd message（避免测试中 DOM 操作报错） */
 jest.mock('antd', () => {
@@ -25,6 +25,16 @@ jest.mock('@/components/ImageUploadField', () => ({
 }));
 
 import CategoryFormModal from '../CategoryFormModal';
+import { update as updateMock, create as createMock } from '@/services/knowledge-category';
+
+const mockUpdate = updateMock as jest.Mock;
+const mockCreate = createMock as jest.Mock;
+
+beforeEach(() => {
+  mockUpdate.mockReset();
+  mockCreate.mockReset();
+  mockUpdate.mockResolvedValue(mockEditingCategory);
+});
 
 /** 模拟分类树数据 */
 const mockTreeData = [
@@ -37,8 +47,10 @@ const mockEditingCategory = {
   parentId: null,
   name: '科学',
   description: '科学分类',
+  iconFileId: null,
   iconUrl: null,
   color: null,
+  coverImageFileId: null,
   coverImageUrl: null,
   sortOrder: 0,
   status: 'ACTIVE',
@@ -138,5 +150,75 @@ describe('CategoryFormModal', () => {
     );
     const el = screen.getByTestId('image-upload-CATEGORY_COVER');
     expect(el).toBeInTheDocument();
+  });
+
+  /**
+   * 三态场景：编辑模式下字段值未变更时，update 只发送最小 payload（不发送未变更字段）
+   */
+  it('编辑提交时未变更字段不出现在 update payload', async () => {
+    render(
+      <CategoryFormModal
+        visible={true}
+        editingCategory={mockEditingCategory}
+        treeData={mockTreeData}
+        onSuccess={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    // 不修改任何字段，直接点击"确认"（ModalForm 的提交按钮）
+    const submitBtn = screen.getByRole('button', { name: /确\s*认/ });
+    fireEvent.click(submitBtn);
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    // 未变更字段（name/description/parentId 等）不应出现在 payload
+    expect(mockUpdate).toHaveBeenCalledWith(1, {});
+  });
+
+  /**
+   * 三态场景：清空 description（用户将描述设为空字符串）→ payload.description = null
+   */
+  it('清空 description 时 payload.description = null', async () => {
+    render(
+      <CategoryFormModal
+        visible={true}
+        editingCategory={{ ...mockEditingCategory, description: '原描述' }}
+        treeData={mockTreeData}
+        onSuccess={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    // 清空描述输入框
+    const descInput = screen.getByDisplayValue('原描述');
+    fireEvent.change(descInput, { target: { value: '' } });
+    const submitBtn = screen.getByRole('button', { name: /确\s*认/ });
+    fireEvent.click(submitBtn);
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    expect(mockUpdate).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ description: null }),
+    );
+  });
+
+  /**
+   * 三态场景：修改 name（必填字段）→ payload.name = 新值
+   */
+  it('修改 name 时 payload.name 发送新值', async () => {
+    render(
+      <CategoryFormModal
+        visible={true}
+        editingCategory={mockEditingCategory}
+        treeData={mockTreeData}
+        onSuccess={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    const nameInput = screen.getByDisplayValue('科学');
+    fireEvent.change(nameInput, { target: { value: '新科学' } });
+    const submitBtn = screen.getByRole('button', { name: /确\s*认/ });
+    fireEvent.click(submitBtn);
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    expect(mockUpdate).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ name: '新科学' }),
+    );
   });
 });

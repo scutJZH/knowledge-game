@@ -6,6 +6,7 @@ import com.knowledgegame.admin.api.dto.request.UpdateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
 import com.knowledgegame.admin.application.service.CardTemplateAppService;
+import com.knowledgegame.admin.config.JacksonConfig;
 import com.knowledgegame.admin.config.WebMvcConfig;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.core.common.exception.BusinessException;
@@ -17,6 +18,7 @@ import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesReposit
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.UserRepositoryAdapter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -29,6 +31,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -62,7 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 }
         )
 )
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, JacksonConfig.class})
 @AutoConfigureMockMvc(addFilters = false)
 class CardTemplateControllerTest {
 
@@ -261,18 +267,16 @@ class CardTemplateControllerTest {
     // ========== 更新接口测试 ==========
 
     /**
-     * 更新卡牌模板 - 成功（含 imageUrl）
+     * 更新卡牌模板 - 成功（含 imageUrl，新签名 update(Long, UpdateCardTemplateRequest)）
      */
     @Test
     @DisplayName("更新卡牌模板 - 成功（含 imageUrl）")
     void update_shouldReturn200_whenValidRequest() throws Exception {
-        // 构建更新请求
         UpdateCardTemplateRequest request = new UpdateCardTemplateRequest();
         request.setName("皮卡丘-进化");
-        request.setDescription("进化后的电气鼠");
-        request.setImageFileId(1L);
+        request.setDescription(JsonNullable.of("进化后的电气鼠"));
+        request.setImageFileId(JsonNullable.of(1L));
 
-        // 模拟 AppService 返回更新后的 DTO
         CardTemplateResponse updatedResponse = CardTemplateResponse.builder()
                 .id(1L)
                 .ipSeriesId(1L)
@@ -286,12 +290,8 @@ class CardTemplateControllerTest {
                 .createdAt(1767225600000L)
                 .updatedAt(1780315200000L)
                 .build();
-        when(cardTemplateAppService.updateCardTemplate(
-                eq(1L), isNull(), eq("皮卡丘-进化"), isNull(),
-                eq("进化后的电气鼠"), isNull(), eq(1L)
-        )).thenReturn(updatedResponse);
+        when(cardTemplateAppService.update(eq(1L), any(UpdateCardTemplateRequest.class))).thenReturn(updatedResponse);
 
-        // 执行请求并断言
         mockMvc.perform(put("/api/admin/card-templates/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -302,8 +302,80 @@ class CardTemplateControllerTest {
                 .andExpect(jsonPath("$.data.description").value("进化后的电气鼠"))
                 .andExpect(jsonPath("$.data.imageFileId").value(1L));
 
-        verify(cardTemplateAppService).updateCardTemplate(
-                1L, null, "皮卡丘-进化", null, "进化后的电气鼠", null, 1L);
+        verify(cardTemplateAppService).update(eq(1L), any(UpdateCardTemplateRequest.class));
+    }
+
+    /**
+     * Jackson 三态反序列化：缺失字段 → undefined
+     */
+    @Test
+    @DisplayName("更新卡牌模板 - 缺失字段反序列化为 undefined")
+    void update_shouldDeserializeMissingFieldAsUndefined() throws Exception {
+        CardTemplateResponse response = CardTemplateResponse.builder()
+                .id(1L).code("CODE").name("皮卡丘").status("ACTIVE").build();
+        when(cardTemplateAppService.update(eq(1L), any(UpdateCardTemplateRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/card-templates/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"皮卡丘\"}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateCardTemplateRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateCardTemplateRequest.class);
+        verify(cardTemplateAppService).update(eq(1L), captor.capture());
+        UpdateCardTemplateRequest req = captor.getValue();
+        assertFalse(req.getDescription().isPresent());
+        assertFalse(req.getImageFileId().isPresent());
+    }
+
+    /**
+     * Jackson 三态反序列化：null 字段 → of(null)
+     */
+    @Test
+    @DisplayName("更新卡牌模板 - null 字段反序列化为 of(null)")
+    void update_shouldDeserializeNullFieldAsNullableOfNull() throws Exception {
+        CardTemplateResponse response = CardTemplateResponse.builder()
+                .id(1L).code("CODE").name("皮卡丘").status("ACTIVE").build();
+        when(cardTemplateAppService.update(eq(1L), any(UpdateCardTemplateRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/card-templates/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"皮卡丘\",\"description\":null,\"imageFileId\":null}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateCardTemplateRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateCardTemplateRequest.class);
+        verify(cardTemplateAppService).update(eq(1L), captor.capture());
+        UpdateCardTemplateRequest req = captor.getValue();
+        assertTrue(req.getDescription().isPresent());
+        assertNull(req.getDescription().get());
+        assertTrue(req.getImageFileId().isPresent());
+        assertNull(req.getImageFileId().get());
+    }
+
+    /**
+     * Jackson 三态反序列化：数值字段 → of(value)
+     */
+    @Test
+    @DisplayName("更新卡牌模板 - 数值字段反序列化为 of(value)")
+    void update_shouldDeserializeValueFieldAsNullableOfValue() throws Exception {
+        CardTemplateResponse response = CardTemplateResponse.builder()
+                .id(1L).code("CODE").name("皮卡丘").status("ACTIVE").build();
+        when(cardTemplateAppService.update(eq(1L), any(UpdateCardTemplateRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/card-templates/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"皮卡丘\",\"description\":\"新描述\",\"imageFileId\":200}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateCardTemplateRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateCardTemplateRequest.class);
+        verify(cardTemplateAppService).update(eq(1L), captor.capture());
+        UpdateCardTemplateRequest req = captor.getValue();
+        assertTrue(req.getDescription().isPresent());
+        assertEquals("新描述", req.getDescription().get());
+        assertTrue(req.getImageFileId().isPresent());
+        assertEquals(200L, req.getImageFileId().get());
     }
 
     // ========== 删除接口测试 ==========

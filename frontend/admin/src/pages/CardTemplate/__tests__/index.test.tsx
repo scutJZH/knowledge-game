@@ -23,22 +23,22 @@ jest.mock('@/utils/token', () => ({
   getUserInfo: jest.fn().mockReturnValue({ id: 1 }),
 }));
 
-/** Mock ImageUploadField 为可控 input */
+/** Mock ImageUploadField 为可控 input（接受 url 属性用于预填） */
 jest.mock('@/components/ImageUploadField', () => ({
   __esModule: true,
-  default: ({ bizType, placeholder, value, onChange }: {
+  default: ({ bizType, placeholder, url, onChange }: {
     bizType: string;
     placeholder?: string;
     preview?: boolean;
     allowRemove?: boolean;
-    value?: string;
+    url?: string;
     onChange?: (value: string | undefined) => void;
   }) => (
     <input
       data-testid="image-upload-field"
       type="text"
       placeholder={placeholder}
-      value={value || ''}
+      value={url || ''}
       onChange={(e) => onChange?.(e.target.value || undefined)}
     />
   ),
@@ -83,6 +83,7 @@ function mockCardRecord(overrides = {}) {
     name: '测试卡牌',
     rarity: 'SSR',
     description: '',
+    imageFileId: null,
     status: 'ACTIVE',
     createdAt: '2025-01-01T00:00:00',
     updatedAt: '2025-01-01T00:00:00',
@@ -269,7 +270,7 @@ describe('创建卡牌模板', () => {
     expect(starInputs.length).toBe(0);
   });
 
-  it('表单提交应调用 createCardTemplate 并包含 imageUrl', async () => {
+  it('表单提交应调用 createCardTemplate 并包含 imageFileId', async () => {
     (listCardTemplates as jest.Mock).mockResolvedValue(mockPageResult([]));
     (listIpSeries as jest.Mock).mockResolvedValue(
       mockPageResult([{ id: 1, name: '测试IP', code: 'IP001', status: 'ACTIVE' }]),
@@ -297,7 +298,7 @@ describe('创建卡牌模板', () => {
     const nameInput = screen.getByPlaceholderText('请输入名称');
     fireEvent.change(nameInput, { target: { value: '新卡牌' } });
 
-    // 填写 imageUrl
+    // 填写 imageFileId（mock 接受任意字符串值，最终会被透传为 imageFileId）
     const imageInput = screen.getByTestId('image-upload-field');
     fireEvent.change(imageInput, { target: { value: 'http://example.com/new-card.png' } });
 
@@ -331,7 +332,7 @@ describe('创建卡牌模板', () => {
     await waitFor(() => {
       expect(createCardTemplate).toHaveBeenCalledWith(
         expect.objectContaining({
-          imageUrl: 'http://example.com/new-card.png',
+          imageFileId: 'http://example.com/new-card.png',
         }),
       );
       expect(message.success).toHaveBeenCalledWith('创建成功');
@@ -396,7 +397,7 @@ describe('编辑卡牌模板', () => {
     expect(imageInput.value).toBe('http://example.com/card.png');
   });
 
-  it('修改基础字段后提交应调用 updateCardTemplate（含 imageUrl）', async () => {
+  it('修改基础字段后提交应调用 updateCardTemplate', async () => {
     (listCardTemplates as jest.Mock).mockResolvedValue(
       mockPageResult([mockCardRecord()]),
     );
@@ -404,7 +405,7 @@ describe('编辑卡牌模板', () => {
       mockCardDetail({ imageUrl: 'http://example.com/card.png' }),
     );
     (updateCardTemplate as jest.Mock).mockResolvedValue(
-      mockCardDetail({ id: 1, name: '改名后的卡牌', imageUrl: 'http://example.com/updated.png' }),
+      mockCardDetail({ id: 1, name: '改名后的卡牌' }),
     );
 
     render(<CardTemplate />);
@@ -422,9 +423,6 @@ describe('编辑卡牌模板', () => {
     const nameInput = screen.getByPlaceholderText('请输入名称');
     fireEvent.change(nameInput, { target: { value: '改名后的卡牌' } });
 
-    const imageInput = screen.getByTestId('image-upload-field');
-    fireEvent.change(imageInput, { target: { value: 'http://example.com/updated.png' } });
-
     const modal = document.querySelector('.ant-modal')!;
     const submitBtn = modal.querySelector('.ant-btn-primary') as HTMLElement;
     fireEvent.click(submitBtn);
@@ -434,10 +432,80 @@ describe('编辑卡牌模板', () => {
         1,
         expect.objectContaining({
           name: '改名后的卡牌',
-          imageUrl: 'http://example.com/updated.png',
         }),
       );
       expect(message.success).toHaveBeenCalledWith('更新成功');
+    });
+  });
+
+  /**
+   * 三态场景：未变更字段不出现在 update payload
+   */
+  it('未变更字段不出现在 update payload', async () => {
+    (listCardTemplates as jest.Mock).mockResolvedValue(
+      mockPageResult([mockCardRecord()]),
+    );
+    (getCardTemplateById as jest.Mock).mockResolvedValue(mockCardDetail());
+    (updateCardTemplate as jest.Mock).mockResolvedValue(mockCardDetail());
+
+    render(<CardTemplate />);
+
+    await waitFor(() => {
+      expect(screen.getByText('编辑')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('编辑'));
+
+    await waitFor(() => {
+      expect(screen.getByText('编辑卡牌模板')).toBeInTheDocument();
+    });
+
+    // 不修改任何字段，直接提交
+    const modal = document.querySelector('.ant-modal')!;
+    const submitBtn = modal.querySelector('.ant-btn-primary') as HTMLElement;
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(updateCardTemplate).toHaveBeenCalledWith(1, {});
+    });
+  });
+
+  /**
+   * 三态场景：清空 description（用户将描述设为空字符串）→ payload.description = null
+   */
+  it('清空 description 时 payload.description = null', async () => {
+    (listCardTemplates as jest.Mock).mockResolvedValue(
+      mockPageResult([mockCardRecord()]),
+    );
+    (getCardTemplateById as jest.Mock).mockResolvedValue(
+      mockCardDetail({ description: '原描述' }),
+    );
+    (updateCardTemplate as jest.Mock).mockResolvedValue(mockCardDetail());
+
+    render(<CardTemplate />);
+
+    await waitFor(() => {
+      expect(screen.getByText('编辑')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('编辑'));
+
+    await waitFor(() => {
+      expect(screen.getByText('编辑卡牌模板')).toBeInTheDocument();
+    });
+
+    const descInput = screen.getByPlaceholderText('请输入描述');
+    fireEvent.change(descInput, { target: { value: '' } });
+
+    const modal = document.querySelector('.ant-modal')!;
+    const submitBtn = modal.querySelector('.ant-btn-primary') as HTMLElement;
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(updateCardTemplate).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ description: null }),
+      );
     });
   });
 

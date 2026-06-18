@@ -31,7 +31,7 @@ export interface CategoryDetail {
   updatedAt: number;
 }
 
-/** 创建/编辑表单数据 */
+/** 创建表单数据 */
 export interface CategoryFormData {
   parentId?: number | null;
   name: string;
@@ -39,6 +39,22 @@ export interface CategoryFormData {
   iconFileId?: number;
   color?: string;
   coverImageFileId?: number;
+  sortOrder?: number;
+}
+
+/**
+ * 更新分类字段（三态语义）
+ * - 字段缺失（undefined）：不更新
+ * - 字段为 null：清空（仅可清空字段：description / iconFileId / color / coverImageFileId）
+ * - 字段有值：更新
+ */
+export interface CategoryUpdateData {
+  parentId?: number | null;
+  name?: string;
+  description?: string | null;
+  iconFileId?: number | null;
+  color?: string | null;
+  coverImageFileId?: number | null;
   sortOrder?: number;
 }
 
@@ -84,8 +100,8 @@ export async function create(data: CategoryFormData): Promise<CategoryDetail> {
   });
 }
 
-/** 更新分类 */
-export async function update(id: number, data: CategoryFormData): Promise<CategoryDetail> {
+/** 更新分类（支持三态语义：undefined / null / 值） */
+export async function update(id: number, data: CategoryUpdateData): Promise<CategoryDetail> {
   return request(`/api/admin/knowledge-categories/${id}`, {
     method: 'PUT',
     data,

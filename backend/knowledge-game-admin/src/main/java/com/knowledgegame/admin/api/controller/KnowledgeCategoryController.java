@@ -90,15 +90,7 @@ public class KnowledgeCategoryController {
     @PutMapping("/{id}")
     public Result<KnowledgeCategoryResponse> update(@PathVariable Long id,
                                                      @Valid @RequestBody UpdateKnowledgeCategoryRequest request) {
-        KnowledgeCategoryResponse response = appService.update(
-                id,
-                request.getName(),
-                request.getDescription(),
-                request.getIconFileId(),
-                request.getColor(),
-                request.getCoverImageFileId(),
-                request.getSortOrder()
-        );
+        KnowledgeCategoryResponse response = appService.update(id, request);
         return Result.success(response);
     }
 

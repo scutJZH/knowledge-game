@@ -1,6 +1,7 @@
 package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.assembler.CardTemplateAssembler;
+import com.knowledgegame.admin.api.dto.request.UpdateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
 import com.knowledgegame.auth.security.SecurityUtils;
@@ -18,12 +19,14 @@ import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
 import com.knowledgegame.core.domain.service.IpSeriesDomainService;
+import org.openapitools.jackson.nullable.JsonNullable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import java.util.function.Consumer;
 
 /**
  * 卡牌模板管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -104,23 +107,30 @@ public class CardTemplateAppService {
     }
 
     /**
-     * 更新卡牌模板基础信息
+     * 更新卡牌模板基础信息（支持 JsonNullable 三态）
      */
     @Transactional
-    public CardTemplateResponse updateCardTemplate(Long id, String code, String name,
-                                                   CardRarity rarity, String description,
-                                                   CardTemplateStatus status, Long imageFileId) {
+    public CardTemplateResponse update(Long id, UpdateCardTemplateRequest req) {
         CardTemplate template = cardTemplateRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("卡牌模板不存在: " + id));
         // 编码在同一 IP 系列下唯一（排除自身）
-        if (code != null && !code.equals(template.getCode())) {
-            cardTemplateRepositoryPort.findByIpSeriesIdAndCode(template.getIpSeriesId(), code)
+        if (req.getCode() != null && !req.getCode().equals(template.getCode())) {
+            cardTemplateRepositoryPort.findByIpSeriesIdAndCode(template.getIpSeriesId(), req.getCode())
                     .ifPresent(existing -> {
-                        throw new BusinessException("卡牌编码已存在: " + code);
+                        throw new BusinessException("卡牌编码已存在: " + req.getCode());
                     });
         }
-        FileRef image = verifyFileRef(imageFileId, "CARD_TEMPLATE");
-        template.update(code, name, rarity, description, status, image);
+
+        // 必填字段：null=不更新
+        template.update(req.getCode(), req.getName(), req.getRarity(), req.getStatus());
+
+        // 可清空 String：description
+        applyField(req.getDescription(), template::clearDescription, template::updateDescription);
+
+        // 可清空 FileRef：image
+        applyFileRefField(req.getImageFileId(), "CARD_TEMPLATE",
+                template::clearImage, template::updateImage);
+
         CardTemplate saved = cardTemplateRepositoryPort.save(template);
         return assembleDetailResponse(saved);
     }
@@ -179,6 +189,38 @@ public class CardTemplateAppService {
             throw new BusinessException("部分卡牌 ID 不存在");
         }
         cardTemplateRepositoryPort.batchUpdateStatus(distinctIds, CardTemplateStatus.INACTIVE);
+    }
+
+    /**
+     * 三态分派工具：处理 JsonNullable<T> 字段
+     */
+    private static <T> void applyField(JsonNullable<T> field, Runnable clear, Consumer<T> update) {
+        if (field == null || !field.isPresent()) {
+            return;
+        }
+        T value = field.get();
+        if (value == null) {
+            clear.run();
+        } else {
+            update.accept(value);
+        }
+    }
+
+    /**
+     * 三态分派工具：处理 JsonNullable<Long>（FileRef fileId）字段
+     */
+    private void applyFileRefField(JsonNullable<Long> fileIdField, String bizType,
+                                   Runnable clear, Consumer<FileRef> update) {
+        if (fileIdField == null || !fileIdField.isPresent()) {
+            return;
+        }
+        Long fileId = fileIdField.get();
+        if (fileId == null) {
+            clear.run();
+        } else {
+            FileRef verified = verifyFileRef(fileId, bizType);
+            update.accept(verified);
+        }
     }
 
     private FileRef verifyFileRef(Long fileId, String expectedBizType) {

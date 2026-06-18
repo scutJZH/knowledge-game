@@ -1,11 +1,14 @@
 package com.knowledgegame.admin.api.controller;
 
+import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeCategoryRequest;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeCategoryTreeResponse;
 import com.knowledgegame.admin.application.service.KnowledgeCategoryAppService;
+import com.knowledgegame.admin.config.JacksonConfig;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import org.junit.jupiter.api.Test;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -16,6 +19,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -30,9 +37,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * KnowledgeCategoryController 单元测试
+ * <p>
+ * 同时验证 Jackson + JsonNullableModule 对 update 接口三态的反序列化行为。
  */
 @WebMvcTest(KnowledgeCategoryController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, JacksonConfig.class})
 @AutoConfigureMockMvc(addFilters = false)
 class KnowledgeCategoryControllerTest {
 
@@ -123,19 +132,94 @@ class KnowledgeCategoryControllerTest {
     }
 
     /**
-     * 更新分类 - 正常返回
+     * 更新分类 - 正常返回（新签名 update(Long, UpdateKnowledgeCategoryRequest)）
      */
     @Test
     void update_shouldReturn200() throws Exception {
         KnowledgeCategoryResponse response = KnowledgeCategoryResponse.builder()
                 .id(1L).name("新名称").status("ACTIVE").createdAt(now).updatedAt(now).build();
-        when(appService.update(eq(1L), any(), any(), any(), any(), any(), any())).thenReturn(response);
+        when(appService.update(eq(1L), any(UpdateKnowledgeCategoryRequest.class))).thenReturn(response);
 
         mockMvc.perform(put("/api/admin/knowledge-categories/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"新名称\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.name").value("新名称"));
+
+        verify(appService).update(eq(1L), any(UpdateKnowledgeCategoryRequest.class));
+    }
+
+    /**
+     * Jackson 三态反序列化场景 1：缺失字段 → JsonNullable.undefined()（不更新）
+     */
+    @Test
+    void update_shouldDeserializeMissingFieldAsUndefined() throws Exception {
+        KnowledgeCategoryResponse response = KnowledgeCategoryResponse.builder()
+                .id(1L).name("编程").status("ACTIVE").createdAt(now).updatedAt(now).build();
+        when(appService.update(eq(1L), any(UpdateKnowledgeCategoryRequest.class))).thenReturn(response);
+
+        // 请求体只有 name，可清空字段全部缺失
+        mockMvc.perform(put("/api/admin/knowledge-categories/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"编程\"}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateKnowledgeCategoryRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateKnowledgeCategoryRequest.class);
+        verify(appService).update(eq(1L), captor.capture());
+        UpdateKnowledgeCategoryRequest req = captor.getValue();
+        assertFalse(req.getDescription().isPresent(), "缺失字段应为 undefined");
+        assertFalse(req.getIconFileId().isPresent());
+        assertFalse(req.getColor().isPresent());
+        assertFalse(req.getCoverImageFileId().isPresent());
+    }
+
+    /**
+     * Jackson 三态反序列化场景 2：null 字段 → JsonNullable.of(null)（清空）
+     */
+    @Test
+    void update_shouldDeserializeNullFieldAsNullableOfNull() throws Exception {
+        KnowledgeCategoryResponse response = KnowledgeCategoryResponse.builder()
+                .id(1L).name("编程").status("ACTIVE").createdAt(now).updatedAt(now).build();
+        when(appService.update(eq(1L), any(UpdateKnowledgeCategoryRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/knowledge-categories/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"编程\",\"iconFileId\":null,\"description\":null}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateKnowledgeCategoryRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateKnowledgeCategoryRequest.class);
+        verify(appService).update(eq(1L), captor.capture());
+        UpdateKnowledgeCategoryRequest req = captor.getValue();
+        assertTrue(req.getIconFileId().isPresent(), "null 字段应为 present");
+        assertNull(req.getIconFileId().get(), "null 字段的 get() 应为 null");
+        assertTrue(req.getDescription().isPresent());
+        assertNull(req.getDescription().get());
+    }
+
+    /**
+     * Jackson 三态反序列化场景 3：数值字段 → JsonNullable.of(value)（更新）
+     */
+    @Test
+    void update_shouldDeserializeValueFieldAsNullableOfValue() throws Exception {
+        KnowledgeCategoryResponse response = KnowledgeCategoryResponse.builder()
+                .id(1L).name("编程").status("ACTIVE").createdAt(now).updatedAt(now).build();
+        when(appService.update(eq(1L), any(UpdateKnowledgeCategoryRequest.class))).thenReturn(response);
+
+        mockMvc.perform(put("/api/admin/knowledge-categories/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"编程\",\"iconFileId\":100,\"description\":\"新描述\"}"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<UpdateKnowledgeCategoryRequest> captor =
+                org.mockito.ArgumentCaptor.forClass(UpdateKnowledgeCategoryRequest.class);
+        verify(appService).update(eq(1L), captor.capture());
+        UpdateKnowledgeCategoryRequest req = captor.getValue();
+        assertTrue(req.getIconFileId().isPresent());
+        assertEquals(100L, req.getIconFileId().get());
+        assertTrue(req.getDescription().isPresent());
+        assertEquals("新描述", req.getDescription().get());
     }
 
     /**
@@ -180,3 +264,4 @@ class KnowledgeCategoryControllerTest {
         verify(appService).batchSort(any());
     }
 }
+

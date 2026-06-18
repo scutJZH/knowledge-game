@@ -54,11 +54,36 @@ public class User {
     }
 
     /**
-     * 更新用户信息
+     * 更新 nickname（必填，NOT NULL）。nickname 传 null 时保持原值（不更新）
+     * <p>
+     * 注意：当前方法接收 String nickname 而非 JsonNullable，因为 nickname 是必填字段
+     * 不需要"清空"语义。AppService 应在调用此方法前用 if-null 守卫避免误清空。
      */
-    public void updateProfile(String nickname, FileRef avatar) {
-        this.nickname = nickname;
+    public void updateProfile(String nickname) {
+        if (nickname != null) {
+            this.nickname = nickname;
+        }
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 更新头像（清空请用 clearAvatar）
+     *
+     * @throws IllegalArgumentException avatar 为 null 时抛出
+     */
+    public void updateAvatar(FileRef avatar) {
+        if (avatar == null) {
+            throw new IllegalArgumentException("avatar 清空请用 clearAvatar()");
+        }
         this.avatar = avatar;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 清空头像
+     */
+    public void clearAvatar() {
+        this.avatar = null;
         this.updatedAt = LocalDateTime.now();
     }
 }

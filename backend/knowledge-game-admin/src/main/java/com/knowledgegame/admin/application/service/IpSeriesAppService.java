@@ -1,6 +1,7 @@
 package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.assembler.IpSeriesAssembler;
+import com.knowledgegame.admin.api.dto.request.UpdateIpSeriesRequest;
 import com.knowledgegame.admin.api.dto.response.IpSeriesResponse;
 import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.components.feign.client.FileServiceClient;
@@ -13,11 +14,13 @@ import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * IP 系列管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -82,28 +85,38 @@ public class IpSeriesAppService {
 
     /**
      * 更新 IP 系列
+     * <p>
+     * 接收整个 Request DTO（不逐字段拆包），以便解析 JsonNullable 三态。
      */
     @Transactional
-    public IpSeriesResponse updateIpSeries(Long id, String code, String name, String description,
-                                            Long coverImageFileId, IpSeriesStatus status) {
+    public IpSeriesResponse update(Long id, UpdateIpSeriesRequest req) {
         IpSeries ipSeries = ipSeriesRepositoryPort.findById(id)
                 .orElseThrow(() -> new BusinessException("IP 系列不存在: " + id));
-        if (code != null && !code.equals(ipSeries.getCode())) {
-            ipSeriesRepositoryPort.findByCode(code).ifPresent(existing -> {
+        if (req.getCode() != null && !req.getCode().equals(ipSeries.getCode())) {
+            ipSeriesRepositoryPort.findByCode(req.getCode()).ifPresent(existing -> {
                 if (!existing.getId().equals(id)) {
-                    throw new BusinessException("IP 系列编码已存在: " + code);
+                    throw new BusinessException("IP 系列编码已存在: " + req.getCode());
                 }
             });
         }
-        if (name != null && !name.equals(ipSeries.getName())) {
-            ipSeriesRepositoryPort.findByName(name).ifPresent(existing -> {
+        if (req.getName() != null && !req.getName().equals(ipSeries.getName())) {
+            ipSeriesRepositoryPort.findByName(req.getName()).ifPresent(existing -> {
                 if (!existing.getId().equals(id)) {
-                    throw new BusinessException("IP 系列名称已存在: " + name);
+                    throw new BusinessException("IP 系列名称已存在: " + req.getName());
                 }
             });
         }
-        FileRef coverImage = verifyFileRef(coverImageFileId, "IP_SERIES");
-        ipSeries.update(code, name, description, coverImage, status);
+
+        // 必填字段：null=不更新
+        ipSeries.update(req.getCode(), req.getName(), req.getStatus());
+
+        // 可清空 String：description
+        applyField(req.getDescription(), ipSeries::clearDescription, ipSeries::updateDescription);
+
+        // 可清空 FileRef：coverImage
+        applyFileRefField(req.getCoverImageFileId(), "IP_SERIES",
+                ipSeries::clearCoverImage, ipSeries::updateCoverImage);
+
         IpSeries saved = ipSeriesRepositoryPort.save(ipSeries);
         return IpSeriesAssembler.INSTANCE.toResponse(saved);
     }
@@ -117,6 +130,38 @@ public class IpSeriesAppService {
                 .orElseThrow(() -> new BusinessException("IP 系列不存在: " + id));
         ipSeries.deactivate();
         ipSeriesRepositoryPort.save(ipSeries);
+    }
+
+    /**
+     * 三态分派工具：处理 JsonNullable<T> 字段
+     */
+    private static <T> void applyField(JsonNullable<T> field, Runnable clear, Consumer<T> update) {
+        if (field == null || !field.isPresent()) {
+            return;
+        }
+        T value = field.get();
+        if (value == null) {
+            clear.run();
+        } else {
+            update.accept(value);
+        }
+    }
+
+    /**
+     * 三态分派工具：处理 JsonNullable<Long>（FileRef fileId）字段
+     */
+    private void applyFileRefField(JsonNullable<Long> fileIdField, String bizType,
+                                   Runnable clear, Consumer<FileRef> update) {
+        if (fileIdField == null || !fileIdField.isPresent()) {
+            return;
+        }
+        Long fileId = fileIdField.get();
+        if (fileId == null) {
+            clear.run();
+        } else {
+            FileRef verified = verifyFileRef(fileId, bizType);
+            update.accept(verified);
+        }
     }
 
     /**

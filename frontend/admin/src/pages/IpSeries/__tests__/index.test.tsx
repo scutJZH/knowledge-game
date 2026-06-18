@@ -54,6 +54,7 @@ function mockIpRecord(overrides = {}) {
     code: 'IP001',
     name: '测试 IP 系列',
     description: '测试描述',
+    coverImageFileId: null,
     coverImageUrl: 'http://localhost:8083/static/cover.png',
     status: 'ACTIVE',
     createdAt: '2026-01-01T00:00:00',
@@ -279,10 +280,77 @@ describe('编辑 IP 系列', () => {
         1,
         expect.objectContaining({
           name: '改名后的 IP',
-          coverImageUrl: expect.any(String),
         }),
       );
       expect(message.success).toHaveBeenCalledWith('更新成功');
+    });
+  });
+
+  /**
+   * 三态场景：未变更字段不出现在 update payload
+   */
+  it('未变更字段不出现在 update payload', async () => {
+    (listIpSeries as jest.Mock).mockResolvedValue(
+      mockPageResult([mockIpRecord()]),
+    );
+    (updateIpSeries as jest.Mock).mockResolvedValue(mockIpRecord());
+
+    render(<IpSeries />);
+
+    await waitFor(() => {
+      expect(screen.getByText('编辑')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('编辑'));
+
+    await waitFor(() => {
+      expect(screen.getByText('编辑 IP 系列')).toBeInTheDocument();
+    });
+
+    // 不修改任何字段，直接提交
+    const modal = document.querySelector('.ant-modal')!;
+    const submitBtn = modal.querySelector('.ant-btn-primary') as HTMLElement;
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(updateIpSeries).toHaveBeenCalledWith(1, {});
+    });
+  });
+
+  /**
+   * 三态场景：清空 description（用户将描述设为空字符串）→ payload.description = null
+   */
+  it('清空 description 时 payload.description = null', async () => {
+    (listIpSeries as jest.Mock).mockResolvedValue(
+      mockPageResult([mockIpRecord({ description: '原描述' })]),
+    );
+    (updateIpSeries as jest.Mock).mockResolvedValue(mockIpRecord());
+
+    render(<IpSeries />);
+
+    await waitFor(() => {
+      expect(screen.getByText('编辑')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('编辑'));
+
+    await waitFor(() => {
+      expect(screen.getByText('编辑 IP 系列')).toBeInTheDocument();
+    });
+
+    // 清空描述输入框
+    const descInput = screen.getByPlaceholderText('请输入描述') as HTMLTextAreaElement;
+    fireEvent.change(descInput, { target: { value: '' } });
+
+    const modal = document.querySelector('.ant-modal')!;
+    const submitBtn = modal.querySelector('.ant-btn-primary') as HTMLElement;
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(updateIpSeries).toHaveBeenCalledWith(
+        1,
+        expect.objectContaining({ description: null }),
+      );
     });
   });
 
