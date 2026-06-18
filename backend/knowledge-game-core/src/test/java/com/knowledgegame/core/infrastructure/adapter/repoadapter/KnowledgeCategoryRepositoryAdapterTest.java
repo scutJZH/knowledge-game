@@ -1,22 +1,32 @@
 package com.knowledgegame.core.infrastructure.adapter.repoadapter;
 
+import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.infrastructure.db.converter.KnowledgeCategoryConverter;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,7 +34,11 @@ import static org.mockito.Mockito.when;
 /**
  * KnowledgeCategoryRepositoryAdapter 单元测试
  * <p>
- * 覆盖 REQ-94 新增的 countActiveByParentId、findAllByIdIn 方法
+ * 覆盖：
+ * <ul>
+ *   <li>REQ-94：countActiveByParentId、findAllByIdIn</li>
+ *   <li>REQ-86 ISSUE-5：findByConditions 排序白名单校验（双字段默认 + 单字段覆盖 + 非法字段抛 400）</li>
+ * </ul>
  */
 @ExtendWith(MockitoExtension.class)
 class KnowledgeCategoryRepositoryAdapterTest {
@@ -90,6 +104,81 @@ class KnowledgeCategoryRepositoryAdapterTest {
         List<KnowledgeCategory> result = adapter.findAllByIdIn(List.of(1L, 999L));
 
         assertEquals(1, result.size());
+    }
+
+    // --- findByConditions 排序白名单（REQ-86 ISSUE-5） ---
+    //
+    // Mock 策略：用 ArgumentCaptor<PageRequest> 捕获 adapter 内部调用
+    // jpaRepository.findAll(spec, pageRequest) 时传入的 PageRequest，
+    // 断言 captor.getValue().getSort() 的字段名与方向。
+    // KnowledgeCategory 默认排序为双字段（sortOrder ASC, createdAt DESC），
+    // 用户主动指定字段时覆盖为单字段。
+
+    /**
+     * sort=null 走双字段默认（sortOrder ASC, createdAt DESC）
+     */
+    @Test
+    @DisplayName("findByConditions sort=null 时使用 sortOrder ASC, createdAt DESC 双字段默认")
+    void findByConditions_sortNull_fallbackToDualFieldDefault() {
+        when(jpaRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(emptyPage());
+
+        adapter.findByConditions(null, null, null, null, 0, 20);
+
+        PageRequest captured = capturePageRequest();
+        Sort sort = captured.getSort();
+        assertEquals(Sort.Direction.ASC, sort.getOrderFor("sortOrder").getDirection());
+        assertEquals(Sort.Direction.DESC, sort.getOrderFor("createdAt").getDirection());
+    }
+
+    /**
+     * sort=name&order=asc 走单字段覆盖
+     */
+    @Test
+    @DisplayName("findByConditions sort=name&order=asc 时使用 name ASC 单字段覆盖默认")
+    void findByConditions_sortNameAsc_returnsNameAscSort() {
+        when(jpaRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(emptyPage());
+
+        adapter.findByConditions(null, null, null,
+                new SortField("name", SortField.Direction.ASC), 0, 20);
+
+        PageRequest captured = capturePageRequest();
+        Sort sort = captured.getSort();
+        assertEquals(Sort.Direction.ASC, sort.getOrderFor("name").getDirection());
+        assertNull(sort.getOrderFor("sortOrder"));
+        assertNull(sort.getOrderFor("createdAt"));
+    }
+
+    /**
+     * sort=foo 非法字段抛 BusinessException(400)
+     */
+    @Test
+    @DisplayName("findByConditions sort=foo 时抛 BusinessException(400)")
+    void findByConditions_sortInvalid_throws400() {
+        SortField invalid = new SortField("foo", SortField.Direction.DESC);
+
+        BusinessException ex = assertThrows(BusinessException.class, () ->
+                adapter.findByConditions(null, null, null, invalid, 0, 20));
+
+        assertEquals(400, ex.getCode());
+    }
+
+    /**
+     * 捕获 adapter 传给 findAll 的 PageRequest 参数
+     */
+    private PageRequest capturePageRequest() {
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(jpaRepository).findAll(any(Specification.class), captor.capture());
+        return captor.getValue();
+    }
+
+    /**
+     * 构造空 Page，仅用于让 findAll 返回非 null 结果
+     */
+    @SuppressWarnings("unchecked")
+    private Page<KnowledgeCategoryPO> emptyPage() {
+        return (Page<KnowledgeCategoryPO>) org.mockito.Mockito.mock(Page.class);
     }
 
     // --- 辅助方法 ---

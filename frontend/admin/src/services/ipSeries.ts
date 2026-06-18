@@ -41,7 +41,10 @@ export interface UpdateIpSeriesRequest {
 /** 分页查询参数 */
 export interface IpSeriesQuery {
   name?: string;
+  code?: string;
   status?: string;
+  sort?: string;
+  order?: 'asc' | 'desc';
   page?: number;
   size?: number;
 }

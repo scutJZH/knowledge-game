@@ -15,6 +15,7 @@ import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
@@ -86,13 +87,15 @@ public class CardTemplateAppService {
      * 分页查询（列表不含图片）
      */
     @Transactional(readOnly = true)
-    public PageResult<CardTemplateListResponse> listCardTemplates(String name, Long ipSeriesId,
+    public PageResult<CardTemplateListResponse> listCardTemplates(String name, String code, Long ipSeriesId,
                                                                    String rarity, String status,
+                                                                   String sort, String order,
                                                                    int pageNumber, int pageSize) {
         CardRarity rarityEnum = EnumUtils.valueOfNullable(CardRarity.class, rarity);
         CardTemplateStatus statusEnum = EnumUtils.valueOfNullable(CardTemplateStatus.class, status);
+        SortField sortField = SortField.parse(sort, order);
         PageResult<CardTemplate> domainPage = cardTemplateRepositoryPort.findByConditions(
-                name, ipSeriesId, rarityEnum, statusEnum, pageNumber, pageSize);
+                name, code, ipSeriesId, rarityEnum, statusEnum, sortField, pageNumber, pageSize);
         return PageResult.<CardTemplateListResponse>builder()
                 .content(domainPage.getContent().stream()
                         .map(template -> {

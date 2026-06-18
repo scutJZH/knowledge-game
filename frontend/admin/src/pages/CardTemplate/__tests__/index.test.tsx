@@ -713,3 +713,58 @@ describe('ImageUploadField 区域', () => {
     });
   });
 });
+
+
+describe('REQ-86 排序与 code 搜索', () => {
+  it('在编码搜索框输入并提交应携带 code 参数', async () => {
+    (listCardTemplates as jest.Mock).mockResolvedValue(mockPageResult([]));
+    (listIpSeries as jest.Mock).mockResolvedValue(mockPageResult([]));
+
+    render(<CardTemplate />);
+
+    await waitFor(() => {
+      expect(screen.getByText('卡牌管理')).toBeInTheDocument();
+    });
+
+    const labels = document.querySelectorAll('.ant-form-item-label');
+    const codeLabel = Array.from(labels).find((el) => el.textContent === '编码');
+    expect(codeLabel).toBeDefined();
+    const codeFormItem = codeLabel?.parentElement?.parentElement;
+    const codeInput = codeFormItem?.querySelector('input') as HTMLInputElement;
+    expect(codeInput).toBeInTheDocument();
+    fireEvent.change(codeInput, { target: { value: 'CT001' } });
+
+    const submitBtn = screen.getByRole('button', { name: /查 询|查询/ });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      const lastCall = (listCardTemplates as jest.Mock).mock.calls.at(-1)?.[0];
+      expect(lastCall).toMatchObject({ code: 'CT001' });
+    });
+  });
+
+  it('点击编码列头排序按钮应携带 sort/order 参数', async () => {
+    (listCardTemplates as jest.Mock).mockResolvedValue(mockPageResult([]));
+    (listIpSeries as jest.Mock).mockResolvedValue(mockPageResult([]));
+
+    const { container } = render(<CardTemplate />);
+
+    await waitFor(() => {
+      expect(screen.getByText('卡牌管理')).toBeInTheDocument();
+    });
+
+    const initialCall = (listCardTemplates as jest.Mock).mock.calls.at(-1)?.[0];
+    expect(initialCall?.sort).toBeUndefined();
+    expect(initialCall?.order).toBeUndefined();
+
+    const sorterBtn = container.querySelector('.ant-table-column-sorter-up') as HTMLElement;
+    expect(sorterBtn).toBeInTheDocument();
+    fireEvent.click(sorterBtn);
+
+    await waitFor(() => {
+      const lastCall = (listCardTemplates as jest.Mock).mock.calls.at(-1)?.[0];
+      expect(lastCall?.sort).toBe('code');
+      expect(lastCall?.order).toBe('asc');
+    });
+  });
+});

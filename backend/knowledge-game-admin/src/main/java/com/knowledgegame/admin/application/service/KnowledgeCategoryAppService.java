@@ -15,6 +15,7 @@ import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
 import org.openapitools.jackson.nullable.JsonNullable;
@@ -75,10 +76,12 @@ public class KnowledgeCategoryAppService {
      * 分页查询
      */
     public PageResult<KnowledgeCategoryResponse> list(String keyword, String status,
-                                                       Long parentId, int pageNumber, int pageSize) {
+                                                       Long parentId, String sort, String order,
+                                                       int pageNumber, int pageSize) {
         KnowledgeCategoryStatus statusEnum = EnumUtils.valueOfNullable(KnowledgeCategoryStatus.class, status);
+        SortField sortField = SortField.parse(sort, order);
         PageResult<KnowledgeCategory> domainPage = categoryRepositoryPort.findByConditions(
-                keyword, statusEnum, parentId, pageNumber, pageSize);
+                keyword, statusEnum, parentId, sortField, pageNumber, pageSize);
         return PageResult.<KnowledgeCategoryResponse>builder()
                 .content(domainPage.getContent().stream()
                         .map(KnowledgeCategoryAssembler.INSTANCE::toResponse).toList())

@@ -12,6 +12,7 @@ import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
@@ -134,14 +135,33 @@ class CardTemplateAppServiceTest {
         CardTemplate t2 = buildCardTemplate(2L, "CHARIZARD", "喷火龙", CardRarity.SSR, CardTemplateStatus.ACTIVE);
         PageResult<CardTemplate> mockPage = PageResult.<CardTemplate>builder()
                 .content(List.of(t1, t2)).totalElements(2).pageNumber(0).pageSize(20).totalPages(1).build();
-        when(cardTemplateRepositoryPort.findByConditions(null, null, null, null, 0, 20)).thenReturn(mockPage);
+        when(cardTemplateRepositoryPort.findByConditions(null, null, null, null, null, null, 0, 20)).thenReturn(mockPage);
         when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影忍者")));
 
         PageResult<CardTemplateListResponse> result = cardTemplateAppService.listCardTemplates(
-                null, null, null, null, 0, 20);
+                null, null, null, null, null, null, null, 0, 20);
 
         assertNotNull(result);
         assertEquals(2, result.getContent().size());
+    }
+
+    @Test
+    @DisplayName("分页查询 - sort/order 经 SortField.parse 透传到 Port")
+    void listCardTemplates_shouldPassSortFieldToPort() {
+        CardTemplate t1 = buildCardTemplate(1L, "PIKACHU", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
+        PageResult<CardTemplate> mockPage = PageResult.<CardTemplate>builder()
+                .content(List.of(t1)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+        when(cardTemplateRepositoryPort.findByConditions(
+                eq(null), eq(null), eq(null), eq(null), eq(null),
+                argThat((SortField sf) -> sf != null && sf.getField().equals("code") && sf.getDirection() == SortField.Direction.ASC),
+                eq(0), eq(20))).thenReturn(mockPage);
+        when(ipSeriesRepositoryPort.findById(1L)).thenReturn(Optional.of(buildIpSeries(1L, "火影忍者")));
+
+        PageResult<CardTemplateListResponse> result = cardTemplateAppService.listCardTemplates(
+                null, null, null, null, null, "code", "asc", 0, 20);
+
+        assertNotNull(result);
+        assertEquals(1, result.getContent().size());
     }
 
     @Test

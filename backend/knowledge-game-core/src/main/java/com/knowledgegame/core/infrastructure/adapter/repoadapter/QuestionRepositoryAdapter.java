@@ -7,6 +7,8 @@ import com.knowledgegame.core.domain.model.entity.Question;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
+import com.knowledgegame.core.domain.spec.SortFieldSpec;
+import com.knowledgegame.core.infrastructure.adapter.support.SortFields;
 import com.knowledgegame.core.infrastructure.db.converter.QuestionConverter;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionCategoryRelationPO;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionPO;
@@ -25,6 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -34,13 +37,9 @@ import java.util.stream.Collectors;
 public class QuestionRepositoryAdapter implements QuestionRepository {
 
     /**
-     * 领域字段名 → PO 字段名映射
+     * 列表查询允许的排序字段白名单（PO 字段名）
      */
-    private static final Map<String, String> FIELD_MAPPING = Map.of(
-            "createdAt", "createdAt",
-            "updatedAt", "updatedAt",
-            "difficulty", "difficulty"
-    );
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("createdAt", "updatedAt", "difficulty");
 
     private final QuestionJpaRepository questionJpaRepository;
     private final QuestionCategoryRelationJpaRepository relationJpaRepository;
@@ -185,14 +184,15 @@ public class QuestionRepositoryAdapter implements QuestionRepository {
 
     /**
      * 将领域排序字段转为 Spring Data Sort
+     * <p>
+     * 非法字段由 SortFieldSpec.validate 抛 BusinessException(400)，不再静默回退。
+     * sortField 为 null 时使用默认 createdAt DESC（与改造前行为等价）。
      */
     private Sort toSpringSort(SortField sortField) {
-        if (sortField == null) {
-            sortField = SortField.defaultSort();
+        SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
+        if (validated == null) {
+            return Sort.by(Sort.Direction.DESC, "createdAt");
         }
-        String poField = FIELD_MAPPING.getOrDefault(sortField.getField(), "createdAt");
-        Sort.Direction direction = sortField.getDirection() == SortField.Direction.ASC
-                ? Sort.Direction.ASC : Sort.Direction.DESC;
-        return Sort.by(direction, poField);
+        return SortFields.toSpringSort(validated);
     }
 }

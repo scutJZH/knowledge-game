@@ -4,7 +4,10 @@ import com.knowledgegame.core.domain.model.domainenum.CardRarity;
 import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
+import com.knowledgegame.core.domain.spec.SortFieldSpec;
+import com.knowledgegame.core.infrastructure.adapter.support.SortFields;
 import com.knowledgegame.core.infrastructure.db.converter.CardTemplateConverter;
 import com.knowledgegame.core.infrastructure.db.entity.CardTemplatePO;
 import com.knowledgegame.core.infrastructure.db.repository.CardTemplateJpaRepository;
@@ -18,12 +21,20 @@ import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 卡牌模板仓储适配器（实现领域层出端口，注入 JPA Repository）
  */
 @Repository
 public class CardTemplateRepositoryAdapter implements CardTemplateRepositoryPort {
+
+    /**
+     * 列表查询允许的排序字段白名单（PO 字段名）
+     */
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of(
+            "code", "name", "rarity", "status", "createdAt", "updatedAt"
+    );
 
     private final CardTemplateJpaRepository cardTemplateJpaRepository;
 
@@ -58,13 +69,17 @@ public class CardTemplateRepositoryAdapter implements CardTemplateRepositoryPort
     }
 
     @Override
-    public PageResult<CardTemplate> findByConditions(String name, Long ipSeriesId,
+    public PageResult<CardTemplate> findByConditions(String name, String code, Long ipSeriesId,
                                                      CardRarity rarity, CardTemplateStatus status,
+                                                     SortField sortField,
                                                      int pageNumber, int pageSize) {
         Specification<CardTemplatePO> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (name != null && !name.isBlank()) {
                 predicates.add(cb.like(root.get("name"), "%" + name + "%"));
+            }
+            if (code != null && !code.isBlank()) {
+                predicates.add(cb.like(root.get("code"), "%" + code + "%"));
             }
             if (ipSeriesId != null) {
                 predicates.add(cb.equal(root.get("ipSeriesId"), ipSeriesId));
@@ -77,8 +92,9 @@ public class CardTemplateRepositoryAdapter implements CardTemplateRepositoryPort
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+        Sort springSort = toSpringSort(sortField);
         Page<CardTemplatePO> springPage = cardTemplateJpaRepository.findAll(spec,
-                PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(pageNumber, pageSize, springSort));
         return PageResult.<CardTemplate>builder()
                 .content(springPage.getContent().stream()
                         .map(CardTemplateConverter.INSTANCE::toDomain).toList())
@@ -87,6 +103,20 @@ public class CardTemplateRepositoryAdapter implements CardTemplateRepositoryPort
                 .pageSize(springPage.getSize())
                 .totalPages(springPage.getTotalPages())
                 .build();
+    }
+
+    /**
+     * 将领域排序字段转为 Spring Data Sort
+     * <p>
+     * 非法字段由 SortFieldSpec.validate 抛 BusinessException(400)，不再静默回退。
+     * sortField 为 null 时使用默认 createdAt DESC（与改造前行为等价）。
+     */
+    private Sort toSpringSort(SortField sortField) {
+        SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
+        if (validated == null) {
+            return Sort.by(Sort.Direction.DESC, "createdAt");
+        }
+        return SortFields.toSpringSort(validated);
     }
 
     @Override

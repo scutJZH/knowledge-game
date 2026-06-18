@@ -10,6 +10,7 @@ import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -120,12 +122,41 @@ class KnowledgeCategoryAppServiceTest {
                 .pageSize(20)
                 .totalPages(1)
                 .build();
-        when(categoryRepositoryPort.findByConditions(null, null, null, 0, 20)).thenReturn(mockPage);
+        when(categoryRepositoryPort.findByConditions(eq(null), eq(null), eq(null), eq(null), eq(0), eq(20)))
+                .thenReturn(mockPage);
 
-        PageResult<KnowledgeCategoryResponse> result = appService.list(null, null, null, 0, 20);
+        PageResult<KnowledgeCategoryResponse> result = appService.list(null, null, null, null, null, 0, 20);
 
         assertEquals(1, result.getContent().size());
         assertEquals(1L, result.getTotalElements());
+    }
+
+    /**
+     * 分页查询 - sort/order 透传到 Port 的 SortField 参数
+     */
+    @Test
+    void list_shouldPassSortFieldToPort() {
+        KnowledgeCategory cat = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        PageResult<KnowledgeCategory> mockPage = PageResult.<KnowledgeCategory>builder()
+                .content(List.of(cat))
+                .totalElements(1)
+                .pageNumber(0)
+                .pageSize(20)
+                .totalPages(1)
+                .build();
+        SortField expected = new SortField("name", SortField.Direction.ASC);
+        when(categoryRepositoryPort.findByConditions(eq(null), eq(null), eq(null),
+                argThat(sf -> sf != null && sf.getField().equals("name") && sf.getDirection() == SortField.Direction.ASC),
+                eq(0), eq(20)))
+                .thenReturn(mockPage);
+
+        appService.list(null, null, null, "name", "asc", 0, 20);
+
+        verify(categoryRepositoryPort).findByConditions(eq(null), eq(null), eq(null),
+                argThat(sf -> sf != null && sf.getField().equals("name") && sf.getDirection() == SortField.Direction.ASC),
+                eq(0), eq(20));
     }
 
     /**

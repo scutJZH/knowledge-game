@@ -134,6 +134,62 @@ describe('IpSeries 渲染', () => {
   });
 });
 
+describe('REQ-86 排序与 code 搜索', () => {
+  it('在编码搜索框输入并提交应携带 code 参数', async () => {
+    (listIpSeries as jest.Mock).mockResolvedValue(mockPageResult([]));
+
+    render(<IpSeries />);
+
+    await waitFor(() => {
+      expect(screen.getByText('IP 系列管理')).toBeInTheDocument();
+    });
+
+    // ProTable 查询表单中"编码"输入框：用 label 定位（查询表单中的字段会渲染 label "编码"）
+    const labels = document.querySelectorAll('.ant-form-item-label');
+    const codeLabel = Array.from(labels).find((el) => el.textContent === '编码');
+    expect(codeLabel).toBeDefined();
+    const codeFormItem = codeLabel?.parentElement?.parentElement;
+    const codeInput = codeFormItem?.querySelector('input') as HTMLInputElement;
+    expect(codeInput).toBeInTheDocument();
+    fireEvent.change(codeInput, { target: { value: 'IP001' } });
+
+    // 点击查询表单的"提交"按钮（ProTable 默认中文文案）
+    const submitBtn = screen.getByRole('button', { name: /查 询|查询/ });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      const lastCall = (listIpSeries as jest.Mock).mock.calls.at(-1)?.[0];
+      expect(lastCall).toMatchObject({ code: 'IP001' });
+    });
+  });
+
+  it('点击编码列头排序按钮应携带 sort/order 参数', async () => {
+    (listIpSeries as jest.Mock).mockResolvedValue(mockPageResult([]));
+
+    const { container } = render(<IpSeries />);
+
+    await waitFor(() => {
+      expect(screen.getByText('IP 系列管理')).toBeInTheDocument();
+    });
+
+    // 初始请求不带 sort/order
+    const initialCall = (listIpSeries as jest.Mock).mock.calls.at(-1)?.[0];
+    expect(initialCall?.sort).toBeUndefined();
+    expect(initialCall?.order).toBeUndefined();
+
+    // 点击"编码"列头的排序按钮（antd Table 列头 sorter-up 触发 ASC）
+    const sorterBtn = container.querySelector('.ant-table-column-sorter-up') as HTMLElement;
+    expect(sorterBtn).toBeInTheDocument();
+    fireEvent.click(sorterBtn);
+
+    await waitFor(() => {
+      const lastCall = (listIpSeries as jest.Mock).mock.calls.at(-1)?.[0];
+      expect(lastCall?.sort).toBe('code');
+      expect(lastCall?.order).toBe('asc');
+    });
+  });
+});
+
 describe('创建 IP 系列', () => {
   it('点击新建按钮应打开弹窗', async () => {
     (listIpSeries as jest.Mock).mockResolvedValue(mockPageResult([]));
@@ -280,6 +336,8 @@ describe('编辑 IP 系列', () => {
         1,
         expect.objectContaining({
           name: '改名后的 IP',
+          code: 'IP001',
+          coverImageFileId: null,
         }),
       );
       expect(message.success).toHaveBeenCalledWith('更新成功');

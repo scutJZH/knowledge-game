@@ -3,6 +3,7 @@ package com.knowledgegame.core.domain.port.outbound;
 import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,9 +34,10 @@ public interface IpSeriesRepositoryPort {
     Optional<IpSeries> findByName(String name);
 
     /**
-     * 分页查询（支持名称模糊搜索 + 状态筛选）
+     * 分页查询（支持 name/code 模糊搜索、状态筛选、参数化排序）
      */
-    PageResult<IpSeries> findByConditions(String name, IpSeriesStatus status, int pageNumber, int pageSize);
+    PageResult<IpSeries> findByConditions(String name, String code, IpSeriesStatus status,
+                                          SortField sortField, int pageNumber, int pageSize);
 
     /**
      * 根据 ID 批量查询（用于批量校验时一次性加载）

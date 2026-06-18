@@ -34,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
@@ -212,7 +213,8 @@ class IpSeriesControllerTest {
         PageResult<IpSeriesResponse> mockPageResult = PageResult.<IpSeriesResponse>builder()
                 .content(responses).totalElements(2).pageNumber(0).pageSize(20).totalPages(1).build();
 
-        when(ipSeriesAppService.listIpSeries(isNull(), isNull(), eq(0), eq(20)))
+        when(ipSeriesAppService.listIpSeries(isNull(), isNull(), isNull(), isNull(), isNull(),
+                eq(0), eq(20)))
                 .thenReturn(mockPageResult);
 
         mockMvc.perform(get("/api/admin/ip-series")
@@ -230,7 +232,8 @@ class IpSeriesControllerTest {
         PageResult<IpSeriesResponse> mockPageResult = PageResult.<IpSeriesResponse>builder()
                 .content(responses).totalElements(1).pageNumber(0).pageSize(10).totalPages(1).build();
 
-        when(ipSeriesAppService.listIpSeries(eq("火影"), isNull(), eq(0), eq(10)))
+        when(ipSeriesAppService.listIpSeries(eq("火影"), isNull(), isNull(), isNull(), isNull(),
+                eq(0), eq(10)))
                 .thenReturn(mockPageResult);
 
         mockMvc.perform(get("/api/admin/ip-series")
@@ -238,6 +241,26 @@ class IpSeriesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.content.length()").value(1));
+    }
+
+    @Test
+    @DisplayName("分页查询 IP 系列列表 - code/sort/order 参数透传到 AppService")
+    void list_shouldPassCodeSortAndOrder() throws Exception {
+        PageResult<IpSeriesResponse> mockPageResult = PageResult.<IpSeriesResponse>builder()
+                .content(List.of()).totalElements(0).pageNumber(0).pageSize(20).totalPages(0).build();
+        when(ipSeriesAppService.listIpSeries(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(mockPageResult);
+
+        mockMvc.perform(get("/api/admin/ip-series")
+                        .param("code", "IP001")
+                        .param("sort", "code")
+                        .param("order", "asc")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk());
+
+        verify(ipSeriesAppService).listIpSeries(isNull(), eq("IP001"), isNull(),
+                eq("code"), eq("asc"), eq(0), eq(20));
     }
 
     // ========== 更新 ==========

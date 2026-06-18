@@ -3,7 +3,10 @@ package com.knowledgegame.core.infrastructure.adapter.repoadapter;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
+import com.knowledgegame.core.domain.spec.SortFieldSpec;
+import com.knowledgegame.core.infrastructure.adapter.support.SortFields;
 import com.knowledgegame.core.infrastructure.db.converter.KnowledgeCategoryConverter;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
@@ -17,12 +20,18 @@ import org.springframework.stereotype.Repository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 知识点分类仓储适配器（实现领域层出端口，注入 JPA Repository）
  */
 @Repository
 public class KnowledgeCategoryRepositoryAdapter implements KnowledgeCategoryRepositoryPort {
+
+    /**
+     * 列表查询允许的排序字段白名单（PO 字段名）
+     */
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("name", "sortOrder", "status", "createdAt", "updatedAt");
 
     private final KnowledgeCategoryJpaRepository jpaRepository;
 
@@ -58,7 +67,8 @@ public class KnowledgeCategoryRepositoryAdapter implements KnowledgeCategoryRepo
 
     @Override
     public PageResult<KnowledgeCategory> findByConditions(String keyword, KnowledgeCategoryStatus status,
-                                                           Long parentId, int pageNumber, int pageSize) {
+                                                           Long parentId, SortField sortField,
+                                                           int pageNumber, int pageSize) {
         Specification<KnowledgeCategoryPO> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (keyword != null && !keyword.isBlank()) {
@@ -76,9 +86,9 @@ public class KnowledgeCategoryRepositoryAdapter implements KnowledgeCategoryRepo
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+        Sort springSort = toSpringSort(sortField);
         Page<KnowledgeCategoryPO> springPage = jpaRepository.findAll(spec,
-                PageRequest.of(pageNumber, pageSize,
-                        Sort.by(Sort.Order.asc("sortOrder"), Sort.Order.desc("createdAt"))));
+                PageRequest.of(pageNumber, pageSize, springSort));
         return PageResult.<KnowledgeCategory>builder()
                 .content(springPage.getContent().stream()
                         .map(KnowledgeCategoryConverter.INSTANCE::toDomain).toList())
@@ -87,6 +97,20 @@ public class KnowledgeCategoryRepositoryAdapter implements KnowledgeCategoryRepo
                 .pageSize(springPage.getSize())
                 .totalPages(springPage.getTotalPages())
                 .build();
+    }
+
+    /**
+     * 将领域排序字段转为 Spring Data Sort
+     * <p>
+     * 非法字段由 SortFieldSpec.validate 抛 BusinessException(400)。
+     * sortField 为 null 时使用双字段默认（sortOrder ASC, createdAt DESC），保留原行为。
+     */
+    private Sort toSpringSort(SortField sortField) {
+        SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
+        if (validated == null) {
+            return Sort.by(Sort.Order.asc("sortOrder"), Sort.Order.desc("createdAt"));
+        }
+        return SortFields.toSpringSort(validated);
     }
 
     @Override

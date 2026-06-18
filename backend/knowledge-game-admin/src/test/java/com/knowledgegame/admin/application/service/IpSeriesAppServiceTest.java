@@ -8,6 +8,7 @@ import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
 import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -138,15 +140,43 @@ class IpSeriesAppServiceTest {
                 .content(List.of(series1, series2))
                 .totalElements(2).pageNumber(0).pageSize(10).totalPages(1).build();
 
-        when(ipSeriesRepositoryPort.findByConditions("漫威", IpSeriesStatus.ACTIVE, 0, 10))
+        when(ipSeriesRepositoryPort.findByConditions(eq("漫威"), eq(null), eq(IpSeriesStatus.ACTIVE),
+                eq(null), eq(0), eq(10)))
                 .thenReturn(mockPageResult);
 
-        PageResult<IpSeriesResponse> result = ipSeriesAppService.listIpSeries("漫威", "ACTIVE", 0, 10);
+        PageResult<IpSeriesResponse> result = ipSeriesAppService.listIpSeries(
+                "漫威", null, "ACTIVE", null, null, 0, 10);
 
         assertNotNull(result);
         assertEquals(2, result.getContent().size());
         assertEquals("MARVEL", result.getContent().get(0).getCode());
         assertEquals("DC", result.getContent().get(1).getCode());
+    }
+
+    /**
+     * sort/order 透传到 Port：SortField.parse("code","asc") 应构造 SortField("code", ASC)
+     */
+    @Test
+    void listIpSeries_shouldPassSortFieldToPort() {
+        IpSeries series = buildIpSeries(1L, "MARVEL", "漫威宇宙", "描述", IpSeriesStatus.ACTIVE);
+        PageResult<IpSeries> mockPage = PageResult.<IpSeries>builder()
+                .content(List.of(series))
+                .totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+
+        when(ipSeriesRepositoryPort.findByConditions(eq(null), eq(null), eq(null),
+                argThat(sf -> sf != null
+                        && sf.getField().equals("code")
+                        && sf.getDirection() == SortField.Direction.ASC),
+                eq(0), eq(20)))
+                .thenReturn(mockPage);
+
+        ipSeriesAppService.listIpSeries(null, null, null, "code", "asc", 0, 20);
+
+        verify(ipSeriesRepositoryPort).findByConditions(eq(null), eq(null), eq(null),
+                argThat(sf -> sf != null
+                        && sf.getField().equals("code")
+                        && sf.getDirection() == SortField.Direction.ASC),
+                eq(0), eq(20));
     }
 
     @Test

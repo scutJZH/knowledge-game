@@ -246,7 +246,7 @@ class CardTemplateControllerTest {
                 .build();
 
         when(cardTemplateAppService.listCardTemplates(
-                isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
+                isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), isNull(), eq(0), eq(20)))
                 .thenReturn(mockPageResult);
 
         // 执行请求并断言
@@ -261,7 +261,37 @@ class CardTemplateControllerTest {
                 .andExpect(jsonPath("$.data.content[0].code").value("PIKACHU"))
                 .andExpect(jsonPath("$.data.content[0].ipSeriesName").value("火影忍者"));
 
-        verify(cardTemplateAppService).listCardTemplates(null, null, null, null, 0, 20);
+        verify(cardTemplateAppService).listCardTemplates(null, null, null, null, null, null, null, 0, 20);
+    }
+
+    /**
+     * REQ-86：分页查询 - sort/order/code 参数透传到 AppService
+     */
+    @Test
+    @DisplayName("分页查询 - sort/order/code 参数透传")
+    void list_shouldPassCodeSortAndOrder() throws Exception {
+        CardTemplateListResponse listResponse = CardTemplateListResponse.builder()
+                .id(1L).ipSeriesId(1L).ipSeriesName("火影忍者")
+                .code("PIKACHU").name("皮卡丘").rarity("SR")
+                .status("ACTIVE").createdAt(0L).updatedAt(0L).build();
+        PageResult<CardTemplateListResponse> mockPageResult = PageResult.<CardTemplateListResponse>builder()
+                .content(List.of(listResponse)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+
+        when(cardTemplateAppService.listCardTemplates(
+                isNull(), eq("PIKA"), isNull(), isNull(), isNull(),
+                eq("code"), eq("asc"), eq(0), eq(20)))
+                .thenReturn(mockPageResult);
+
+        mockMvc.perform(get("/api/admin/card-templates")
+                        .param("code", "PIKA")
+                        .param("sort", "code")
+                        .param("order", "asc")
+                        .param("page", "0")
+                        .param("size", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        verify(cardTemplateAppService).listCardTemplates(null, "PIKA", null, null, null, "code", "asc", 0, 20);
     }
 
     // ========== 更新接口测试 ==========

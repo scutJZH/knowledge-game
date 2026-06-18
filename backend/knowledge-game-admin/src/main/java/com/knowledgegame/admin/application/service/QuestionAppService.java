@@ -99,7 +99,7 @@ public class QuestionAppService {
                                                String sort, String order, int page, int size) {
         QuestionType typeEnum = EnumUtils.valueOfNullable(QuestionType.class, type);
         QuestionStatus statusEnum = EnumUtils.valueOfNullable(QuestionStatus.class, status);
-        SortField sortField = buildSortField(sort, order);
+        SortField sortField = SortField.parse(sort, order);
 
         PageResult<Question> domainPage = questionRepository.findByConditions(
                 keyword, typeEnum, difficulty, categoryId, tag, statusEnum,
@@ -298,18 +298,6 @@ public class QuestionAppService {
                 .createdAt(response.getCreatedAt())
                 .updatedAt(response.getUpdatedAt())
                 .build();
-    }
-
-    /**
-     * 构建排序字段
-     */
-    private SortField buildSortField(String sort, String order) {
-        if (sort == null || sort.isBlank()) {
-            return SortField.defaultSort();
-        }
-        SortField.Direction direction = "asc".equalsIgnoreCase(order)
-                ? SortField.Direction.ASC : SortField.Direction.DESC;
-        return new SortField(sort, direction);
     }
 
     /**

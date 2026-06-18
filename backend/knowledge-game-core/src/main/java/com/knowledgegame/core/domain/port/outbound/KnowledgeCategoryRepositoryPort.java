@@ -3,6 +3,7 @@ package com.knowledgegame.core.domain.port.outbound;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import com.knowledgegame.core.domain.model.vo.SortField;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,10 +29,15 @@ public interface KnowledgeCategoryRepositoryPort {
     boolean existsByNameAndParentId(String name, Long parentId);
 
     /**
-     * 分页查询（支持名称搜索 + 状态筛选 + 父级筛选）
+     * 分页查询（支持名称搜索 + 状态筛选 + 父级筛选 + 参数化排序）
+     * <p>
+     * sortField 为 null 时由实现回退到双字段默认（sortOrder ASC, createdAt DESC）。
+     *
+     * @param sortField 排序值对象（已通过 SortFieldSpec.validate 白名单校验）；null 表示使用默认排序
      */
     PageResult<KnowledgeCategory> findByConditions(String keyword, KnowledgeCategoryStatus status,
-                                                    Long parentId, int pageNumber, int pageSize);
+                                                    Long parentId, SortField sortField,
+                                                    int pageNumber, int pageSize);
 
     /**
      * 查询所有分类（用于构建树）
