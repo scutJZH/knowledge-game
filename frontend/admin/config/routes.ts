@@ -35,9 +35,9 @@ export default [
         component: './QuestionBank',
       },
       {
-        path: '/content/knowledge-base',
-        name: '知识库管理',
-        component: './KnowledgeBase',
+        path: '/content/category',
+        name: '分类管理',
+        component: './Category',
       },
     ],
   },
