@@ -15,7 +15,8 @@ public final class FilePathMapping {
     }
 
     private static final Map<String, String> MAPPING = Map.of(
-            "USER_AVATAR", "user-avatar"
+            "USER_AVATAR", "user-avatar",
+            "STUDY_GROUP_AVATAR", "study-group-avatar"
     );
 
     /**

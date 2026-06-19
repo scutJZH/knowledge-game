@@ -18,7 +18,10 @@ public enum ResultCode {
     DUPLICATE_USERNAME(400, "用户名已存在"),
     USER_NOT_FOUND(400, "用户不存在"),
     ACCESS_DENIED(403, "无管理员权限"),
-    INVALID_TOKEN(400, "Token 无效或已过期");
+    INVALID_TOKEN(400, "Token 无效或已过期"),
+    FILE_NOT_FOUND(400, "文件不存在"),
+    FILE_BIZ_TYPE_MISMATCH(400, "文件业务类型不匹配"),
+    FILE_OWNER_MISMATCH(403, "无权使用该文件");
 
     private final int code;
     private final String message;
