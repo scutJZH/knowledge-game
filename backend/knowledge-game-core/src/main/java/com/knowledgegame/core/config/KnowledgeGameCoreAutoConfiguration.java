@@ -10,6 +10,10 @@ import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
 import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
 import com.knowledgegame.core.domain.service.QuestionDomainService;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategyRegistry;
+
+import java.util.List;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.Bean;
@@ -72,5 +76,16 @@ public class KnowledgeGameCoreAutoConfiguration {
             KnowledgeItemRepository itemRepository,
             KnowledgeCategoryRepositoryPort categoryRepositoryPort) {
         return new KnowledgeItemDomainService(itemRepository, categoryRepositoryPort);
+    }
+
+    /**
+     * 注册回收站策略注册中心（自动发现所有 RecycleBinItemStrategy Bean）
+     * <p>
+     * 本需求交付时 List 为空（无策略 Bean），后续 REQ-104~108 新增策略 Bean 时自动注入。
+     */
+    @Bean
+    public RecycleBinItemStrategyRegistry recycleBinItemStrategyRegistry(
+            List<RecycleBinItemStrategy<?>> strategies) {
+        return new RecycleBinItemStrategyRegistry(strategies);
     }
 }
