@@ -149,7 +149,7 @@ interface UserInfo { id: number; username: string; nickname: string; role: strin
 
 | 需求 | 状态 | 依赖内容 |
 |------|------|---------|
-| REQ-26 前端项目搭建 | `designed` | `frontend/user/` 脚手架（Vite + React + Router + MainLayout + antd + axios/zustand 依赖 + services/ store/ 空目录）。REQ-26 完成前 REQ-27 不可开始开发。 |
+| REQ-26 前端项目搭建 | `done` | `frontend/user/` 脚手架已就位，包含 MainLayout（Header + 菜单 + "未登录"占位）、路由（`createBrowserRouter`，MainLayout 包裹 `/home` 和 `*`）、axios/zustand 依赖、services/store 空目录 |
 
 ## Impact Analysis
 

@@ -404,7 +404,7 @@ public class RecycleBinItemRepositoryAdapter implements RecycleBinItemRepository
 
 ### 4.3 Application 层（`admin/application`）
 
-#### 4.3.1 `RecycleBinItemAssembler`（MapStruct @Mapper，位于 `admin/application/assembler/`）
+#### 4.3.1 `RecycleBinItemAssembler`（MapStruct @Mapper，位于 `admin/api/assembler/`）
 
 ```java
 @Mapper
@@ -440,7 +440,7 @@ public interface RecycleBinItemAssembler {
 }
 ```
 
-**与项目惯例对齐**：参考 `KnowledgeItemAssembler`（admin/application/assembler/）的模式，`@Mapper` 接口 + `INSTANCE` 单例 + `@Named` default 方法。Assembler 属于 application 层，不应放在 api/dto 包。
+**与项目惯例对齐**：参考 `KnowledgeItemAssembler`（admin/api/assembler/）的模式，`@Mapper` 接口 + `INSTANCE` 单例 + `@Named` default 方法。
 
 #### 4.3.2 `RecycleBinAppService`
 
@@ -581,7 +581,7 @@ api/dto/
 
 | 字段 | 类型 | 必填 | 约束 / 默认 | 说明 |
 |------|------|------|-----------|------|
-| `page` | `Integer` | 否 | `@Min(1)`，默认 `1` | 页码（1-based） |
+| `page` | `Integer` | 否 | `@Min(0)`，默认 `0` | 页码（0-based，与项目其他列表接口一致） |
 | `size` | `Integer` | 否 | `@Min(1) @Max(100)`，默认 `20` | 每页条数（防超大查询） |
 | `resourceType` | `String` | 否 | `null` / 空 / `"ALL"`（大小写不敏感）= 不过滤；否则必须能解析为 `ResourceType` 枚举（AppService 校验） | 资源类型过滤 |
 | `keyword` | `String` | 否 | `@Size(max=100)` | 关键字模糊匹配 `original_name` |
@@ -615,7 +615,7 @@ api/dto/
   "code": 200,
   "message": "success",
   "data": {
-    "list": [
+    "content": [
       {
         "id": 42,
         "resourceType": "IP_SERIES",
@@ -632,9 +632,10 @@ api/dto/
         "daysUntilPurge": 23
       }
     ],
-    "total": 87,
-    "page": 1,
-    "size": 20
+    "totalElements": 87,
+    "pageNumber": 0,
+    "pageSize": 20,
+    "totalPages": 5
   }
 }
 ```
@@ -690,8 +691,7 @@ frontend/admin/src/pages/RecycleBin/
 └── components/
     ├── ResourceTypeTree.tsx               — 左侧目录树（动态从 /supported-types 拉）
     └── RecycleBinTable.tsx                — 右侧 ProTable
-frontend/admin/src/services/recycleBin.ts  — API 调用封装
-frontend/admin/src/types/recycleBin.d.ts   — TS 类型定义
+frontend/admin/src/services/recycleBin.ts  — API 调用封装 + TS 类型定义
 ```
 
 ### 5.3 页面布局
