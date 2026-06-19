@@ -83,6 +83,11 @@ export default [
         name: '用户管理',
         component: './User',
       },
+      {
+        path: '/system/recycle-bin',
+        name: '回收站',
+        component: './RecycleBin',
+      },
     ],
   },
   {

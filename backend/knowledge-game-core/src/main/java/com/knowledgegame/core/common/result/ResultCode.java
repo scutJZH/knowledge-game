@@ -21,7 +21,9 @@ public enum ResultCode {
     INVALID_TOKEN(400, "Token 无效或已过期"),
     FILE_NOT_FOUND(400, "文件不存在"),
     FILE_BIZ_TYPE_MISMATCH(400, "文件业务类型不匹配"),
-    FILE_OWNER_MISMATCH(403, "无权使用该文件");
+    FILE_OWNER_MISMATCH(403, "无权使用该文件"),
+    PARAM_ERROR(400, "参数错误"),
+    NOT_IMPLEMENTED(501, "功能未实现");
 
     private final int code;
     private final String message;
