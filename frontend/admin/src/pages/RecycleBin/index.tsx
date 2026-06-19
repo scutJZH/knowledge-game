@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Card, Layout, message } from 'antd';
-import ResourceTypeTree from './components/ResourceTypeTree';
+import { Card, Segmented, message } from 'antd';
+import type { SegmentedValue } from 'antd/es/segmented';
 import RecycleBinTable from './components/RecycleBinTable';
 import {
   fetchRecycleBinList,
@@ -10,9 +10,6 @@ import {
   type RecycleBinListParams,
 } from '@/services/recycleBin';
 
-const { Sider, Content } = Layout;
-
-/** antd ProTable sorter → sortField mapping */
 const SORT_FIELD_MAP: Record<string, string> = {
   originalName: 'originalName',
   deletedAt: 'deletedAt',
@@ -69,7 +66,6 @@ const RecycleBinPage: React.FC = () => {
   };
 
   const handleSort = (field: string, order: 'ascend' | 'descend' | null) => {
-    // 取消排序时清空 sort 参数，让后端使用默认排序
     if (!order) {
       sortRef.current = {};
     } else {
@@ -81,34 +77,41 @@ const RecycleBinPage: React.FC = () => {
     setPagination({ current: 1, pageSize: pagination.pageSize });
   };
 
+  const handleTypeChange = (value: SegmentedValue) => {
+    setSelectedType(value as string);
+    setPagination({ current: 1, pageSize: pagination.pageSize });
+  };
+
+  const segmentedOptions: { value: string; label: string }[] = [
+    { value: 'ALL', label: '全部' },
+    ...types.map((t) => ({ value: t.type, label: t.displayName })),
+  ];
+
   return (
-    <Card title="回收站">
-      <Layout style={{ background: '#fff' }}>
-        <Sider width={200} style={{ background: '#fff', padding: '12px 0' }}>
-          <ResourceTypeTree
-            types={types}
-            onSelect={(key) => {
-              setSelectedType(key);
-              setPagination({ current: 1, pageSize: pagination.pageSize });
-            }}
-          />
-        </Sider>
-        <Content style={{ padding: '0 16px' }}>
-          <RecycleBinTable
-            dataSource={dataSource}
-            loading={loading}
-            total={total}
-            pagination={pagination}
-            onPaginationChange={(page, pageSize) =>
-              setPagination({ current: page, pageSize })
-            }
-            onSearch={handleSearch}
-            onSort={handleSort}
-            selectedRowKeys={selectedRowKeys}
-            onSelectChange={setSelectedRowKeys}
-          />
-        </Content>
-      </Layout>
+    <Card
+      title="回收站"
+      styles={{ body: { paddingTop: 0 } }}
+    >
+      <div style={{ marginBottom: 16, paddingTop: 16 }}>
+        <Segmented
+          options={segmentedOptions}
+          value={selectedType}
+          onChange={handleTypeChange}
+        />
+      </div>
+      <RecycleBinTable
+        dataSource={dataSource}
+        loading={loading}
+        total={total}
+        pagination={pagination}
+        onPaginationChange={(page, pageSize) =>
+          setPagination({ current: page, pageSize })
+        }
+        onSearch={handleSearch}
+        onSort={handleSort}
+        selectedRowKeys={selectedRowKeys}
+        onSelectChange={setSelectedRowKeys}
+      />
     </Card>
   );
 };
