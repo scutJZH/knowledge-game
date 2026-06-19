@@ -3,7 +3,6 @@ import { Typography, Card } from 'antd';
 const { Title, Paragraph, Text } = Typography;
 
 const futurePages = [
-  '登录/注册',
   '首页（群组选择）',
   '知识点分类树',
   '秒判游戏',
