@@ -127,3 +127,33 @@
 - **修复计划：** 评估方向：① 改为前缀匹配 `code + "%"`（牺牲模糊匹配能力）；② 加全文索引 `FULLTEXT INDEX`（MySQL 8.0+ 支持 ngram 分词中文）；③ 数据量 > 10 万行时迁移到 Elasticsearch
 - **触发条件：** 任一表数据量 > 10 万行，或 LIKE 查询 P95 延迟 > 100ms 时
 
+
+## DD-14: 出端口命名不一致（Port 后缀 vs 无后缀）
+
+- **发现日期：** 2026-06-19
+- **来源需求：** REQ-100（PRD 审查 #10）
+- **问题：** `core/domain/port/outbound/` 下出端口命名两种风格并存：
+  - 带后缀（4 个）：`CardTemplateRepositoryPort` / `IpSeriesRepositoryPort` / `KnowledgeCategoryRepositoryPort` / `UserRepositoryPort`
+  - 无后缀（2 个）：`KnowledgeItemRepository` / `QuestionRepository`
+- **暂缓原因：** 命名一致性属于代码风格，不影响功能；现有调用面广，统一改名涉及大量 import 修改
+- **修复计划：** 统一为 `XxxRepositoryPort`（多数派 + 语义更清晰）。改名时全工程一次性替换 + 编译验证
+- **触发条件：** 下一次 DDD 大重构，或新增出端口时（强制带 Port 后缀作为新规范）
+- **当前规范：** 新增出端口一律带 `Port` 后缀（如 REQ-100 的 `RecycleBinItemRepositoryPort`）
+
+## DD-15: CLAUDE.md Dependency Rules 表与实际代码不一致（domain → common.exception 依赖）
+
+- **发现日期：** 2026-06-19
+- **来源需求：** REQ-100（PRD 审查 #8）
+- **问题：** CLAUDE.md 「Dependency Rules」表声明 domain 层「May depend on: JDK only」，但实际所有 5 个 DomainService（`CardTemplateDomainService` / `IpSeriesDomainService` / `KnowledgeCategoryDomainService` / `KnowledgeItemDomainService` / `QuestionDomainService`）和 `SortFieldSpec` 均 `import com.knowledgegame.core.common.exception.BusinessException`。`common.exception` 既不在 JDK 内，也不在 domain 自身
+- **暂缓原因：** 不影响功能；`common.exception.BusinessException` 是项目通用基础类，与 DDD「领域层可依赖通用基础类」的实践一致（只是 CLAUDE.md 表述过于严格）
+- **修复计划：** 修订 CLAUDE.md Dependency Rules 表，将 domain 层「May depend on」改为「JDK + core 自身的 common 包（BusinessException 等通用基础类）」
+- **触发条件：** 下一次 CLAUDE.md 文档审查，或新增 domain 层引入跨包依赖时（应明确允许 common 基础类）
+
+## DD-16: Assembler 实际位置与 CLAUDE.md 规范冲突
+
+- **发现日期：** 2026-06-19
+- **来源需求：** REQ-100（task_plan.md 审查 #2）
+- **问题：** CLAUDE.md「DDD Architecture」节声明「Assembler 属于 application 层，不应放在 api/dto 包中」，但实际所有 6 个现有 Assembler 都位于 `admin/api/assembler/`：`AdminUserAssembler` / `QuestionAssembler` / `CardTemplateAssembler` / `IpSeriesAssembler` / `KnowledgeCategoryAssembler` / `KnowledgeItemAssembler`
+- **暂缓原因：** 不影响功能；统一迁移涉及大量 import 修改，且 `admin/application/` 目录目前不存在，需新建
+- **修复计划：** 全量迁移 `admin/api/assembler/` → `admin/application/assembler/`，同步更新 CLAUDE.md 强制规范。或反向修订 CLAUDE.md，承认现状（Assembler 放 api 层）
+- **触发条件：** 下一次 DDD 大重构，或新增 Assembler 时（**当前规范：跟随现状，放 `admin/api/assembler/`**，与 4-15 一致）
