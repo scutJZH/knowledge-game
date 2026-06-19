@@ -149,6 +149,21 @@
 - **修复计划：** 修订 CLAUDE.md Dependency Rules 表，将 domain 层「May depend on」改为「JDK + core 自身的 common 包（BusinessException 等通用基础类）」
 - **触发条件：** 下一次 CLAUDE.md 文档审查，或新增 domain 层引入跨包依赖时（应明确允许 common 基础类）
 
+## DD-17: 5 处 verifyFileRef 硬编码 BusinessException 未迁移到 ResultCode 枚举
+
+- **发现日期：** 2026-06-19
+- **来源需求：** REQ-48（代码审查 #7）
+- **问题：** REQ-48 在 `core/common/result/ResultCode.java` 新增了三条文件校验枚举（`FILE_NOT_FOUND` / `FILE_BIZ_TYPE_MISMATCH` / `FILE_OWNER_MISMATCH`），但以下 5 个 AppService 的 `verifyFileRef` 仍使用硬编码 `new BusinessException(400, "文件不存在")` / `new BusinessException(400, "文件类型不匹配")` / `new BusinessException(403, "无权使用该文件")`：
+  - `admin/.../IpSeriesAppService.java`
+  - `admin/.../CardTemplateAppService.java`
+  - `admin/.../KnowledgeCategoryAppService.java`
+  - `admin/.../KnowledgeItemAppService.java`
+  - `app/.../UserAppService.java`
+- **影响：** 违反"禁止魔法字符串"设计决策，硬编码与 ResultCode 枚举并存
+- **暂缓原因：** 迁移不在 REQ-48 范围（PRD 第 304 行已注明），纯重构任务，功能无 bug
+- **修复计划：** 统一替换 5 处硬编码为 `new BusinessException(ResultCode.FILE_NOT_FOUND)` 等枚举常量。涉及 admin（4 个）和 app（1 个）两个模块
+- **触发条件：** 下一次 AppService 重构或统一技术债清理 sprint
+
 ## DD-16: Assembler 实际位置与 CLAUDE.md 规范冲突
 
 - **发现日期：** 2026-06-19
@@ -157,3 +172,12 @@
 - **暂缓原因：** 不影响功能；统一迁移涉及大量 import 修改，且 `admin/application/` 目录目前不存在，需新建
 - **修复计划：** 全量迁移 `admin/api/assembler/` → `admin/application/assembler/`，同步更新 CLAUDE.md 强制规范。或反向修订 CLAUDE.md，承认现状（Assembler 放 api 层）
 - **触发条件：** 下一次 DDD 大重构，或新增 Assembler 时（**当前规范：跟随现状，放 `admin/api/assembler/`**，与 4-15 一致）
+
+## DD-18: REQ-48 ControllerTest slice 覆盖度偏低
+
+- **发现日期：** 2026-06-19
+- **来源需求：** REQ-48（第二轮代码审查 #10）
+- **问题：** `StudyGroupControllerTest`（`@WebMvcTest` slice 测试）仅 1 个创建成功用例，Controller 层特有的 Spring MVC 场景未覆盖：序列化失败（malformed JSON）、Content-Type 不匹配、参数绑定异常（类型转换失败）、`@Valid` 与 ControllerAdvice 交互验证等。`StudyGroupBlackBoxTest`（`@SpringBootTest` 全量上下文）虽覆盖更多路径，但启动慢（~12s vs ~3s），且 BlackBoxTest 不是 slice 测试的替代品
+- **暂缓原因：** BlackBoxTest 已覆盖核心正常/异常路径，功能正确性无风险；slice 测试补充属于测试策略优化，不阻塞合入
+- **修复计划：** ControllerTest 补充 3~5 个 slice 特有场景（非法 JSON body → 400、Content-Type=text/plain → 415、Query param 类型不匹配 → 400 等）
+- **触发条件：** 下一次 Controller 层测试策略统一优化，或新增 Controller 时同步对齐
