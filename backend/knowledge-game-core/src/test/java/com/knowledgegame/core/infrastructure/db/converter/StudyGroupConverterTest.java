@@ -1,0 +1,126 @@
+package com.knowledgegame.core.infrastructure.db.converter;
+
+import com.knowledgegame.core.domain.model.entity.StudyGroup;
+import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.infrastructure.db.entity.StudyGroupPO;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+class StudyGroupConverterTest {
+
+    @Nested
+    @DisplayName("toDomain（PO → 领域模型）")
+    class ToDomainTests {
+
+        @Test
+        @DisplayName("双字段 PO 应映射为 FileRef")
+        void shouldMapDualFieldsToFileRef() {
+            StudyGroupPO po = buildPO(1L, 10L, "/static/avatar.jpg");
+
+            StudyGroup domain = StudyGroupConverter.INSTANCE.toDomain(po);
+
+            assertNotNull(domain.getAvatar());
+            assertEquals(10L, domain.getAvatar().fileId());
+            assertEquals("/static/avatar.jpg", domain.getAvatar().url());
+        }
+
+        @Test
+        @DisplayName("双字段均为 null 时 FileRef 为 null")
+        void shouldReturnNullFileRefWhenBothNull() {
+            StudyGroupPO po = buildPO(1L, null, null);
+
+            StudyGroup domain = StudyGroupConverter.INSTANCE.toDomain(po);
+
+            assertNull(domain.getAvatar());
+        }
+
+        @Test
+        @DisplayName("null PO 返回 null")
+        void shouldReturnNullForNullPO() {
+            assertNull(StudyGroupConverter.INSTANCE.toDomain(null));
+        }
+    }
+
+    @Nested
+    @DisplayName("toPO（领域模型 → PO）")
+    class ToPOTests {
+
+        @Test
+        @DisplayName("FileRef 应映射为双字段 PO")
+        void shouldMapFileRefToDualFields() {
+            StudyGroup domain = StudyGroup.reconstruct(1L, "测试群组", "描述",
+                    FileRef.of(10L, "/static/avatar.jpg"),
+                    100L, LocalDateTime.now(), LocalDateTime.now());
+
+            StudyGroupPO po = StudyGroupConverter.INSTANCE.toPO(domain);
+
+            assertEquals(10L, po.getAvatarFileId());
+            assertEquals("/static/avatar.jpg", po.getAvatarUrl());
+        }
+
+        @Test
+        @DisplayName("null FileRef 应映射为双 null PO 字段")
+        void shouldMapNullFileRefToNullFields() {
+            StudyGroup domain = StudyGroup.reconstruct(1L, "测试群组", "描述",
+                    null, 100L, LocalDateTime.now(), LocalDateTime.now());
+
+            StudyGroupPO po = StudyGroupConverter.INSTANCE.toPO(domain);
+
+            assertNull(po.getAvatarFileId());
+            assertNull(po.getAvatarUrl());
+        }
+    }
+
+    @Nested
+    @DisplayName("updatePO（领域模型 → 已有 PO 更新）")
+    class UpdatePOTests {
+
+        @Test
+        @DisplayName("非 null FileRef 应显式赋值 PO 双字段")
+        void shouldSetDualFieldsWhenFileRefNonNull() {
+            StudyGroupPO po = buildPO(1L, 1L, "/static/old.jpg");
+            StudyGroup domain = StudyGroup.reconstruct(1L, "新名称", "新描述",
+                    FileRef.of(99L, "/static/new.jpg"),
+                    100L, null, null);
+
+            StudyGroupConverter.INSTANCE.updatePO(po, domain);
+
+            assertEquals(99L, po.getAvatarFileId());
+            assertEquals("/static/new.jpg", po.getAvatarUrl());
+        }
+
+        @Test
+        @DisplayName("null FileRef 应清空 PO 双字段（clearXxx 语义穿透）")
+        void shouldClearDualFieldsWhenFileRefNull() {
+            StudyGroupPO po = buildPO(1L, 1L, "/static/old.jpg");
+            StudyGroup domain = StudyGroup.reconstruct(1L, "新名称", null,
+                    null, 100L, null, null);
+
+            StudyGroupConverter.INSTANCE.updatePO(po, domain);
+
+            // nullable 字段无条件写回，clearXxx() 产生的 null 必须能穿透到 PO
+            assertNull(po.getAvatarFileId());
+            assertNull(po.getAvatarUrl());
+        }
+    }
+
+    private StudyGroupPO buildPO(Long id, Long fileId, String url) {
+        return StudyGroupPO.builder()
+                .id(id)
+                .name("测试群组")
+                .description("描述")
+                .avatarFileId(fileId)
+                .avatarUrl(url)
+                .ownerId(100L)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+    }
+}
