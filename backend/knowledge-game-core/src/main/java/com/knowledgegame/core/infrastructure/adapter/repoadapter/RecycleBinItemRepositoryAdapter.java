@@ -28,7 +28,8 @@ import java.util.Optional;
 /**
  * 回收站条目仓储适配器（实现领域层出端口）
  * <p>
- * 本需求实现 findAll / findById；save / deleteById 留 REQ-102/103/104~108 实现。
+ * 实现 findAll / findById / findAllById。save / deleteById 在 REQ-104~108 各资源对接时需要添加，
+ * REQ-104~108 PRD 将恢复这两个方法签名到 Port 并在此 Adapter 中实现（通过 JPA Repository 直接操作）。
  */
 @Repository
 public class RecycleBinItemRepositoryAdapter implements RecycleBinItemRepositoryPort {

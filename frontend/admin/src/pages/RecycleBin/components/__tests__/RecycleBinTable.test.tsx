@@ -16,10 +16,17 @@ jest.mock('@/services/recycleBin', () => ({
   ...jest.requireActual('@/services/recycleBin'),
   restoreItem: jest.fn(),
   batchRestoreItems: jest.fn(),
+  purgeItem: jest.fn(),
+  batchPurgeItems: jest.fn(),
 }));
 
 import { message } from 'antd';
-import { restoreItem, batchRestoreItems } from '@/services/recycleBin';
+import {
+  restoreItem,
+  batchRestoreItems,
+  purgeItem,
+  batchPurgeItems,
+} from '@/services/recycleBin';
 import RecycleBinTable from '../RecycleBinTable';
 
 /** 构造模拟回收站列表项 */
@@ -44,6 +51,8 @@ function mockItem(overrides: Record<string, unknown> = {}) {
 
 const onRestore = jest.fn();
 const onBatchRestore = jest.fn();
+const onPurge = jest.fn();
+const onBatchPurge = jest.fn();
 
 const defaultProps = {
   dataSource: [mockItem(), mockItem({ id: 2, originalName: '第二个资源' })],
@@ -57,6 +66,8 @@ const defaultProps = {
   onSelectChange: jest.fn(),
   onRestore,
   onBatchRestore,
+  onPurge,
+  onBatchPurge,
 };
 
 beforeEach(() => {
@@ -273,6 +284,292 @@ describe('RecycleBinTable — 批量恢复', () => {
 
     const confirmBtn = document.querySelector('.ant-popconfirm .ant-btn-primary')!;
     await userEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(message.error).toHaveBeenCalledWith('资源类型 IP_SERIES 暂未接入回收站');
+    });
+  });
+});
+
+// ===== 永久删除（REQ-102）=====
+
+describe('RecycleBinTable — 行内永久删除', () => {
+  it('行内「永久删除」按钮存在 + danger 样式 + enabled', () => {
+    render(<RecycleBinTable {...defaultProps} />);
+
+    const buttons = screen.getAllByText('永久删除');
+    expect(buttons).toHaveLength(2);
+    buttons.forEach((btn) => {
+      const button = btn.closest('button');
+      expect(button).not.toBeDisabled();
+      expect(button?.classList.contains('ant-btn-dangerous')).toBe(true);
+    });
+  });
+
+  it('点击「永久删除」→ Popconfirm 弹出 + 文案正确', async () => {
+    render(<RecycleBinTable {...defaultProps} />);
+
+    const buttons = screen.getAllByText('永久删除');
+    await userEvent.click(buttons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('永久删除该条目？')).toBeInTheDocument();
+    });
+    expect(screen.getByText('删除后不可恢复，关联文件将一并清除。')).toBeInTheDocument();
+  });
+
+  it('Popconfirm 确认 → 调用 onPurge + message.success', async () => {
+    const handlePurge = jest.fn(async (id: number) => {
+      await purgeItem(id);
+      (message.success as jest.Mock)('永久删除成功');
+    });
+    (purgeItem as jest.Mock).mockResolvedValueOnce(undefined);
+
+    render(<RecycleBinTable {...defaultProps} onPurge={handlePurge} />);
+
+    const buttons = screen.getAllByText('永久删除');
+    await userEvent.click(buttons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('永久删除该条目？')).toBeInTheDocument();
+    });
+
+    // danger Popconfirm 确认按钮
+    const confirmBtns = document.querySelectorAll('.ant-popconfirm .ant-btn-dangerous');
+    await userEvent.click(confirmBtns[confirmBtns.length - 1]);
+
+    await waitFor(() => {
+      expect(purgeItem).toHaveBeenCalledWith(1);
+      expect(message.success).toHaveBeenCalledWith('永久删除成功');
+    });
+  });
+
+  it('单条永久删除失败 → 调用 message.error', async () => {
+    const errorMsg = '资源类型 IP_SERIES 暂未接入回收站';
+    const handlePurge = jest.fn(async (id: number) => {
+      try {
+        await purgeItem(id);
+        (message.success as jest.Mock)('永久删除成功');
+      } catch (e: any) {
+        (message.error as jest.Mock)(e?.message || '永久删除失败');
+      }
+    });
+    (purgeItem as jest.Mock).mockRejectedValueOnce(new Error(errorMsg));
+
+    render(<RecycleBinTable {...defaultProps} onPurge={handlePurge} />);
+
+    const buttons = screen.getAllByText('永久删除');
+    await userEvent.click(buttons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('永久删除该条目？')).toBeInTheDocument();
+    });
+
+    const confirmBtns = document.querySelectorAll('.ant-popconfirm .ant-btn-dangerous');
+    await userEvent.click(confirmBtns[confirmBtns.length - 1]);
+
+    await waitFor(() => {
+      expect(message.error).toHaveBeenCalledWith(errorMsg);
+    });
+  });
+});
+
+describe('RecycleBinTable — 批量永久删除', () => {
+  it('批量永久删除按钮未选中 disabled', () => {
+    render(<RecycleBinTable {...defaultProps} selectedRowKeys={[]} />);
+
+    const btn = screen.queryByText('批量永久删除');
+    expect(btn).toBeNull();
+  });
+
+  it('批量永久删除按钮选中启用 + danger', () => {
+    render(<RecycleBinTable {...defaultProps} selectedRowKeys={[1, 2]} />);
+
+    const btn = screen.getByText('批量永久删除');
+    const button = btn.closest('button');
+    expect(button).not.toBeDisabled();
+    expect(button?.classList.contains('ant-btn-dangerous')).toBe(true);
+  });
+
+  it('点击批量永久删除 → Modal 弹出 + 标题含数量', async () => {
+    render(<RecycleBinTable {...defaultProps} selectedRowKeys={[1, 2]} />);
+
+    const btn = screen.getByText('批量永久删除');
+    await userEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByText('批量永久删除选中的 2 条？')).toBeInTheDocument();
+    });
+    expect(screen.getByText('永久删除后数据不可恢复，关联文件将一并清除。')).toBeInTheDocument();
+  });
+
+  it('Modal 输入错误数量 → 确认按钮 disabled', async () => {
+    render(<RecycleBinTable {...defaultProps} selectedRowKeys={[1, 2]} />);
+
+    const btn = screen.getByText('批量永久删除');
+    await userEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByText('批量永久删除选中的 2 条？')).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('请输入 2');
+    await userEvent.type(input, '1');
+
+    // 确认按钮应该 disabled（输入不等于选中数量）
+    const okBtn = document.querySelector('.ant-modal-footer .ant-btn-dangerous') as HTMLButtonElement;
+    expect(okBtn?.disabled).toBe(true);
+  });
+
+  it('Modal 输入正确数量 → 确认按钮 enabled', async () => {
+    render(<RecycleBinTable {...defaultProps} selectedRowKeys={[1, 2]} />);
+
+    const btn = screen.getByText('批量永久删除');
+    await userEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByText('批量永久删除选中的 2 条？')).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('请输入 2');
+    await userEvent.type(input, '2');
+
+    await waitFor(() => {
+      const okBtn = document.querySelector('.ant-modal-footer .ant-btn-dangerous') as HTMLButtonElement;
+      expect(okBtn?.disabled).toBe(false);
+    });
+  });
+
+  it('Modal 确认全成功 → message.success', async () => {
+    const handleBatchPurge = jest.fn(async (ids: number[]) => {
+      const result = await batchPurgeItems(ids);
+      (message.success as jest.Mock)(`成功永久删除 ${result.successIds.length} 条`);
+      return result;
+    });
+    (batchPurgeItems as jest.Mock).mockResolvedValueOnce({
+      successIds: [1, 2],
+      failures: [],
+    });
+
+    render(
+      <RecycleBinTable
+        {...defaultProps}
+        selectedRowKeys={[1, 2]}
+        onBatchPurge={handleBatchPurge}
+      />,
+    );
+
+    const btn = screen.getByText('批量永久删除');
+    await userEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByText('批量永久删除选中的 2 条？')).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('请输入 2');
+    await userEvent.type(input, '2');
+
+    await waitFor(() => {
+      const okBtn = document.querySelector('.ant-modal-footer .ant-btn-dangerous') as HTMLButtonElement;
+      expect(okBtn?.disabled).toBe(false);
+    });
+
+    const okBtn = document.querySelector('.ant-modal-footer .ant-btn-dangerous')! as HTMLButtonElement;
+    await userEvent.click(okBtn);
+
+    await waitFor(() => {
+      expect(batchPurgeItems).toHaveBeenCalledWith([1, 2]);
+      expect(message.success).toHaveBeenCalledWith('成功永久删除 2 条');
+    });
+  });
+
+  it('Modal 确认部分成功 → message.warning', async () => {
+    const handleBatchPurge = jest.fn(async (ids: number[]) => {
+      const result = await batchPurgeItems(ids);
+      const { successIds, failures } = result;
+      if (successIds.length > 0 && failures.length > 0) {
+        (message.warning as jest.Mock)(`成功 ${successIds.length} 条，失败 ${failures.length} 条`);
+      }
+      return result;
+    });
+    (batchPurgeItems as jest.Mock).mockResolvedValueOnce({
+      successIds: [1],
+      failures: [{ id: 2, errorMessage: '文件服务不可达' }],
+    });
+
+    render(
+      <RecycleBinTable
+        {...defaultProps}
+        selectedRowKeys={[1, 2]}
+        onBatchPurge={handleBatchPurge}
+      />,
+    );
+
+    const btn = screen.getByText('批量永久删除');
+    await userEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByText('批量永久删除选中的 2 条？')).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('请输入 2');
+    await userEvent.type(input, '2');
+
+    await waitFor(() => {
+      const okBtn = document.querySelector('.ant-modal-footer .ant-btn-dangerous') as HTMLButtonElement;
+      expect(okBtn?.disabled).toBe(false);
+    });
+
+    const okBtn = document.querySelector('.ant-modal-footer .ant-btn-dangerous')! as HTMLButtonElement;
+    await userEvent.click(okBtn);
+
+    await waitFor(() => {
+      expect(message.warning).toHaveBeenCalledWith('成功 1 条，失败 1 条');
+    });
+  });
+
+  it('Modal 确认全失败 → message.error 含首条 errorMessage', async () => {
+    const handleBatchPurge = jest.fn(async (ids: number[]) => {
+      const result = await batchPurgeItems(ids);
+      const { failures } = result;
+      if (failures.length > 0 && result.successIds.length === 0) {
+        (message.error as jest.Mock)(failures[0]?.errorMessage || '批量永久删除失败');
+      }
+      return result;
+    });
+    (batchPurgeItems as jest.Mock).mockResolvedValueOnce({
+      successIds: [],
+      failures: [
+        { id: 1, errorMessage: '资源类型 IP_SERIES 暂未接入回收站' },
+        { id: 2, errorMessage: '回收站记录不存在' },
+      ],
+    });
+
+    render(
+      <RecycleBinTable
+        {...defaultProps}
+        selectedRowKeys={[1, 2]}
+        onBatchPurge={handleBatchPurge}
+      />,
+    );
+
+    const btn = screen.getByText('批量永久删除');
+    await userEvent.click(btn);
+
+    await waitFor(() => {
+      expect(screen.getByText('批量永久删除选中的 2 条？')).toBeInTheDocument();
+    });
+
+    const input = screen.getByPlaceholderText('请输入 2');
+    await userEvent.type(input, '2');
+
+    await waitFor(() => {
+      const okBtn = document.querySelector('.ant-modal-footer .ant-btn-dangerous') as HTMLButtonElement;
+      expect(okBtn?.disabled).toBe(false);
+    });
+
+    const okBtn = document.querySelector('.ant-modal-footer .ant-btn-dangerous')! as HTMLButtonElement;
+    await userEvent.click(okBtn);
 
     await waitFor(() => {
       expect(message.error).toHaveBeenCalledWith('资源类型 IP_SERIES 暂未接入回收站');

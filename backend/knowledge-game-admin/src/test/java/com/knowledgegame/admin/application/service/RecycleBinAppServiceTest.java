@@ -1,6 +1,7 @@
 package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.dto.request.RecycleBinListRequest;
+import com.knowledgegame.admin.api.dto.response.BatchPurgeResult;
 import com.knowledgegame.admin.api.dto.response.BatchRestoreResult;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.ResourceType;
@@ -278,6 +279,144 @@ class RecycleBinAppServiceTest {
         appService.batchRestore(List.of(1L));
 
         verify(recycleBinRepository, never()).findById(anyLong());
+    }
+
+    // ===== purge (REQ-102) =====
+
+    @Test
+    @DisplayName("purge 成功 → verify self.purgeInNewTransaction(item) 调用 1 次")
+    void purge_success_shouldDelegateToSelf() {
+        RecycleBinItem item = createItem(42L, ResourceType.IP_SERIES);
+        when(recycleBinRepository.findById(42L)).thenReturn(Optional.of(item));
+        doNothing().when(appService).purgeInNewTransaction(item);
+
+        appService.purge(42L);
+
+        verify(appService).purgeInNewTransaction(item);
+    }
+
+    @Test
+    @DisplayName("purge 记录不存在 → BusinessException(404)")
+    void purge_notFound_shouldThrow404() {
+        when(recycleBinRepository.findById(99L)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appService.purge(99L));
+        assertEquals(404, ex.getCode());
+        assertTrue(ex.getMessage().contains("回收站记录不存在"));
+    }
+
+    @Test
+    @DisplayName("purge 无 strategy → BusinessException(501) 向上传播")
+    void purge_noStrategy_shouldThrow501() {
+        RecycleBinItem item = createItem(42L, ResourceType.KNOWLEDGE_CATEGORY);
+        when(recycleBinRepository.findById(42L)).thenReturn(Optional.of(item));
+        doThrow(new BusinessException(501, "资源类型 KNOWLEDGE_CATEGORY 暂未接入回收站"))
+                .when(appService).purgeInNewTransaction(item);
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> appService.purge(42L));
+        assertEquals(501, ex.getCode());
+        assertTrue(ex.getMessage().contains("暂未接入回收站"));
+    }
+
+    // ===== batchPurge (REQ-102) =====
+
+    @Test
+    @DisplayName("batchPurge 全成功 → verify self.purgeInNewTransaction 调用 N 次")
+    void batchPurge_allSuccess_shouldCallPurgeInNewTransactionNTimes() {
+        RecycleBinItem item1 = createItem(1L, ResourceType.IP_SERIES);
+        RecycleBinItem item2 = createItem(2L, ResourceType.KNOWLEDGE_CATEGORY);
+        when(recycleBinRepository.findAllById(anyList()))
+                .thenReturn(List.of(item1, item2));
+        doNothing().when(appService).purgeInNewTransaction(any());
+
+        BatchPurgeResult result = appService.batchPurge(List.of(1L, 2L));
+
+        assertEquals(List.of(1L, 2L), result.getSuccessIds());
+        assertEquals(0, result.getFailures().size());
+        verify(appService).purgeInNewTransaction(item1);
+        verify(appService).purgeInNewTransaction(item2);
+    }
+
+    @Test
+    @DisplayName("batchPurge 部分预校验失败（findAllById 返回子集）")
+    void batchPurge_partialNotFound_shouldReturnFailures() {
+        RecycleBinItem item1 = createItem(1L, ResourceType.IP_SERIES);
+        when(recycleBinRepository.findAllById(anyList()))
+                .thenReturn(List.of(item1));
+        doNothing().when(appService).purgeInNewTransaction(any());
+
+        BatchPurgeResult result = appService.batchPurge(List.of(1L, 2L));
+
+        assertEquals(List.of(1L), result.getSuccessIds());
+        assertEquals(1, result.getFailures().size());
+        assertEquals(2L, result.getFailures().get(0).getId());
+        assertTrue(result.getFailures().get(0).getErrorMessage().contains("回收站记录不存在: 2"));
+    }
+
+    @Test
+    @DisplayName("batchPurge strategy 抛 BusinessException → failures 含 message")
+    void batchPurge_strategyThrowsBusinessException_shouldContainMessage() {
+        RecycleBinItem item1 = createItem(1L, ResourceType.IP_SERIES);
+        RecycleBinItem item2 = createItem(2L, ResourceType.KNOWLEDGE_CATEGORY);
+        when(recycleBinRepository.findAllById(anyList()))
+                .thenReturn(List.of(item1, item2));
+        doNothing().when(appService).purgeInNewTransaction(item1);
+        doThrow(new BusinessException(501, "文件服务不可达"))
+                .when(appService).purgeInNewTransaction(item2);
+
+        BatchPurgeResult result = appService.batchPurge(List.of(1L, 2L));
+
+        assertEquals(List.of(1L), result.getSuccessIds());
+        assertEquals(1, result.getFailures().size());
+        assertEquals(2L, result.getFailures().get(0).getId());
+        assertTrue(result.getFailures().get(0).getErrorMessage().contains("文件服务不可达"));
+    }
+
+    @Test
+    @DisplayName("batchPurge 未知异常 → failures 含兜底消息")
+    void batchPurge_unknownException_shouldContainFallbackMessage() {
+        RecycleBinItem item1 = createItem(1L, ResourceType.IP_SERIES);
+        when(recycleBinRepository.findAllById(anyList()))
+                .thenReturn(List.of(item1));
+        doThrow(new RuntimeException("数据库连接超时"))
+                .when(appService).purgeInNewTransaction(item1);
+
+        BatchPurgeResult result = appService.batchPurge(List.of(1L));
+
+        assertEquals(0, result.getSuccessIds().size());
+        assertEquals(1, result.getFailures().size());
+        assertEquals(1L, result.getFailures().get(0).getId());
+        assertEquals("永久删除失败，请联系管理员", result.getFailures().get(0).getErrorMessage());
+    }
+
+    @Test
+    @DisplayName("batchPurge 不重复查 DB（verify findById 0 次）")
+    void batchPurge_shouldNotCallFindById() {
+        RecycleBinItem item1 = createItem(1L, ResourceType.IP_SERIES);
+        when(recycleBinRepository.findAllById(anyList()))
+                .thenReturn(List.of(item1));
+        doNothing().when(appService).purgeInNewTransaction(any());
+
+        appService.batchPurge(List.of(1L));
+
+        verify(recycleBinRepository, never()).findById(anyLong());
+    }
+
+    @Test
+    @DisplayName("batchPurge 重复 id 自动去重 → successIds 不含重复")
+    void batchPurge_duplicateIds_shouldDeduplicate() {
+        RecycleBinItem item42 = createItem(42L, ResourceType.IP_SERIES);
+        RecycleBinItem item43 = createItem(43L, ResourceType.IP_SERIES);
+        when(recycleBinRepository.findAllById(anyList()))
+                .thenReturn(List.of(item42, item43));
+        doNothing().when(appService).purgeInNewTransaction(any());
+
+        BatchPurgeResult result = appService.batchPurge(List.of(42L, 42L, 43L));
+
+        assertEquals(List.of(42L, 43L), result.getSuccessIds());
+        assertEquals(0, result.getFailures().size());
+        verify(appService).purgeInNewTransaction(item42);
+        verify(appService).purgeInNewTransaction(item43);
     }
 
     private static RecycleBinItem createItem(Long id, ResourceType type) {

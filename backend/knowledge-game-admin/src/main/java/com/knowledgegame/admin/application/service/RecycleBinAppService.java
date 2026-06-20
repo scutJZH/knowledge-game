@@ -2,6 +2,7 @@ package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.assembler.RecycleBinItemAssembler;
 import com.knowledgegame.admin.api.dto.request.RecycleBinListRequest;
+import com.knowledgegame.admin.api.dto.response.BatchPurgeResult;
 import com.knowledgegame.admin.api.dto.response.BatchRestoreResult;
 import com.knowledgegame.admin.api.dto.response.RecycleBinItemResponse;
 import com.knowledgegame.admin.api.dto.response.SupportedTypeResponse;
@@ -13,6 +14,8 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.RecycleBinItemRepositoryPort;
 import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategyRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -23,6 +26,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -34,6 +39,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class RecycleBinAppService {
+
+    private static final Logger log = LoggerFactory.getLogger(RecycleBinAppService.class);
 
     private final RecycleBinItemRepositoryPort recycleBinRepository;
     private final RecycleBinItemStrategyRegistry strategyRegistry;
@@ -129,63 +136,96 @@ public class RecycleBinAppService {
      * 重复 id 自动去重（findAllById 天然去重）。HTTP 总是返回 200，成败由响应体描述。
      */
     public BatchRestoreResult batchRestore(List<Long> recycleBinIds) {
-        // 去重
-        List<Long> distinctIds = recycleBinIds.stream().distinct().toList();
+        return doBatchOperation(
+                recycleBinIds,
+                self::restoreInNewTransaction,
+                "恢复失败，请联系管理员",
+                BatchRestoreResult.Failure::new,
+                BatchRestoreResult::new
+        );
+    }
 
-        // 阶段 1：批量查回所有存在的条目
+    // ===== 永久删除（REQ-102 实现）=====
+
+    /**
+     * 单条永久删除（REQ-102 实现）
+     * <p>
+     * 自身不加 {@code @Transactional}，委托 {@link #purgeInNewTransaction(RecycleBinItem)} 在新事务中执行。
+     */
+    public void purge(Long recycleBinId) {
+        RecycleBinItem item = recycleBinRepository.findById(recycleBinId)
+                .orElseThrow(() -> new BusinessException(404, "回收站记录不存在: " + recycleBinId));
+        self.purgeInNewTransaction(item);
+    }
+
+    /**
+     * 在新事务中执行单条永久删除（仅内部用，由 {@link #purge(Long)} 和 {@link #batchPurge(List)} 调用）
+     * <p>
+     * 独立新事务保证单条永久删除失败时只回滚当前条目，不影响已在其他新事务中成功的条目（批量场景）。
+     * {@code public} 是 Spring CGLIB 代理的硬性要求（代理只能拦截 public 方法），
+     * 语义上不应从 Controller 直接调用。
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void purgeInNewTransaction(RecycleBinItem item) {
+        strategyRegistry.get(item.getResourceType()).purge(item.getId());
+    }
+
+    /**
+     * 批量永久删除（REQ-102 实现，方案B：阶段 1 预校验 + 阶段 2 逐条独立事务）
+     * <p>
+     * 重复 id 自动去重（findAllById 天然去重）。HTTP 总是返回 200，成败由响应体描述。
+     */
+    public BatchPurgeResult batchPurge(List<Long> recycleBinIds) {
+        return doBatchOperation(
+                recycleBinIds,
+                self::purgeInNewTransaction,
+                "永久删除失败，请联系管理员",
+                BatchPurgeResult.Failure::new,
+                BatchPurgeResult::new
+        );
+    }
+
+    /**
+     * 批量操作通用执行器：去重 → findAllById 预校验 → 逐条执行（独立事务）。
+     * <p>
+     * 参数化的部分：单条执行动作（restoreInNewTransaction / purgeInNewTransaction）、
+     * 兜底错误消息、Failure 构造器、结果对象构造器。
+     * {@code do} 前缀表示数据修改操作。
+     */
+    private <F, R> R doBatchOperation(
+            List<Long> recycleBinIds,
+            Consumer<RecycleBinItem> perItemAction,
+            String fallbackErrorMsg,
+            BiFunction<Long, String, F> failureFactory,
+            BiFunction<List<Long>, List<F>, R> resultFactory) {
+
+        List<Long> distinctIds = recycleBinIds.stream().distinct().toList();
         List<RecycleBinItem> items = recycleBinRepository.findAllById(distinctIds);
         Map<Long, RecycleBinItem> itemMap = new HashMap<>();
         for (RecycleBinItem item : items) {
             itemMap.put(item.getId(), item);
         }
 
-        // 预校验：不存在的 ID 记入失败
         List<Long> successIds = new ArrayList<>();
-        List<BatchRestoreResult.Failure> failures = new ArrayList<>();
+        List<F> failures = new ArrayList<>();
         for (Long id : distinctIds) {
             if (!itemMap.containsKey(id)) {
-                failures.add(new BatchRestoreResult.Failure(id, "回收站记录不存在: " + id));
+                failures.add(failureFactory.apply(id, "回收站记录不存在: " + id));
             }
         }
 
-        // 阶段 2：逐条独立事务恢复
         for (RecycleBinItem item : items) {
             try {
-                self.restoreInNewTransaction(item);
+                perItemAction.accept(item);
                 successIds.add(item.getId());
             } catch (BusinessException e) {
-                failures.add(new BatchRestoreResult.Failure(item.getId(), e.getMessage()));
+                failures.add(failureFactory.apply(item.getId(), e.getMessage()));
             } catch (Exception e) {
-                failures.add(new BatchRestoreResult.Failure(item.getId(), "恢复失败，请联系管理员"));
+                log.error("批量操作失败 id={}", item.getId(), e);
+                failures.add(failureFactory.apply(item.getId(), fallbackErrorMsg));
             }
         }
 
-        return new BatchRestoreResult(successIds, failures);
-    }
-
-    /**
-     * 单条永久删除（REQ-102 实现）
-     */
-    public void purge(Long recycleBinId) {
-        RecycleBinItem item = recycleBinRepository.findById(recycleBinId)
-                .orElseThrow(() -> new BusinessException(404, "回收站记录不存在: " + recycleBinId));
-        strategyRegistry.get(item.getResourceType()).purge(recycleBinId);
-    }
-
-    /**
-     * 批量永久删除（REQ-102 实现）
-     */
-    public void batchPurge(List<Long> recycleBinIds) {
-        Map<ResourceType, List<Long>> grouped = groupByResourceType(recycleBinIds);
-        grouped.forEach((type, ids) -> strategyRegistry.get(type).batchPurge(ids));
-    }
-
-    private Map<ResourceType, List<Long>> groupByResourceType(List<Long> recycleBinIds) {
-        return recycleBinIds.stream()
-                .collect(Collectors.groupingBy(
-                        id -> recycleBinRepository.findById(id)
-                                .orElseThrow(() -> new BusinessException(404, "回收站记录不存在: " + id))
-                                .getResourceType()
-                ));
+        return resultFactory.apply(successIds, failures);
     }
 }
