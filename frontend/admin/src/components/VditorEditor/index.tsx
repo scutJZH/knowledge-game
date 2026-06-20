@@ -1,6 +1,7 @@
 import 'vditor/dist/index.css';
-import { message } from 'antd';
-import { useEffect, useRef } from 'react';
+import { Button, Input, Modal } from 'antd';
+import { EyeOutlined } from '@ant-design/icons';
+import { useEffect, useRef, useState } from 'react';
 
 interface VditorEditorProps {
   value?: string;
@@ -8,53 +9,47 @@ interface VditorEditorProps {
 }
 
 const VditorEditor: React.FC<VditorEditorProps> = ({ value, onChange }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const vditorRef = useRef<any>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    import('vditor').then((VditorModule) => {
-      const Vditor = VditorModule.default || VditorModule;
-      vditorRef.current = new Vditor(container, {
-        mode: 'wysiwyg',
-        height: 400,
-        cache: { enable: false },
-        preview: { hljs: { style: 'github' } },
-        upload: {
-          handler: (_files: File[]) => {
-            return '';
-          },
-        },
-        value: value || '',
-        input: (md: string) => {
-          onChange?.(md);
-        },
+    if (previewOpen && previewRef.current) {
+      import('vditor').then((mod) => {
+        const Vditor = mod.default || mod;
+        Vditor.preview(previewRef.current!, value || '', {
+          hljs: { style: 'github' },
+        });
       });
-    }).catch(() => {
-      message.error('Markdown 编辑器加载失败，请刷新重试');
-    });
-
-    return () => {
-      if (vditorRef.current) {
-        try {
-          vditorRef.current.destroy();
-        } catch {
-          // DOM 可能已被 React 移除，忽略 destroy 异常
-        }
-        vditorRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (vditorRef.current && value !== undefined) {
-      vditorRef.current.setValue(value, true);
     }
-  }, [value]);
+  }, [previewOpen, value]);
 
-  return <div ref={containerRef} />;
+  return (
+    <>
+      <Input.TextArea
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        rows={18}
+        style={{ fontFamily: 'monospace' }}
+      />
+      <Button
+        type="link"
+        icon={<EyeOutlined />}
+        onClick={() => setPreviewOpen(true)}
+        style={{ padding: 0, marginTop: 4 }}
+      >
+        预览
+      </Button>
+      <Modal
+        title="预览"
+        open={previewOpen}
+        onCancel={() => setPreviewOpen(false)}
+        footer={null}
+        width={900}
+      >
+        <div ref={previewRef} style={{ minHeight: 200 }} />
+      </Modal>
+    </>
+  );
 };
 
 export default VditorEditor;

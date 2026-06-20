@@ -3,7 +3,7 @@ import {
   ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
-import { Button, Image, Input, message, Popconfirm, Space, Tag, Tooltip, TreeSelect } from 'antd';
+import { Button, Image, Input, message, Modal, Popconfirm, Space, Tag, Tooltip, TreeSelect } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import {
   batchActivate,
@@ -20,7 +20,7 @@ import {
   type CategoryTreeNode,
 } from '@/services/knowledge-category';
 import KnowledgeItemFormDrawer from './components/KnowledgeItemFormDrawer';
-import { PlusOutlined, EditOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 
 const flattenTree = (nodes: CategoryTreeNode[]): Map<number, string> => {
   const map = new Map<number, string>();
@@ -43,6 +43,9 @@ const KnowledgeItemPage: React.FC = () => {
   const [categoryNameMap, setCategoryNameMap] = useState<Map<number, string>>(new Map());
   const [dataSource, setDataSource] = useState<KnowledgeItemResponse[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTitle, setPreviewTitle] = useState('');
+  const [previewHtml, setPreviewHtml] = useState('');
 
   useEffect(() => {
     getTree()
@@ -208,6 +211,21 @@ const KnowledgeItemPage: React.FC = () => {
           <Button
             type="link"
             size="small"
+            icon={<EyeOutlined />}
+            onClick={async () => {
+              try {
+                const res = await getKnowledgeItemById(record.id);
+                setPreviewTitle(res?.title || '');
+                setPreviewHtml(res?.contentHtml || '');
+                setPreviewOpen(true);
+              } catch (e: any) {
+                message.error(e?.message || '加载失败');
+              }
+            }}
+          />
+          <Button
+            type="link"
+            size="small"
             icon={<EditOutlined />}
             onClick={async () => {
               try {
@@ -350,6 +368,22 @@ const KnowledgeItemPage: React.FC = () => {
           actionRef.current?.reload();
         }}
       />
+      <Modal
+        title={previewTitle || '预览'}
+        open={previewOpen}
+        onCancel={() => setPreviewOpen(false)}
+        footer={null}
+        width={900}
+      >
+        {previewHtml ? (
+          <div
+            dangerouslySetInnerHTML={{ __html: previewHtml }}
+            style={{ maxHeight: '70vh', overflow: 'auto', padding: 16 }}
+          />
+        ) : (
+          <div style={{ textAlign: 'center', color: '#999', padding: 40 }}>暂无内容</div>
+        )}
+      </Modal>
     </>
   );
 };
