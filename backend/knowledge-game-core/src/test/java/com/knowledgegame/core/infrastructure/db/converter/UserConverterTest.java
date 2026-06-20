@@ -79,13 +79,13 @@ class UserConverterTest {
         }
 
         @Test
-        @DisplayName("null FileRef 应保留 PO 原值")
-        void shouldKeepOldValuesWhenFileRefNull() {
+        @DisplayName("null FileRef 应穿透清空 PO 双字段（领域 clearAvatar() 语义）")
+        void shouldClearDualFieldsWhenFileRefNull() {
             UserPO po = buildPO(1L, 9L, "/old.png");
             User domain = buildDomain(null);
             UserConverter.updatePO(po, domain);
-            assertEquals(9L, po.getAvatarFileId());
-            assertEquals("/old.png", po.getAvatar());
+            assertNull(po.getAvatarFileId());
+            assertNull(po.getAvatar());
         }
     }
 

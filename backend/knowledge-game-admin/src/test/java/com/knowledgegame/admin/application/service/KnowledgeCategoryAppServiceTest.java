@@ -362,6 +362,72 @@ class KnowledgeCategoryAppServiceTest {
         assertEquals(FileRef.of(1L, "old"), existing.getIcon());
     }
 
+    // ============ update status 变更分支 ============
+
+    /**
+     * 更新 - status → INACTIVE 时应调 validateDelete 再 updateStatus
+     */
+    @Test
+    void update_shouldCallValidateDelete_whenStatusToInactive() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        Mockito.doNothing().when(categoryDomainService).validateDelete(1L);
+
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        req.setStatus(KnowledgeCategoryStatus.INACTIVE);
+
+        KnowledgeCategoryResponse result = appService.update(1L, req);
+
+        assertNotNull(result);
+        verify(categoryDomainService).validateDelete(1L);
+        assertEquals(KnowledgeCategoryStatus.INACTIVE, existing.getStatus());
+    }
+
+    /**
+     * 更新 - status → ACTIVE 时应调 validateActivate 再 updateStatus
+     */
+    @Test
+    void update_shouldCallValidateActivate_whenStatusToActive() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.INACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        Mockito.doNothing().when(categoryDomainService).validateActivate(any());
+
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        req.setStatus(KnowledgeCategoryStatus.ACTIVE);
+
+        KnowledgeCategoryResponse result = appService.update(1L, req);
+
+        assertNotNull(result);
+        verify(categoryDomainService).validateActivate(existing);
+        assertEquals(KnowledgeCategoryStatus.ACTIVE, existing.getStatus());
+    }
+
+    /**
+     * 更新 - status 不变（同为 ACTIVE）时不触发校验
+     */
+    @Test
+    void update_shouldSkipValidation_whenStatusUnchanged() {
+        KnowledgeCategory existing = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, now, now);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
+        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
+        req.setStatus(KnowledgeCategoryStatus.ACTIVE); // 同枚举值
+
+        appService.update(1L, req);
+
+        verify(categoryDomainService, Mockito.never()).validateDelete(Mockito.anyLong());
+        verify(categoryDomainService, Mockito.never()).validateActivate(Mockito.any());
+    }
+
     // ============ 其他不变 ============
 
     /**

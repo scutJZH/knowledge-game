@@ -179,4 +179,17 @@ public class KnowledgeCategory {
         this.status = KnowledgeCategoryStatus.INACTIVE;
         this.updatedAt = LocalDateTime.now();
     }
+
+    /**
+     * 更新状态（启用/停用）
+     *
+     * @throws IllegalArgumentException status 为 null 时抛出
+     */
+    public void updateStatus(KnowledgeCategoryStatus status) {
+        if (status == null) {
+            throw new IllegalArgumentException("status must not be null");
+        }
+        this.status = status;
+        this.updatedAt = LocalDateTime.now();
+    }
 }

@@ -1,4 +1,4 @@
-import { ModalForm, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormTreeSelect } from '@ant-design/pro-components';
+import { ModalForm, ProForm, ProFormText, ProFormTextArea, ProFormDigit, ProFormSelect, ProFormTreeSelect } from '@ant-design/pro-components';
 import { message } from 'antd';
 import type { CategoryDetail, CategoryTreeNode, CategoryFormData, CategoryUpdateData } from '@/services/knowledge-category';
 import { create, update } from '@/services/knowledge-category';
@@ -40,6 +40,10 @@ function buildUpdatePayload(
   const nextColor = values.color || null;
   if (nextColor !== original.color) {
     payload.color = nextColor;
+  }
+  const nextStatus = values.status ?? undefined;
+  if (nextStatus && nextStatus !== original.status) {
+    payload.status = nextStatus;
   }
 
   return payload;
@@ -126,6 +130,7 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
               color: editingCategory.color ?? '',
               coverImageFileId: editingCategory.coverImageFileId ?? undefined,
               sortOrder: editingCategory.sortOrder,
+              status: editingCategory.status,
             }
           : {
               parentId: null,
@@ -198,6 +203,18 @@ const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
         min={0}
         fieldProps={{ precision: 0 }}
       />
+
+      {isEdit && (
+        <ProFormSelect
+          name="status"
+          label="状态"
+          valueEnum={{
+            ACTIVE: '启用',
+            INACTIVE: '停用',
+          }}
+          rules={[{ required: true, message: '请选择状态' }]}
+        />
+      )}
     </ModalForm>
   );
 };

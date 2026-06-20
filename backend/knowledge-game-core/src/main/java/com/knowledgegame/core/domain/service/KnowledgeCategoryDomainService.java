@@ -98,6 +98,19 @@ public class KnowledgeCategoryDomainService {
     }
 
     /**
+     * 校验启用合法性：父级存在且为 ACTIVE
+     */
+    public void validateActivate(KnowledgeCategory category) {
+        if (category.getParentId() != null) {
+            KnowledgeCategory parent = categoryRepositoryPort.findById(category.getParentId())
+                    .orElseThrow(() -> new BusinessException("父级分类不存在: " + category.getParentId()));
+            if (parent.getStatus() != KnowledgeCategoryStatus.ACTIVE) {
+                throw new BusinessException("父级分类未启用，无法启用该分类");
+            }
+        }
+    }
+
+    /**
      * 校验停用合法性：子分类校验 → 题目关联校验，均通过才允许停用
      */
     public void validateDelete(Long categoryId) {

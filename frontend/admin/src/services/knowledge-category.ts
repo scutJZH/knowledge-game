@@ -40,6 +40,7 @@ export interface CategoryFormData {
   color?: string;
   coverImageFileId?: number;
   sortOrder?: number;
+  status?: string;
 }
 
 /**
@@ -56,6 +57,7 @@ export interface CategoryUpdateData {
   color?: string | null;
   coverImageFileId?: number | null;
   sortOrder?: number;
+  status?: string;
 }
 
 /** 批量排序项 */

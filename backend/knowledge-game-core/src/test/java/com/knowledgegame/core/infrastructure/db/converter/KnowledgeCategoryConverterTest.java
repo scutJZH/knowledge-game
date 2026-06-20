@@ -88,15 +88,15 @@ class KnowledgeCategoryConverterTest {
         }
 
         @Test
-        @DisplayName("null FileRef 应保留 PO 原值")
-        void shouldKeepOldValuesWhenFileRefNull() {
+        @DisplayName("null FileRef 应穿透清空 PO 双字段（领域 clearIcon/clearCoverImage 语义）")
+        void shouldClearDualFieldsWhenFileRefNull() {
             KnowledgeCategoryPO po = buildPO(1L, 9L, "/old.png", 9L, "/old.jpg");
             KnowledgeCategory domain = buildDomain(null, null);
             KnowledgeCategoryConverter.INSTANCE.updatePO(po, domain);
-            assertEquals(9L, po.getIconFileId());
-            assertEquals("/old.png", po.getIconUrl());
-            assertEquals(9L, po.getCoverImageFileId());
-            assertEquals("/old.jpg", po.getCoverImageUrl());
+            assertNull(po.getIconFileId());
+            assertNull(po.getIconUrl());
+            assertNull(po.getCoverImageFileId());
+            assertNull(po.getCoverImageUrl());
         }
 
         @Test

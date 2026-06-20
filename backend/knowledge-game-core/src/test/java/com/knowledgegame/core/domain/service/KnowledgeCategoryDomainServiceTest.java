@@ -290,6 +290,77 @@ class KnowledgeCategoryDomainServiceTest {
         assertEquals("知识点分类下存在 2 个 ACTIVE 子分类，无法删除", ex.getMessage());
     }
 
+    // ============ validateActivate ============
+
+    /**
+     * 启用校验 - 顶级分类（无父级）应通过
+     */
+    @Test
+    @DisplayName("validateActivate 顶级分类应通过")
+    void validateActivate_shouldPass_whenTopLevel() {
+        KnowledgeCategory category = KnowledgeCategory.create(
+                "编程", null, null, null, null, null, 0);
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
+        service.validateActivate(category);
+        // 无异常即通过
+    }
+
+    /**
+     * 启用校验 - 父级 ACTIVE 应通过
+     */
+    @Test
+    @DisplayName("validateActivate 父级 ACTIVE 应通过")
+    void validateActivate_shouldPass_whenParentActive() {
+        KnowledgeCategory parent = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.ACTIVE, null, null);
+        KnowledgeCategory category = KnowledgeCategory.reconstruct(
+                2L, 1L, "Java", null, null, null, null, 0,
+                KnowledgeCategoryStatus.INACTIVE, null, null);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(parent));
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
+        service.validateActivate(category);
+    }
+
+    /**
+     * 启用校验 - 父级 INACTIVE 应抛异常
+     */
+    @Test
+    @DisplayName("validateActivate 父级 INACTIVE 应抛异常")
+    void validateActivate_shouldThrow_whenParentInactive() {
+        KnowledgeCategory parent = KnowledgeCategory.reconstruct(
+                1L, null, "编程", null, null, null, null, 0,
+                KnowledgeCategoryStatus.INACTIVE, null, null);
+        KnowledgeCategory category = KnowledgeCategory.reconstruct(
+                2L, 1L, "Java", null, null, null, null, 0,
+                KnowledgeCategoryStatus.INACTIVE, null, null);
+        when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(parent));
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.validateActivate(category));
+        assertEquals("父级分类未启用，无法启用该分类", ex.getMessage());
+    }
+
+    /**
+     * 启用校验 - 父级不存在应抛异常
+     */
+    @Test
+    @DisplayName("validateActivate 父级不存在应抛异常")
+    void validateActivate_shouldThrow_whenParentNotFound() {
+        KnowledgeCategory category = KnowledgeCategory.reconstruct(
+                2L, 99L, "Java", null, null, null, null, 0,
+                KnowledgeCategoryStatus.INACTIVE, null, null);
+        when(categoryRepositoryPort.findById(99L)).thenReturn(Optional.empty());
+
+        KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.validateActivate(category));
+        assertEquals("父级分类不存在: 99", ex.getMessage());
+    }
+
     /**
      * 创建 - sortOrder 为 null 时自动计算（顶级分类，无同级）
      */

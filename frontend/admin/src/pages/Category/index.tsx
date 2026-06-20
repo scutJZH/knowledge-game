@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Row, Col, message } from 'antd';
 import type { CategoryTreeNode, CategoryDetail } from '@/services/knowledge-category';
-import { getTree, getById, deleteCategory } from '@/services/knowledge-category';
+import { getTree, getById, update } from '@/services/knowledge-category';
 import CategoryTree from './components/CategoryTree';
 import CategoryDetailPanel from './components/CategoryDetail';
 import CategoryFormModal from './components/CategoryFormModal';
@@ -85,26 +85,27 @@ const Category: React.FC = () => {
     }
   }, [detail]);
 
-  /** 点击删除 */
-  const handleDelete = useCallback(async () => {
-    if (!selectedId) return;
-    // 前端预检：有 ACTIVE 子分类不允许停用
-    const node = findNodeById(treeData, selectedId);
-    const hasActiveChildren = (node?.children?.filter((c) => c.status === 'ACTIVE').length ?? 0) > 0;
-    if (hasActiveChildren) {
-      message.warning('该分类下存在 ACTIVE 子分类，请先停用或移动子分类');
-      return;
+  /** 切换启用/停用状态 */
+  const handleToggleStatus = useCallback(async () => {
+    if (!selectedId || !detail) return;
+    const newStatus = detail.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    // 前端预检：停用时检查 ACTIVE 子分类
+    if (newStatus === 'INACTIVE') {
+      const node = findNodeById(treeData, selectedId);
+      const hasActiveChildren = (node?.children?.filter((c) => c.status === 'ACTIVE').length ?? 0) > 0;
+      if (hasActiveChildren) {
+        message.warning('该分类下存在 ACTIVE 子分类，请先停用或移动子分类');
+        return;
+      }
     }
     try {
-      await deleteCategory(selectedId);
-      message.success('停用成功');
-      setSelectedId(null);
-      setDetail(null);
+      await update(selectedId, { status: newStatus });
+      message.success(newStatus === 'ACTIVE' ? '已启用' : '已停用');
       refreshTree();
     } catch {
       // 错误已由全局拦截器处理
     }
-  }, [selectedId, treeData, refreshTree]);
+  }, [selectedId, detail, treeData, refreshTree]);
 
   /** 表单弹窗成功回调 */
   const handleFormSuccess = useCallback(() => {
@@ -149,7 +150,7 @@ const Category: React.FC = () => {
             treeData={treeData}
             onEdit={handleEdit}
             onMove={handleMove}
-            onDelete={handleDelete}
+            onToggleStatus={handleToggleStatus}
           />
         </Col>
       </Row>

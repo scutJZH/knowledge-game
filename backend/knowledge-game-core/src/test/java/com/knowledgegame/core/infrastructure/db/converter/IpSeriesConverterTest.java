@@ -98,16 +98,16 @@ class IpSeriesConverterTest {
         }
 
         @Test
-        @DisplayName("null FileRef 应保留 PO 原值")
-        void shouldKeepOldValuesWhenFileRefNull() {
+        @DisplayName("null FileRef 应清空 PO 字段（支持 clearCoverImage 语义）")
+        void shouldClearFieldsWhenFileRefNull() {
             IpSeriesPO po = buildPO(1L, 1L, "/static/old.jpg");
             IpSeries domain = IpSeries.reconstruct(1L, "CODE", "名称", "描述",
                     null, IpSeriesStatus.ACTIVE, null, null);
 
             IpSeriesConverter.INSTANCE.updatePO(po, domain);
 
-            assertEquals(1L, po.getCoverImageFileId());
-            assertEquals("/static/old.jpg", po.getCoverImageUrl());
+            assertNull(po.getCoverImageFileId());
+            assertNull(po.getCoverImageUrl());
         }
     }
 

@@ -41,7 +41,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(RecycleBinItemRepositoryAdapter.class)
 @ActiveProfiles("test")
-class RecycleBinItemRepositoryAdapterIT {
+class RecycleBinItemRepositoryAdapterTest {
 
     @Autowired
     private TestEntityManager entityManager;

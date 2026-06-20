@@ -131,6 +131,16 @@ public class KnowledgeCategoryAppService {
         applyFileRefField(req.getCoverImageFileId(), "CATEGORY_COVER",
                 category::clearCoverImage, category::updateCoverImage);
 
+        // 处理 status 变更
+        if (req.getStatus() != null && req.getStatus() != category.getStatus()) {
+            if (req.getStatus() == KnowledgeCategoryStatus.INACTIVE) {
+                categoryDomainService.validateDelete(id);
+            } else {
+                categoryDomainService.validateActivate(category);
+            }
+            category.updateStatus(req.getStatus());
+        }
+
         KnowledgeCategory saved = categoryRepositoryPort.save(category);
         return KnowledgeCategoryAssembler.INSTANCE.toResponse(saved);
     }

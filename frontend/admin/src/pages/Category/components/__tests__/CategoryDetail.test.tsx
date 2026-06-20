@@ -41,7 +41,7 @@ describe('CategoryDetail', () => {
         treeData={[]}
         onEdit={jest.fn()}
         onMove={jest.fn()}
-        onDelete={jest.fn()}
+        onToggleStatus={jest.fn()}
       />,
     );
     expect(screen.getByText('请在左侧选择一个分类')).toBeInTheDocument();
@@ -54,7 +54,7 @@ describe('CategoryDetail', () => {
         treeData={[mockTreeData[0]]}
         onEdit={jest.fn()}
         onMove={jest.fn()}
-        onDelete={jest.fn()}
+        onToggleStatus={jest.fn()}
       />,
     );
     // Card 标题和描述项中都应出现"科学"
@@ -69,7 +69,7 @@ describe('CategoryDetail', () => {
         treeData={[]}
         onEdit={jest.fn()}
         onMove={jest.fn()}
-        onDelete={jest.fn()}
+        onToggleStatus={jest.fn()}
       />,
     );
     expect(screen.getByText('启用')).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe('CategoryDetail', () => {
         treeData={[]}
         onEdit={jest.fn()}
         onMove={jest.fn()}
-        onDelete={jest.fn()}
+        onToggleStatus={jest.fn()}
       />,
     );
     expect(screen.getByText('停用')).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe('CategoryDetail', () => {
         treeData={[]}
         onEdit={jest.fn()}
         onMove={jest.fn()}
-        onDelete={jest.fn()}
+        onToggleStatus={jest.fn()}
       />,
     );
     expect(screen.getByText('0')).toBeInTheDocument();

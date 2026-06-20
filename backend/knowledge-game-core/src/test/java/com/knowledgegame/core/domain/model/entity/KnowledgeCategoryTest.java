@@ -250,6 +250,44 @@ class KnowledgeCategoryTest {
         assertEquals(KnowledgeCategoryStatus.INACTIVE, category.getStatus());
     }
 
+    // ============ updateStatus ============
+
+    @Test
+    void updateStatus_shouldSetToInactive() {
+        KnowledgeCategory category = KnowledgeCategory.create(
+                "编程", null, null, null, null, null, 0);
+        category.updateStatus(KnowledgeCategoryStatus.INACTIVE);
+        assertEquals(KnowledgeCategoryStatus.INACTIVE, category.getStatus());
+    }
+
+    @Test
+    void updateStatus_shouldSetToActive() {
+        KnowledgeCategory category = KnowledgeCategory.create(
+                "编程", null, null, null, null, null, 0);
+        category.deactivate();
+        category.updateStatus(KnowledgeCategoryStatus.ACTIVE);
+        assertEquals(KnowledgeCategoryStatus.ACTIVE, category.getStatus());
+    }
+
+    @Test
+    void updateStatus_shouldThrowWhenNull() {
+        KnowledgeCategory category = KnowledgeCategory.create(
+                "编程", null, null, null, null, null, 0);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> category.updateStatus(null));
+        assertEquals("status must not be null", ex.getMessage());
+    }
+
+    @Test
+    void updateStatus_shouldRefreshUpdatedAt() throws InterruptedException {
+        KnowledgeCategory category = KnowledgeCategory.create(
+                "编程", null, null, null, null, null, 0);
+        LocalDateTime before = category.getUpdatedAt();
+        Thread.sleep(5);
+        category.updateStatus(KnowledgeCategoryStatus.INACTIVE);
+        assertTrueUpdated(category.getUpdatedAt(), before);
+    }
+
     @Test
     void reconstruct_shouldRestoreAllFields() {
         KnowledgeCategory category = KnowledgeCategory.reconstruct(

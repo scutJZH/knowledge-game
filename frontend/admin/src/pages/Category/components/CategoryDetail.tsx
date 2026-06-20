@@ -3,7 +3,6 @@ import { Card, Descriptions, Tag, Button, Empty, Image, Popconfirm, Space } from
 import {
   EditOutlined,
   SwapOutlined,
-  DeleteOutlined,
 } from '@ant-design/icons';
 import type { CategoryDetail, CategoryTreeNode } from '@/services/knowledge-category';
 
@@ -12,7 +11,7 @@ interface CategoryDetailProps {
   treeData: CategoryTreeNode[];
   onEdit: () => void;
   onMove: () => void;
-  onDelete: () => void;
+  onToggleStatus: () => void;
 }
 
 /** 在树中递归查找指定 id 节点的 ACTIVE 子节点数量，未找到返回 0 */
@@ -34,7 +33,7 @@ const CategoryDetailPanel: React.FC<CategoryDetailProps> = ({
   treeData,
   onEdit,
   onMove,
-  onDelete,
+  onToggleStatus,
 }) => {
   // 未选中分类时显示空状态
   if (!detail) {
@@ -59,22 +58,36 @@ const CategoryDetailPanel: React.FC<CategoryDetailProps> = ({
           <Button icon={<SwapOutlined />} onClick={onMove}>
             移动
           </Button>
-          <Popconfirm
-            title="确认停用"
-            description={
-              hasActiveChildren
-                ? '该分类下存在 ACTIVE 子分类，请先停用或移动子分类'
-                : `确定要停用分类「${detail.name}」吗？`
-            }
-            onConfirm={onDelete}
-            okText="停用"
-            cancelText="取消"
-            okButtonProps={hasActiveChildren ? { disabled: true } : { danger: true }}
-          >
-            <Button danger icon={<DeleteOutlined />}>
-              停用
-            </Button>
-          </Popconfirm>
+          {detail.status === 'ACTIVE' ? (
+            <Popconfirm
+              title="确认停用"
+              description={
+                hasActiveChildren
+                  ? '该分类下存在 ACTIVE 子分类，请先停用或移动子分类'
+                  : `确定要停用分类「${detail.name}」吗？`
+              }
+              onConfirm={onToggleStatus}
+              okText="停用"
+              cancelText="取消"
+              okButtonProps={hasActiveChildren ? { disabled: true } : { danger: true }}
+            >
+              <Button danger>
+                停用
+              </Button>
+            </Popconfirm>
+          ) : (
+            <Popconfirm
+              title="确认启用"
+              description={`确定要启用分类「${detail.name}」吗？`}
+              onConfirm={onToggleStatus}
+              okText="启用"
+              cancelText="取消"
+            >
+              <Button style={{ color: '#52c41a', borderColor: '#52c41a' }}>
+                启用
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       }
       style={{ height: '100%', overflow: 'auto' }}
