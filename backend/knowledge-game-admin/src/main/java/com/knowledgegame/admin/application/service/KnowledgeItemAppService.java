@@ -94,7 +94,7 @@ public class KnowledgeItemAppService {
                                                    String status, String sort, String order,
                                                    int page, int size) {
         KnowledgeItemStatus statusEnum = EnumUtils.valueOfNullable(KnowledgeItemStatus.class, status);
-        SortField sortField = buildSortField(sort, order);
+        SortField sortField = SortField.parse(sort, order); // null → adapter 使用默认排序
 
         PageResult<KnowledgeItem> domainPage = itemRepository.findByConditions(
                 keyword, categoryId, tag, statusEnum, sortField, page, size
@@ -250,17 +250,6 @@ public class KnowledgeItemAppService {
         }
     }
 
-    /**
-     * 构建排序字段
-     */
-    private SortField buildSortField(String sort, String order) {
-        if (sort == null || sort.isBlank()) {
-            return new SortField("sortOrder", SortField.Direction.ASC);
-        }
-        SortField.Direction direction = "asc".equalsIgnoreCase(order)
-                ? SortField.Direction.ASC : SortField.Direction.DESC;
-        return new SortField(sort, direction);
-    }
 
     /**
      * 查询条目关联分类并组装响应

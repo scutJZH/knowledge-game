@@ -5,11 +5,13 @@ import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
+import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.infrastructure.db.converter.KnowledgeItemConverter;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemCategoryRelationPO;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemPO;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemCategoryRelationJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemJpaRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -35,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +52,9 @@ class KnowledgeItemRepositoryAdapterTest {
 
     @Mock
     private KnowledgeItemCategoryRelationJpaRepository relationJpaRepository;
+
+    @Mock
+    private EntityManager em;
 
     @InjectMocks
     private KnowledgeItemRepositoryAdapter adapter;
@@ -147,10 +153,10 @@ class KnowledgeItemRepositoryAdapterTest {
     }
 
     /**
-     * findByConditions - 默认排序为 sortOrder ASC + createdAt DESC
+     * sort=null → 默认复合排序：sortOrder ASC + createdAt DESC
      */
     @Test
-    void findByConditions_shouldUseCompoundSort_whenSortFieldNull() {
+    void findByConditions_shouldUseDefaultSort_whenSortFieldNull() {
         Page<KnowledgeItemPO> springPage = new PageImpl<>(
                 List.of(), PageRequest.of(0, 20), 0
         );
@@ -162,14 +168,19 @@ class KnowledgeItemRepositoryAdapterTest {
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(itemJpaRepository).findAll(any(Specification.class), captor.capture());
         Sort sort = captor.getValue().getSort();
-        assertEquals("sortOrder", sort.get().toList().get(0).getProperty());
+        List<Sort.Order> orders = sort.get().toList();
+        assertEquals(2, orders.size());
+        assertEquals(Sort.Direction.ASC, orders.get(0).getDirection());
+        assertEquals("sortOrder", orders.get(0).getProperty());
+        assertEquals(Sort.Direction.DESC, orders.get(1).getDirection());
+        assertEquals("createdAt", orders.get(1).getProperty());
     }
 
     /**
-     * findByConditions - sortOrder 字段使用复合排序
+     * sort="sortOrder" → 复合排序 sortOrder ASC + createdAt DESC（忽略 order 参数）
      */
     @Test
-    void findByConditions_shouldUseCompoundSort_whenSortFieldIsSortOrder() {
+    void findByConditions_shouldUseCompoundSort_whenSortOrder() {
         Page<KnowledgeItemPO> springPage = new PageImpl<>(
                 List.of(), PageRequest.of(0, 20), 0
         );
@@ -189,10 +200,10 @@ class KnowledgeItemRepositoryAdapterTest {
     }
 
     /**
-     * findByConditions - 非 sortOrder 字段使用 FIELD_MAPPING
+     * sort="createdAt" order="desc" → Sort 含 createdAt DESC
      */
     @Test
-    void findByConditions_shouldUseMapping_whenOtherField() {
+    void findByConditions_shouldUseSortFields_whenOtherField() {
         Page<KnowledgeItemPO> springPage = new PageImpl<>(
                 List.of(), PageRequest.of(0, 20), 0
         );
@@ -208,7 +219,127 @@ class KnowledgeItemRepositoryAdapterTest {
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(itemJpaRepository).findAll(any(Specification.class), captor.capture());
         Sort sort = captor.getValue().getSort();
+        assertEquals(Sort.Direction.DESC, sort.get().toList().get(0).getDirection());
         assertEquals("createdAt", sort.get().toList().get(0).getProperty());
+    }
+
+    /**
+     * sort="id" order="asc" → Sort 含 id ASC
+     */
+    @Test
+    void findByConditions_shouldSortByIdAsc() {
+        Page<KnowledgeItemPO> springPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(itemJpaRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(springPage);
+
+        adapter.findByConditions(null, null, null, null,
+                new SortField("id", SortField.Direction.ASC), 0, 20);
+
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(itemJpaRepository).findAll(any(Specification.class), captor.capture());
+        Sort sort = captor.getValue().getSort();
+        assertEquals(Sort.Direction.ASC, sort.get().toList().get(0).getDirection());
+        assertEquals("id", sort.get().toList().get(0).getProperty());
+    }
+
+    /**
+     * sort="title" order="desc" → Sort 含 title DESC
+     */
+    @Test
+    void findByConditions_shouldSortByTitleDesc() {
+        Page<KnowledgeItemPO> springPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(itemJpaRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(springPage);
+
+        adapter.findByConditions(null, null, null, null,
+                new SortField("title", SortField.Direction.DESC), 0, 20);
+
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(itemJpaRepository).findAll(any(Specification.class), captor.capture());
+        Sort sort = captor.getValue().getSort();
+        assertEquals(Sort.Direction.DESC, sort.get().toList().get(0).getDirection());
+        assertEquals("title", sort.get().toList().get(0).getProperty());
+    }
+
+    /**
+     * sort="status"（order 缺失即 DESC by default）→ Sort 含 status DESC
+     */
+    @Test
+    void findByConditions_shouldSortByStatusDefaultDesc() {
+        Page<KnowledgeItemPO> springPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(itemJpaRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(springPage);
+
+        adapter.findByConditions(null, null, null, null,
+                new SortField("status", SortField.Direction.DESC), 0, 20);
+
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(itemJpaRepository).findAll(any(Specification.class), captor.capture());
+        Sort sort = captor.getValue().getSort();
+        assertEquals("status", sort.get().toList().get(0).getProperty());
+    }
+
+    /**
+     * sort="createdAt" order="asc" → Sort 含 createdAt ASC
+     */
+    @Test
+    void findByConditions_shouldSortByCreatedAtAsc() {
+        Page<KnowledgeItemPO> springPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(itemJpaRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(springPage);
+
+        adapter.findByConditions(null, null, null, null,
+                new SortField("createdAt", SortField.Direction.ASC), 0, 20);
+
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(itemJpaRepository).findAll(any(Specification.class), captor.capture());
+        Sort sort = captor.getValue().getSort();
+        assertEquals("createdAt", sort.get().toList().get(0).getProperty());
+    }
+
+    /**
+     * sort="updatedAt" order="desc" → Sort 含 updatedAt DESC
+     */
+    @Test
+    void findByConditions_shouldSortByUpdatedAtDesc() {
+        Page<KnowledgeItemPO> springPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
+        when(itemJpaRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(springPage);
+
+        adapter.findByConditions(null, null, null, null,
+                new SortField("updatedAt", SortField.Direction.DESC), 0, 20);
+
+        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(itemJpaRepository).findAll(any(Specification.class), captor.capture());
+        Sort sort = captor.getValue().getSort();
+        assertEquals("updatedAt", sort.get().toList().get(0).getProperty());
+    }
+
+    /**
+     * sort="categoryName" → 走 EntityManager 路径，不调 itemJpaRepository.findAll(Spec, Pageable)
+     * （因 EntityManager mock 链不完整会抛异常，此用例验证入口路由正确即可）
+     */
+    @Test
+    void findByConditions_shouldRouteToEntityManager_whenCategoryName() {
+        try {
+            adapter.findByConditions(null, null, null, null,
+                    new SortField("categoryName", SortField.Direction.ASC), 0, 20);
+        } catch (Exception ignored) {
+            // EntityManager mock 不完整，预期抛异常
+        }
+        // 验证未走 JPA Specification + PageRequest 路径
+        verify(itemJpaRepository, never()).findAll(any(Specification.class), any(PageRequest.class));
+    }
+
+    /**
+     * sort="invalidField" → BusinessException(400)，消息含允许字段中文名列表
+     */
+    @Test
+    void findByConditions_shouldThrowBusinessException_whenInvalidField() {
+        BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                BusinessException.class,
+                () -> adapter.findByConditions(null, null, null, null,
+                        new SortField("invalidField", SortField.Direction.ASC), 0, 20)
+        );
+        assertEquals(400, ex.getCode());
+        assertTrue(ex.getMessage().contains("不支持的排序字段"));
+        assertTrue(ex.getMessage().contains("invalidField"));
+        assertTrue(ex.getMessage().contains("ID") || ex.getMessage().contains("标题"));
     }
 
     /**

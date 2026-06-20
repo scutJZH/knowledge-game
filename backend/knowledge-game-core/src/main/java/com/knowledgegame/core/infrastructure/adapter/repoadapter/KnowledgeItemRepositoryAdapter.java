@@ -5,11 +5,19 @@ import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
+import com.knowledgegame.core.domain.spec.SortFieldSpec;
+import com.knowledgegame.core.infrastructure.adapter.support.SortFields;
 import com.knowledgegame.core.infrastructure.db.converter.KnowledgeItemConverter;
+import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemCategoryRelationPO;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemPO;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemCategoryRelationJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemJpaRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.TypedQuery;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -20,6 +28,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,22 +40,26 @@ import java.util.stream.Collectors;
 @Repository
 public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
 
-    /**
-     * 领域字段名 → PO 字段名映射
-     */
-    private static final Map<String, String> FIELD_MAPPING = Map.of(
-            "createdAt", "createdAt",
-            "updatedAt", "updatedAt",
-            "sortOrder", "sortOrder"
-    );
+    private static final Map<String, String> ALLOWED_SORT_FIELDS = new LinkedHashMap<>() {{
+        put("id", "ID");
+        put("title", "标题");
+        put("categoryName", "分类名称");
+        put("sortOrder", "排序号");
+        put("status", "状态");
+        put("createdAt", "创建时间");
+        put("updatedAt", "更新时间");
+    }};
 
     private final KnowledgeItemJpaRepository itemJpaRepository;
     private final KnowledgeItemCategoryRelationJpaRepository relationJpaRepository;
+    private final EntityManager em;
 
     public KnowledgeItemRepositoryAdapter(KnowledgeItemJpaRepository itemJpaRepository,
-                                           KnowledgeItemCategoryRelationJpaRepository relationJpaRepository) {
+                                           KnowledgeItemCategoryRelationJpaRepository relationJpaRepository,
+                                           EntityManager em) {
         this.itemJpaRepository = itemJpaRepository;
         this.relationJpaRepository = relationJpaRepository;
+        this.em = em;
     }
 
     @Override
@@ -105,6 +118,11 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
 
             return cb.and(predicates.toArray(new Predicate[0]));
         };
+
+        if (sortField != null && "categoryName".equals(sortField.getField())) {
+            SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
+            return findByConditionsOrderByCategoryName(spec, validated, pageNumber, pageSize);
+        }
 
         Sort springSort = toSpringSort(sortField);
         Page<KnowledgeItemPO> springPage = itemJpaRepository.findAll(spec,
@@ -189,20 +207,80 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
      * sortOrder 字段使用复合排序：sortOrder ASC + createdAt DESC
      */
     private Sort toSpringSort(SortField sortField) {
-        if (sortField == null) {
-            return Sort.by("sortOrder").ascending().and(Sort.by("createdAt").descending());
+        SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
+        if (validated == null) {
+            return Sort.by(Sort.Direction.ASC, "sortOrder")
+                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
         }
-        String field = sortField.getField();
-        Sort.Direction direction = sortField.getDirection() == SortField.Direction.ASC
-                ? Sort.Direction.ASC : Sort.Direction.DESC;
+        if ("categoryName".equals(validated.getField())) {
+            throw new IllegalStateException(
+                    "categoryName 排序应在 findByConditions 入口分支处理，不应到达 toSpringSort");
+        }
+        if ("sortOrder".equals(validated.getField())) {
+            return Sort.by(Sort.Direction.ASC, "sortOrder")
+                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
+        return SortFields.toSpringSort(validated);
+    }
 
-        if ("sortOrder".equals(field)) {
-            return Sort.by("sortOrder").ascending().and(Sort.by("createdAt").descending());
-        }
-        if (!FIELD_MAPPING.containsKey(field)) {
-            throw new IllegalArgumentException("不支持的排序字段: " + field);
-        }
-        String poField = FIELD_MAPPING.get(field);
-        return Sort.by(direction, poField);
+    /**
+     * categoryName 排序的独立查询路径（EntityManager + CriteriaBuilder + 子查询）
+     * 因为 JPA Sort 不支持非实体属性的 JOIN 排序，需要手动构建 ORDER BY 子查询
+     */
+    private PageResult<KnowledgeItem> findByConditionsOrderByCategoryName(
+            Specification<KnowledgeItemPO> spec, SortField sortField, int pageNumber, int pageSize) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+
+        // 数据查询
+        CriteriaQuery<KnowledgeItemPO> cq = cb.createQuery(KnowledgeItemPO.class);
+        Root<KnowledgeItemPO> root = cq.from(KnowledgeItemPO.class);
+        cq.where(spec.toPredicate(root, cq, cb));
+
+        // 子查询：SELECT MIN(c.name) FROM relation r, category c
+        //         WHERE r.categoryId = c.id AND r.itemId = root.id
+        // 用于 ORDER BY（两个实体无 JPA 关系映射，需 cb.equal 手动连接）
+        Subquery<String> subquery = cq.subquery(String.class);
+        Root<KnowledgeItemCategoryRelationPO> relRoot = subquery.from(KnowledgeItemCategoryRelationPO.class);
+        Root<KnowledgeCategoryPO> catRoot = subquery.from(KnowledgeCategoryPO.class);
+        subquery.select(cb.function("MIN", String.class, catRoot.get("name")))
+                .where(cb.equal(relRoot.get("categoryId"), catRoot.get("id")),
+                       cb.equal(relRoot.get("itemId"), root.get("id")));
+
+        // COALESCE 实现 NULLS LAST：ASC 时 null → "~~~"（排在所有真实名称后），
+        // DESC 时 null → ""（排在所有真实名称后）
+        boolean isAsc = sortField.getDirection() == SortField.Direction.ASC;
+        Expression<String> categorySortExpr = isAsc
+                ? cb.coalesce(subquery, "~~~")
+                : cb.coalesce(subquery, "");
+        cq.orderBy(isAsc ? cb.asc(categorySortExpr) : cb.desc(categorySortExpr),
+                cb.asc(root.get("sortOrder")),
+                cb.desc(root.get("createdAt")));
+
+        // 用 GROUP BY 代替 DISTINCT，因为 MySQL 要求 DISTINCT 时 ORDER BY 表达式必须在 SELECT 列表中
+        // 而子查询只在 ORDER BY 中，不在 SELECT 列表，MySQL 会静默忽略 ORDER BY
+        cq.groupBy(root.get("id"));
+
+        TypedQuery<KnowledgeItemPO> typedQuery = em.createQuery(cq);
+        typedQuery.setFirstResult(pageNumber * pageSize);
+        typedQuery.setMaxResults(pageSize);
+        List<KnowledgeItemPO> results = typedQuery.getResultList();
+
+        // 单独 COUNT 查询（无 JOIN/DISTINCT，避免 COUNT 受 DISTINCT+JOIN 干扰）
+        CriteriaQuery<Long> countCq = cb.createQuery(Long.class);
+        Root<KnowledgeItemPO> countRoot = countCq.from(KnowledgeItemPO.class);
+        countCq.select(cb.count(countRoot));
+        countCq.where(spec.toPredicate(countRoot, countCq, cb));
+        Long total = em.createQuery(countCq).getSingleResult();
+
+        int totalPages = (int) Math.ceil((double) total / pageSize);
+
+        return PageResult.<KnowledgeItem>builder()
+                .content(results.stream()
+                        .map(KnowledgeItemConverter.INSTANCE::toDomain).toList())
+                .totalElements(total)
+                .pageNumber(pageNumber)
+                .pageSize(pageSize)
+                .totalPages(totalPages)
+                .build();
     }
 }
