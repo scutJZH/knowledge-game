@@ -1,5 +1,7 @@
 import { ProColumns, ProTable } from '@ant-design/pro-components';
-import { Button, Input, Popconfirm, Space, Tag, Tooltip } from 'antd';
+import { Button, Input, Modal, Popconfirm, Space, Tag } from 'antd';
+import { useState } from 'react';
+import type { BatchPurgeResult } from '@/services/recycleBin';
 import type { RecycleBinItem } from '@/services/recycleBin';
 
 interface RecycleBinTableProps {
@@ -14,6 +16,8 @@ interface RecycleBinTableProps {
   onSelectChange: (keys: number[]) => void;
   onRestore: (id: number) => void;
   onBatchRestore: () => void;
+  onPurge: (id: number) => Promise<void>;
+  onBatchPurge: (ids: number[]) => Promise<BatchPurgeResult>;
 }
 
 const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
@@ -28,8 +32,12 @@ const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
   onSelectChange,
   onRestore,
   onBatchRestore,
+  onPurge,
+  onBatchPurge,
 }) => {
   const batchDisabled = selectedRowKeys.length === 0;
+  const [purgeModalOpen, setPurgeModalOpen] = useState(false);
+  const [purgeConfirmText, setPurgeConfirmText] = useState('');
   const columns: ProColumns<RecycleBinItem>[] = [
     {
       title: 'ID',
@@ -83,7 +91,7 @@ const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
     },
     {
       title: '操作',
-      width: 160,
+      width: 200,
       search: false,
       render: (_, record) => (
         <Space>
@@ -98,17 +106,25 @@ const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
               恢复
             </Button>
           </Popconfirm>
-          <Tooltip title="等待资源对接">
-            <Button size="small" disabled>
+          <Popconfirm
+            title="永久删除该条目？"
+            description="删除后不可恢复，关联文件将一并清除。"
+            onConfirm={() => onPurge(record.id)}
+            okText="永久删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" type="link" danger>
               永久删除
             </Button>
-          </Tooltip>
+          </Popconfirm>
         </Space>
       ),
     },
   ];
 
   return (
+    <>
     <ProTable<RecycleBinItem>
       columns={columns}
       dataSource={dataSource}
@@ -160,11 +176,17 @@ const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
               批量恢复
             </Button>
           </Popconfirm>
-          <Tooltip title="等待资源对接">
-            <Button size="small" disabled>
-              批量永久删除
-            </Button>
-          </Tooltip>
+          <Button
+            size="small"
+            danger
+            disabled={batchDisabled}
+            onClick={() => {
+              setPurgeConfirmText('');
+              setPurgeModalOpen(true);
+            }}
+          >
+            批量永久删除
+          </Button>
         </Space>
       )}
       pagination={{
@@ -176,6 +198,34 @@ const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
         onChange: onPaginationChange,
       }}
     />
+    <Modal
+      title={`批量永久删除选中的 ${selectedRowKeys.length} 条？`}
+      open={purgeModalOpen}
+      onOk={async () => {
+        if (purgeConfirmText !== String(selectedRowKeys.length)) return;
+        await onBatchPurge(selectedRowKeys);
+        setPurgeModalOpen(false);
+      }}
+      onCancel={() => setPurgeModalOpen(false)}
+      okText="永久删除"
+      cancelText="取消"
+      okButtonProps={{
+        danger: true,
+        disabled: purgeConfirmText !== String(selectedRowKeys.length),
+      }}
+      destroyOnClose
+    >
+      <p>永久删除后数据不可恢复，关联文件将一并清除。</p>
+      <p>
+        请输入 <b>{selectedRowKeys.length}</b> 确认操作：
+      </p>
+      <Input
+        placeholder={`请输入 ${selectedRowKeys.length}`}
+        value={purgeConfirmText}
+        onChange={(e) => setPurgeConfirmText(e.target.value)}
+      />
+    </Modal>
+    </>
   );
 };
 

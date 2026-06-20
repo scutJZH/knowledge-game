@@ -53,7 +53,19 @@ public interface RecycleBinItemStrategy<T> {
     void restore(Long recycleBinId);
 
     /**
-     * 物理删除 _deleted 详情表记录（+ 通过 ResourceType.toBizTypes() 清理关联文件）
+     * 物理永久删除（REQ-102 框架 + REQ-104~108 各资源实现）
+     * <p>
+     * <b>实现者契约（REQ-104~108 各资源遵守）：</b>
+     * <ul>
+     *   <li>三步物理删除：1) 删除 _deleted 详情表记录；2) 通过 ResourceType.toBizTypes() 获取 bizType
+     *       数组，调 file 服务删除关联文件；3) 删除 recycle_bin 总览表记录</li>
+     *   <li>原子性由调用方 {@code RecycleBinAppService.purgeInNewTransaction} 保证（{@code @Transactional(REQUIRES_NEW)}），
+     *       策略实现自身不标注 {@code @Transactional}</li>
+     *   <li>永久删除失败（如 file 服务不可达）必须抛 {@link com.knowledgegame.core.common.exception.BusinessException}，
+     *       由 AppService 捕获归入批量响应的 failures</li>
+     *   <li>应容忍 recycle_bin 记录已被并发删除：DELETE FROM recycle_bin 返回 affectedRows=0 时静默成功</li>
+     *   <li>策略实现内部不应再次校验 restoreDeadline，时间窗口语义由调用方决定</li>
+     * </ul>
      *
      * @param recycleBinId 回收站总览表 ID
      */

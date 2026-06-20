@@ -22,6 +22,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -237,5 +238,47 @@ class RecycleBinItemRepositoryAdapterIT {
     @DisplayName("findById 不存在的 ID 应返回 empty")
     void findById_nonExistentId_shouldReturnEmpty() {
         assertTrue(adapter.findById(99999L).isEmpty());
+    }
+
+    // ===== findAllById (REQ-103 落地，REQ-102 共用) =====
+
+    @Test
+    @DisplayName("findAllById 正常 id → 查回对应条目")
+    void findAllById_existingIds_shouldReturnItems() {
+        RecycleBinItemPO po1 = recycleBinItemJpaRepository.save(RecycleBinItemPO.builder()
+                .resourceType(ResourceType.IP_SERIES).originalId(10L).originalName("条目1")
+                .deletedBy("admin").deletedAt(LocalDateTime.now()).restoreDeadline(LocalDateTime.now().plusDays(30))
+                .build());
+        RecycleBinItemPO po2 = recycleBinItemJpaRepository.save(RecycleBinItemPO.builder()
+                .resourceType(ResourceType.QUESTION).originalId(20L).originalName("条目2")
+                .deletedBy("admin").deletedAt(LocalDateTime.now()).restoreDeadline(LocalDateTime.now().plusDays(30))
+                .build());
+
+        List<RecycleBinItem> items = adapter.findAllById(List.of(po1.getId(), po2.getId()));
+
+        assertEquals(2, items.size());
+        assertEquals("条目1", items.get(0).getOriginalName());
+        assertEquals("条目2", items.get(1).getOriginalName());
+    }
+
+    @Test
+    @DisplayName("findAllById 部分不存在 id → 静默跳过，返回存在的")
+    void findAllById_partialNonExistent_shouldSkipMissing() {
+        RecycleBinItemPO po = recycleBinItemJpaRepository.save(RecycleBinItemPO.builder()
+                .resourceType(ResourceType.IP_SERIES).originalId(1L).originalName("存在")
+                .deletedBy("admin").deletedAt(LocalDateTime.now()).restoreDeadline(LocalDateTime.now().plusDays(30))
+                .build());
+
+        List<RecycleBinItem> items = adapter.findAllById(List.of(po.getId(), 99999L));
+
+        assertEquals(1, items.size());
+        assertEquals("存在", items.get(0).getOriginalName());
+    }
+
+    @Test
+    @DisplayName("findAllById 空集合 → 返回空列表")
+    void findAllById_emptyCollection_shouldReturnEmptyList() {
+        List<RecycleBinItem> items = adapter.findAllById(Collections.emptyList());
+        assertTrue(items.isEmpty());
     }
 }

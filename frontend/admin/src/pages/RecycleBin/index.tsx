@@ -7,9 +7,12 @@ import {
   fetchSupportedTypes,
   restoreItem,
   batchRestoreItems,
+  purgeItem,
+  batchPurgeItems,
   type RecycleBinItem,
   type SupportedType,
   type RecycleBinListParams,
+  type BatchPurgeResult,
 } from '@/services/recycleBin';
 
 const SORT_FIELD_MAP: Record<string, string> = {
@@ -113,6 +116,31 @@ const RecycleBinPage: React.FC = () => {
     }
   };
 
+  const handlePurge = async (id: number) => {
+    try {
+      await purgeItem(id);
+      message.success('永久删除成功');
+      refresh();
+    } catch (e: any) {
+      message.error(e?.message || '永久删除失败');
+    }
+  };
+
+  const handleBatchPurge = async (ids: number[]): Promise<BatchPurgeResult> => {
+    const result = await batchPurgeItems(ids);
+    const { successIds, failures } = result;
+    if (failures.length === 0) {
+      message.success(`成功永久删除 ${successIds.length} 条`);
+    } else if (successIds.length > 0) {
+      message.warning(`成功 ${successIds.length} 条，失败 ${failures.length} 条`);
+    } else {
+      message.error(failures[0]?.errorMessage || '批量永久删除失败');
+    }
+    refresh();
+    setSelectedRowKeys([]);
+    return result;
+  };
+
   const segmentedOptions: { value: string; label: string }[] = [
     { value: 'ALL', label: '全部' },
     ...types.map((t) => ({ value: t.type, label: t.displayName })),
@@ -144,6 +172,8 @@ const RecycleBinPage: React.FC = () => {
         onSelectChange={setSelectedRowKeys}
         onRestore={handleRestore}
         onBatchRestore={handleBatchRestore}
+        onPurge={handlePurge}
+        onBatchPurge={handleBatchPurge}
       />
     </Card>
   );

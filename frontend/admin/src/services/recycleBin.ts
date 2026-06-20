@@ -76,3 +76,30 @@ export async function batchRestoreItems(ids: number[]): Promise<BatchRestoreResu
     data: { ids },
   });
 }
+
+/** 单条永久删除 */
+export async function purgeItem(id: number): Promise<void> {
+  return request<void>(`/api/admin/recycle-bin/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+/** 批量永久删除失败条目 */
+export interface BatchPurgeFailure {
+  id: number;
+  errorMessage: string;
+}
+
+/** 批量永久删除结果 */
+export interface BatchPurgeResult {
+  successIds: number[];
+  failures: BatchPurgeFailure[];
+}
+
+/** 批量永久删除 */
+export async function batchPurgeItems(ids: number[]): Promise<BatchPurgeResult> {
+  return request<BatchPurgeResult>('/api/admin/recycle-bin/batch-purge', {
+    method: 'POST',
+    data: { ids },
+  });
+}

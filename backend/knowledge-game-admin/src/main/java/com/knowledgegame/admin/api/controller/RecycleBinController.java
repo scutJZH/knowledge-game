@@ -1,7 +1,9 @@
 package com.knowledgegame.admin.api.controller;
 
+import com.knowledgegame.admin.api.dto.request.BatchPurgeRequest;
 import com.knowledgegame.admin.api.dto.request.BatchRestoreRequest;
 import com.knowledgegame.admin.api.dto.request.RecycleBinListRequest;
+import com.knowledgegame.admin.api.dto.response.BatchPurgeResult;
 import com.knowledgegame.admin.api.dto.response.BatchRestoreResult;
 import com.knowledgegame.admin.api.dto.response.RecycleBinItemResponse;
 import com.knowledgegame.admin.api.dto.response.SupportedTypeResponse;
@@ -9,6 +11,7 @@ import com.knowledgegame.admin.application.service.RecycleBinAppService;
 import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,8 +24,7 @@ import java.util.List;
 /**
  * 回收站管理端 Controller
  * <p>
- * 列表查询（REQ-100）、单条恢复（REQ-103）、批量恢复（REQ-103）。
- * 永久删除等留后端点由 REQ-102 新增。
+ * 列表查询（REQ-100）、恢复（REQ-103）、永久删除（REQ-102）。
  */
 @RestController
 @RequestMapping("/api/admin/recycle-bin")
@@ -65,5 +67,22 @@ public class RecycleBinController {
     @PostMapping("/batch-restore")
     public Result<BatchRestoreResult> batchRestore(@Valid @RequestBody BatchRestoreRequest request) {
         return Result.success(appService.batchRestore(request.getIds()));
+    }
+
+    /**
+     * 单条永久删除
+     */
+    @DeleteMapping("/{id}")
+    public Result<Void> purge(@PathVariable Long id) {
+        appService.purge(id);
+        return Result.success(null);
+    }
+
+    /**
+     * 批量永久删除
+     */
+    @PostMapping("/batch-purge")
+    public Result<BatchPurgeResult> batchPurge(@Valid @RequestBody BatchPurgeRequest request) {
+        return Result.success(appService.batchPurge(request.getIds()));
     }
 }

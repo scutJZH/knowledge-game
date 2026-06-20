@@ -44,20 +44,4 @@ public interface RecycleBinItemRepositoryPort {
      * @return 存在的条目列表（不存在的 ID 静默跳过，由调用方自行判断缺失）
      */
     List<RecycleBinItem> findAllById(Collection<Long> ids);
-
-    // ===== 以下方法留 REQ-102/103/104~108 实现 =====
-
-    /**
-     * 保存回收站条目（REQ-104~108 DELETE 端点对接时调用）
-     */
-    default void save(RecycleBinItem item) {
-        throw new UnsupportedOperationException("save 方法将在 REQ-104~108 实现");
-    }
-
-    /**
-     * 按 ID 删除回收站条目（REQ-102/103 用）
-     */
-    default void deleteById(Long id) {
-        throw new UnsupportedOperationException("deleteById 方法将在 REQ-102/103 实现");
-    }
 }
