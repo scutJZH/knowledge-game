@@ -101,6 +101,7 @@ const KnowledgeItemPage: React.FC = () => {
       dataIndex: 'id',
       width: 60,
       search: false,
+      sorter: true,
     },
     {
       title: '封面图',
@@ -119,6 +120,7 @@ const KnowledgeItemPage: React.FC = () => {
       dataIndex: 'title',
       ellipsis: true,
       width: 160,
+      sorter: true,
       render: (_, record) => (
         <Tooltip title={record.title}>
           <span>{record.title}</span>
@@ -130,6 +132,7 @@ const KnowledgeItemPage: React.FC = () => {
       dataIndex: 'categoryIds',
       width: 160,
       search: false,
+      sorter: true,
       render: (_, record) => {
         const ids = record.categoryIds || [];
         const showIds = ids.slice(0, 2);
@@ -188,10 +191,19 @@ const KnowledgeItemPage: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       width: 80,
+      sorter: true,
       valueEnum: {
         ACTIVE: { text: '启用', status: 'Success' },
         INACTIVE: { text: '停用', status: 'Default' },
       },
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      width: 120,
+      search: false,
+      valueType: 'dateTime',
+      sorter: true,
     },
     {
       title: '更新时间',
@@ -292,7 +304,7 @@ const KnowledgeItemPage: React.FC = () => {
           let sortOrder: string | undefined;
           if (sort && typeof sort === 'object' && Object.keys(sort).length > 0) {
             const key = Object.keys(sort)[0];
-            sortField = key;
+            sortField = key === 'categoryIds' ? 'categoryName' : key;
             sortOrder = (sort as Record<string, string>)[key] === 'ascend' ? 'asc' : 'desc';
           }
           const res = await listKnowledgeItems({
@@ -300,7 +312,7 @@ const KnowledgeItemPage: React.FC = () => {
             categoryId: params.categoryId,
             tag: params.tag,
             status: params.status,
-            sort: sortField as KnowledgeItemResponse['sortOrder'] extends number ? 'sortOrder' | 'createdAt' | 'updatedAt' : any,
+            sort: sortField as any,
             order: sortOrder as 'asc' | 'desc' | undefined,
             page: (params.current || 1) - 1,
             size: params.pageSize || 20,

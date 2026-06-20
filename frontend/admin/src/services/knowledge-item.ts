@@ -43,7 +43,7 @@ export interface KnowledgeItemQuery {
   categoryId?: number;
   tag?: string;
   status?: 'ACTIVE' | 'INACTIVE';
-  sort?: 'createdAt' | 'updatedAt' | 'sortOrder';
+  sort?: 'id' | 'title' | 'categoryName' | 'sortOrder' | 'status' | 'createdAt' | 'updatedAt';
   order?: 'asc' | 'desc';
   page?: number;
   size?: number;

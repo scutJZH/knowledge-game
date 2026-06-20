@@ -22,6 +22,7 @@ import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
 import com.knowledgegame.core.infrastructure.markdown.MarkdownRenderer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -33,6 +34,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -219,6 +221,49 @@ class KnowledgeItemAppServiceTest {
         BatchSortRequest req = new BatchSortRequest();
         req.setItems(List.of(si));
         assertThrows(BusinessException.class, () -> appService.batchSort(req));
+    }
+
+    /**
+     * list - sort 不传 → sortField 应为 null（由 adapter 默认排序接管）
+     */
+    @Test
+    void list_shouldPassNullSortField_whenSortNotProvided() {
+        KnowledgeItem item = buildItem(1L);
+        PageResult<KnowledgeItem> domainPage = PageResult.<KnowledgeItem>builder()
+                .content(List.of(item)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+        when(itemRepository.findByConditions(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(domainPage);
+        when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
+                .thenReturn(Map.of(1L, List.of(10L)));
+
+        appService.list(null, null, null, null, null, null, 0, 20);
+
+        ArgumentCaptor<SortField> captor = ArgumentCaptor.forClass(SortField.class);
+        verify(itemRepository).findByConditions(any(), any(), any(), any(), captor.capture(), anyInt(), anyInt());
+        assertNull(captor.getValue(), "sort 不传时期望 sortField 为 null");
+    }
+
+    /**
+     * list - sort="title" order="asc" → sortField 为 SortField("title", ASC)
+     */
+    @Test
+    void list_shouldPassSortField_whenSortProvided() {
+        KnowledgeItem item = buildItem(1L);
+        PageResult<KnowledgeItem> domainPage = PageResult.<KnowledgeItem>builder()
+                .content(List.of(item)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+        when(itemRepository.findByConditions(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(domainPage);
+        when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
+                .thenReturn(Map.of(1L, List.of(10L)));
+
+        appService.list(null, null, null, null, "title", "asc", 0, 20);
+
+        ArgumentCaptor<SortField> captor = ArgumentCaptor.forClass(SortField.class);
+        verify(itemRepository).findByConditions(any(), any(), any(), any(), captor.capture(), anyInt(), anyInt());
+        SortField captured = captor.getValue();
+        assertNotNull(captured);
+        assertEquals("title", captured.getField());
+        assertEquals(SortField.Direction.ASC, captured.getDirection());
     }
 
     /**
