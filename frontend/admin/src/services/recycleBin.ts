@@ -49,3 +49,30 @@ export async function fetchSupportedTypes() {
     method: 'GET',
   });
 }
+
+/** 单条恢复 */
+export async function restoreItem(id: number): Promise<void> {
+  return request<void>(`/api/admin/recycle-bin/${id}/restore`, {
+    method: 'POST',
+  });
+}
+
+/** 批量恢复失败条目 */
+export interface BatchRestoreFailure {
+  id: number;
+  errorMessage: string;
+}
+
+/** 批量恢复结果 */
+export interface BatchRestoreResult {
+  successIds: number[];
+  failures: BatchRestoreFailure[];
+}
+
+/** 批量恢复 */
+export async function batchRestoreItems(ids: number[]): Promise<BatchRestoreResult> {
+  return request<BatchRestoreResult>('/api/admin/recycle-bin/batch-restore', {
+    method: 'POST',
+    data: { ids },
+  });
+}
