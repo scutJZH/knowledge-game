@@ -166,7 +166,6 @@ const KnowledgeItemPage: React.FC = () => {
       dataIndex: 'sortOrder',
       width: 80,
       search: false,
-      sorter: true,
     },
     {
       title: '分类',

@@ -44,7 +44,6 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
         put("id", "ID");
         put("title", "标题");
         put("categoryName", "分类名称");
-        put("sortOrder", "排序号");
         put("status", "状态");
         put("createdAt", "创建时间");
         put("updatedAt", "更新时间");
@@ -204,7 +203,6 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
 
     /**
      * 将领域排序字段转为 Spring Data Sort
-     * sortOrder 字段使用复合排序：sortOrder ASC + createdAt DESC
      */
     private Sort toSpringSort(SortField sortField) {
         SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
@@ -215,10 +213,6 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
         if ("categoryName".equals(validated.getField())) {
             throw new IllegalStateException(
                     "categoryName 排序应在 findByConditions 入口分支处理，不应到达 toSpringSort");
-        }
-        if ("sortOrder".equals(validated.getField())) {
-            return Sort.by(Sort.Direction.ASC, "sortOrder")
-                    .and(Sort.by(Sort.Direction.DESC, "createdAt"));
         }
         return SortFields.toSpringSort(validated);
     }

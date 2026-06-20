@@ -180,24 +180,18 @@ class KnowledgeItemRepositoryAdapterTest {
     /**
      * sort="sortOrder" → 复合排序 sortOrder ASC + createdAt DESC（忽略 order 参数）
      */
+    /**
+     * sort="sortOrder" → BusinessException（sortOrder 仅作默认排序，不在白名单中）
+     */
     @Test
-    void findByConditions_shouldUseCompoundSort_whenSortOrder() {
-        Page<KnowledgeItemPO> springPage = new PageImpl<>(
-                List.of(), PageRequest.of(0, 20), 0
+    void findByConditions_shouldRejectSortOrder() {
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> adapter.findByConditions(null, null, null, null,
+                        new SortField("sortOrder", SortField.Direction.ASC), 0, 20)
         );
-        when(itemJpaRepository.findAll(any(Specification.class), any(PageRequest.class)))
-                .thenReturn(springPage);
-
-        adapter.findByConditions(
-                null, null, null, null,
-                new SortField("sortOrder", SortField.Direction.ASC),
-                0, 20
-        );
-
-        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(itemJpaRepository).findAll(any(Specification.class), captor.capture());
-        Sort sort = captor.getValue().getSort();
-        assertEquals(2, sort.get().toList().size());
+        assertEquals(400, ex.getCode());
+        assertTrue(ex.getMessage().contains("不支持的排序字段"));
     }
 
     /**
