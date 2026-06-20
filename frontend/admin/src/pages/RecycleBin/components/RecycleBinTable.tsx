@@ -1,5 +1,5 @@
 import { ProColumns, ProTable } from '@ant-design/pro-components';
-import { Button, Input, Space, Tag, Tooltip } from 'antd';
+import { Button, Input, Popconfirm, Space, Tag, Tooltip } from 'antd';
 import type { RecycleBinItem } from '@/services/recycleBin';
 
 interface RecycleBinTableProps {
@@ -12,6 +12,8 @@ interface RecycleBinTableProps {
   onSort: (sort: string, order: 'ascend' | 'descend' | null) => void;
   selectedRowKeys: number[];
   onSelectChange: (keys: number[]) => void;
+  onRestore: (id: number) => void;
+  onBatchRestore: () => void;
 }
 
 const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
@@ -24,7 +26,10 @@ const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
   onSort,
   selectedRowKeys,
   onSelectChange,
+  onRestore,
+  onBatchRestore,
 }) => {
+  const batchDisabled = selectedRowKeys.length === 0;
   const columns: ProColumns<RecycleBinItem>[] = [
     {
       title: 'ID',
@@ -80,13 +85,19 @@ const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
       title: '操作',
       width: 160,
       search: false,
-      render: () => (
+      render: (_, record) => (
         <Space>
-          <Tooltip title="等待资源对接">
-            <Button size="small" disabled>
+          <Popconfirm
+            title="恢复该条目？"
+            description="恢复后将以「停用」状态回到原列表，需手动启用。"
+            onConfirm={() => onRestore(record.id)}
+            okText="恢复"
+            cancelText="取消"
+          >
+            <Button size="small" type="link">
               恢复
             </Button>
-          </Tooltip>
+          </Popconfirm>
           <Tooltip title="等待资源对接">
             <Button size="small" disabled>
               永久删除
@@ -138,11 +149,17 @@ const RecycleBinTable: React.FC<RecycleBinTableProps> = ({
       )}
       tableAlertOptionRender={() => (
         <Space>
-          <Tooltip title="等待资源对接">
-            <Button size="small" disabled>
+          <Popconfirm
+            title={`批量恢复选中的 ${selectedRowKeys.length} 条？`}
+            description="恢复后将以「停用」状态回到原列表，需手动启用。"
+            onConfirm={onBatchRestore}
+            okText="恢复"
+            cancelText="取消"
+          >
+            <Button size="small" disabled={batchDisabled}>
               批量恢复
             </Button>
-          </Tooltip>
+          </Popconfirm>
           <Tooltip title="等待资源对接">
             <Button size="small" disabled>
               批量永久删除

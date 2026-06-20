@@ -5,6 +5,8 @@ import RecycleBinTable from './components/RecycleBinTable';
 import {
   fetchRecycleBinList,
   fetchSupportedTypes,
+  restoreItem,
+  batchRestoreItems,
   type RecycleBinItem,
   type SupportedType,
   type RecycleBinListParams,
@@ -82,6 +84,35 @@ const RecycleBinPage: React.FC = () => {
     setPagination({ current: 1, pageSize: pagination.pageSize });
   };
 
+  const handleRestore = async (id: number) => {
+    try {
+      await restoreItem(id);
+      message.success('恢复成功，已回到原列表（停用状态）');
+      refresh();
+    } catch (e: any) {
+      message.error(e?.message || '恢复失败');
+    }
+  };
+
+  const handleBatchRestore = async () => {
+    const ids = selectedRowKeys;
+    try {
+      const result = await batchRestoreItems(ids);
+      const { successIds, failures } = result;
+      if (failures.length === 0) {
+        message.success(`成功恢复 ${successIds.length} 条`);
+      } else if (successIds.length > 0) {
+        message.warning(`成功 ${successIds.length} 条，失败 ${failures.length} 条`);
+      } else {
+        message.error(failures[0]?.errorMessage || '批量恢复失败');
+      }
+      refresh();
+      setSelectedRowKeys([]);
+    } catch (e: any) {
+      message.error(e?.message || '批量恢复失败');
+    }
+  };
+
   const segmentedOptions: { value: string; label: string }[] = [
     { value: 'ALL', label: '全部' },
     ...types.map((t) => ({ value: t.type, label: t.displayName })),
@@ -111,6 +142,8 @@ const RecycleBinPage: React.FC = () => {
         onSort={handleSort}
         selectedRowKeys={selectedRowKeys}
         onSelectChange={setSelectedRowKeys}
+        onRestore={handleRestore}
+        onBatchRestore={handleBatchRestore}
       />
     </Card>
   );

@@ -5,6 +5,8 @@ import com.knowledgegame.core.domain.model.entity.RecycleBinItem;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -34,6 +36,14 @@ public interface RecycleBinItemRepositoryPort {
      * @return 回收站条目，不存在返回 empty
      */
     Optional<RecycleBinItem> findById(Long id);
+
+    /**
+     * 按 ID 集合批量查询回收站条目（REQ-103 批量恢复使用）
+     *
+     * @param ids 回收站记录 ID 集合
+     * @return 存在的条目列表（不存在的 ID 静默跳过，由调用方自行判断缺失）
+     */
+    List<RecycleBinItem> findAllById(Collection<Long> ids);
 
     // ===== 以下方法留 REQ-102/103/104~108 实现 =====
 

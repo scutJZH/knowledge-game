@@ -38,6 +38,15 @@ public interface RecycleBinItemStrategy<T> {
 
     /**
      * 从 _deleted 详情表读快照 → 校验关联仍存在 → INSERT 原表（强制 INACTIVE）→ DELETE _deleted
+     * <p>
+     * <b>实现者契约（REQ-104~108 各资源遵守）：</b>
+     * <ul>
+     *   <li>恢复后资源状态<b>强制设为 INACTIVE</b>，不保留删除前的状态（由用户手动启用）</li>
+     *   <li>原子性由调用方 {@code RecycleBinAppService.restoreInNewTransaction} 保证（{@code @Transactional(REQUIRES_NEW)}），
+     *       本方法自身不标注 {@code @Transactional}</li>
+     *   <li>业务校验失败（如关联已不存在）抛 {@link com.knowledgegame.core.common.exception.BusinessException}，
+     *       异常消息需对管理员友好</li>
+     * </ul>
      *
      * @param recycleBinId 回收站总览表 ID
      */

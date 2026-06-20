@@ -19,6 +19,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,13 @@ public class RecycleBinItemRepositoryAdapter implements RecycleBinItemRepository
     @Override
     public Optional<RecycleBinItem> findById(Long id) {
         return jpaRepository.findById(id).map(RecycleBinItemConverter.INSTANCE::toDomain);
+    }
+
+    @Override
+    public List<RecycleBinItem> findAllById(Collection<Long> ids) {
+        return jpaRepository.findAllById(ids).stream()
+                .map(RecycleBinItemConverter.INSTANCE::toDomain)
+                .toList();
     }
 
     /**
