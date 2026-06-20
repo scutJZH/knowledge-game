@@ -210,4 +210,25 @@ class StudyGroupTest {
             assertTrue(group.getUpdatedAt().isAfter(oldUpdatedAt));
         }
     }
+
+    @Nested
+    @DisplayName("updateOwner")
+    class UpdateOwnerTests {
+
+        @Test
+        @DisplayName("updateOwner() 应更新 ownerId 和 updatedAt")
+        void updateOwner_updatesOwnerIdAndTimestamp() {
+            LocalDateTime oldUpdatedAt = LocalDateTime.of(2025, 1, 1, 0, 0);
+            StudyGroup group = StudyGroup.reconstruct(
+                    1L, "群组", null, null, 100L,
+                    JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                    LocalDateTime.of(2025, 1, 1, 0, 0),
+                    oldUpdatedAt);
+
+            group.updateOwner(200L);
+
+            assertEquals(200L, group.getOwnerId());
+            assertTrue(group.getUpdatedAt().isAfter(oldUpdatedAt));
+        }
+    }
 }

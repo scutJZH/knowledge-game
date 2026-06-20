@@ -153,4 +153,33 @@ class GroupMemberRepositoryAdapterTest {
         // 不应抛异常
         adapter.deleteByGroupIdAndUserId(99999L, 99999L);
     }
+
+    @Test
+    @DisplayName("findById 找到时应返回领域模型")
+    void findById_shouldReturnDomainWhenFound() {
+        GroupMemberPO po = GroupMemberPO.builder()
+                .groupId(60L)
+                .userId(600L)
+                .role(GroupRole.MEMBER)
+                .points(10)
+                .joinedAt(LocalDateTime.now())
+                .build();
+        entityManager.persistAndFlush(po);
+        entityManager.clear();
+
+        Optional<GroupMember> result = adapter.findById(po.getId());
+
+        assertTrue(result.isPresent());
+        assertEquals(po.getId(), result.get().getId());
+        assertEquals(60L, result.get().getGroupId());
+        assertEquals(600L, result.get().getUserId());
+        assertEquals(GroupRole.MEMBER, result.get().getRole());
+    }
+
+    @Test
+    @DisplayName("findById 未找到时应返回空")
+    void findById_shouldReturnEmptyWhenNotFound() {
+        Optional<GroupMember> result = adapter.findById(99999L);
+        assertFalse(result.isPresent());
+    }
 }

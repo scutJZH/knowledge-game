@@ -28,4 +28,9 @@ public interface GroupMemberRepository {
      * 删除指定群组中指定用户的成员关系
      */
     void deleteByGroupIdAndUserId(Long groupId, Long userId);
+
+    /**
+     * 根据 ID 查询成员记录
+     */
+    Optional<GroupMember> findById(Long id);
 }

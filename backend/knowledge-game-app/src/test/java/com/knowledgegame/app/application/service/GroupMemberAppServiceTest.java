@@ -22,6 +22,8 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -335,6 +338,188 @@ class GroupMemberAppServiceTest {
             GroupMemberResponse response = appService.getCurrentMember(1L);
 
             assertEquals("OWNER", response.getRole());
+        }
+    }
+
+    @Nested
+    @DisplayName("updateRole")
+    class UpdateRoleTests {
+
+        @Test
+        @DisplayName("OWNER 提升 MEMBER 为 ADMIN 应保存 role=ADMIN")
+        void updateRole_promoteMemberToAdmin_savesAdminRole() {
+            GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
+            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+
+            appService.updateRole(10L, 200L, "ADMIN");
+
+            ArgumentCaptor<GroupMember> captor = ArgumentCaptor.forClass(GroupMember.class);
+            verify(groupMemberRepository).save(captor.capture());
+            assertEquals(GroupRole.ADMIN, captor.getValue().getRole());
+        }
+
+        @Test
+        @DisplayName("OWNER 降级 ADMIN 为 MEMBER 应保存 role=MEMBER")
+        void updateRole_demoteAdminToMember_savesMemberRole() {
+            GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
+                    GroupRole.ADMIN, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
+            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+
+            appService.updateRole(10L, 200L, "MEMBER");
+
+            ArgumentCaptor<GroupMember> captor = ArgumentCaptor.forClass(GroupMember.class);
+            verify(groupMemberRepository).save(captor.capture());
+            assertEquals(GroupRole.MEMBER, captor.getValue().getRole());
+        }
+
+        @Test
+        @DisplayName("ADMIN 已是目标角色应幂等（不抛异常）")
+        void updateRole_adminToAdmin_isIdempotent() {
+            GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
+                    GroupRole.ADMIN, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
+            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+
+            appService.updateRole(10L, 200L, "ADMIN");
+
+            verify(groupMemberRepository).save(target);
+        }
+
+        @Test
+        @DisplayName("非 OWNER 操作应抛 NOT_GROUP_OWNER")
+        void updateRole_nonOwner_throwsNotGroupOwner() {
+            GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.ADMIN, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> appService.updateRole(10L, 200L, "ADMIN"));
+            assertEquals(ResultCode.NOT_GROUP_OWNER.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("目标不存在应抛 NOT_GROUP_MEMBER")
+        void updateRole_targetNotFound_throwsNotGroupMember() {
+            GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
+            when(groupMemberRepository.findById(999L)).thenReturn(Optional.empty());
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> appService.updateRole(10L, 999L, "ADMIN"));
+            assertEquals(ResultCode.NOT_GROUP_MEMBER.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("目标不在该群组应抛 NOT_GROUP_MEMBER")
+        void updateRole_targetDifferentGroup_throwsNotGroupMember() {
+            GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 20L, 200L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
+            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> appService.updateRole(10L, 200L, "ADMIN"));
+            assertEquals(ResultCode.NOT_GROUP_MEMBER.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("目标为 OWNER 应抛 CANNOT_CHANGE_OWNER_ROLE")
+        void updateRole_targetIsOwner_throwsCannotChangeOwnerRole() {
+            GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
+            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> appService.updateRole(10L, 200L, "ADMIN"));
+            assertEquals(ResultCode.CANNOT_CHANGE_OWNER_ROLE.getCode(), ex.getCode());
+        }
+    }
+
+    @Nested
+    @DisplayName("transferOwnership")
+    class TransferOwnershipTests {
+
+        @Test
+        @DisplayName("OWNER 转让成功应保存原 OWNER(ADMIN) 和目标(OWNER) + 更新 StudyGroup.ownerId")
+        void transferOwnership_success_savesBothAndUpdatesStudyGroup() {
+            GroupMember owner = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+            StudyGroup group = StudyGroup.reconstruct(10L, "群组", null, null, 100L,
+                    JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                    LocalDateTime.now(), LocalDateTime.now());
+
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(owner));
+            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+            when(studyGroupRepository.findById(10L)).thenReturn(Optional.of(group));
+
+            appService.transferOwnership(10L, 200L);
+
+            verify(studyGroupRepository).save(group);
+            assertEquals(200L, group.getOwnerId());
+
+            ArgumentCaptor<GroupMember> captor = ArgumentCaptor.forClass(GroupMember.class);
+            verify(groupMemberRepository, times(2)).save(captor.capture());
+            List<GroupMember> saved = captor.getAllValues();
+            assertEquals(2, saved.size());
+            assertEquals(GroupRole.ADMIN, saved.get(0).getRole());
+            assertEquals(GroupRole.OWNER, saved.get(1).getRole());
+        }
+
+        @Test
+        @DisplayName("非 OWNER 转让应抛 NOT_GROUP_OWNER")
+        void transferOwnership_nonOwner_throwsNotGroupOwner() {
+            GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.ADMIN, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> appService.transferOwnership(10L, 200L));
+            assertEquals(ResultCode.NOT_GROUP_OWNER.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("目标不存在应抛 NOT_GROUP_MEMBER")
+        void transferOwnership_targetNotFound_throwsNotGroupMember() {
+            GroupMember owner = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(owner));
+            when(groupMemberRepository.findById(999L)).thenReturn(Optional.empty());
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> appService.transferOwnership(10L, 999L));
+            assertEquals(ResultCode.NOT_GROUP_MEMBER.getCode(), ex.getCode());
+        }
+
+        @Test
+        @DisplayName("目标不在同群组应抛 NOT_GROUP_MEMBER")
+        void transferOwnership_targetDifferentGroup_throwsNotGroupMember() {
+            GroupMember owner = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 20L, 200L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(owner));
+            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+
+            BusinessException ex = assertThrows(BusinessException.class,
+                    () -> appService.transferOwnership(10L, 200L));
+            assertEquals(ResultCode.NOT_GROUP_MEMBER.getCode(), ex.getCode());
         }
     }
 }

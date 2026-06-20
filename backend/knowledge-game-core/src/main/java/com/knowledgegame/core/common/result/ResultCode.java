@@ -31,7 +31,8 @@ public enum ResultCode {
     NOT_GROUP_MEMBER(403, "非群组成员"),
     OWNER_CANNOT_LEAVE(400, "群主不能退出，请先转让群组"),
     NOT_GROUP_OWNER(403, "仅群主可操作"),
-    INVITE_CODE_GENERATION_FAILED(400, "邀请码生成失败，请重试");
+    INVITE_CODE_GENERATION_FAILED(400, "邀请码生成失败，请重试"),
+    CANNOT_CHANGE_OWNER_ROLE(400, "不能通过此接口修改群主角色，请使用转让功能");
 
     private final int code;
     private final String message;

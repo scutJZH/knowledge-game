@@ -62,6 +62,14 @@ public class StudyGroup {
     }
 
     /**
+     * 更新群主 ID（转让时调用）。
+     */
+    public void updateOwner(Long newOwnerId) {
+        this.ownerId = newOwnerId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
      * 重新生成邀请码（ISSUE-4 实现）
      */
     public void regenerateInviteCode() {

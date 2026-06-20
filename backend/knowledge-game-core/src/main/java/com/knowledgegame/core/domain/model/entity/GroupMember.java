@@ -59,4 +59,38 @@ public class GroupMember {
         member.joinedAt = joinedAt;
         return member;
     }
+
+    /**
+     * 提升为管理员。幂等。OWNER 调用抛 IllegalStateException。
+     */
+    public void promoteToAdmin() {
+        if (this.role == GroupRole.OWNER) {
+            throw new IllegalStateException("群主不能降级为管理员，请使用转让功能");
+        }
+        this.role = GroupRole.ADMIN;
+    }
+
+    /**
+     * 降级为成员。幂等。OWNER 调用抛 IllegalStateException。
+     */
+    public void demoteToMember() {
+        if (this.role == GroupRole.OWNER) {
+            throw new IllegalStateException("群主不能降级为成员，请使用转让功能");
+        }
+        this.role = GroupRole.MEMBER;
+    }
+
+    /**
+     * 转让群主。this 为原 OWNER，转让后变为 ADMIN。
+     */
+    public void transferOwnershipTo(GroupMember target) {
+        if (this.role != GroupRole.OWNER) {
+            throw new IllegalStateException("仅群主可以转让");
+        }
+        if (!this.groupId.equals(target.groupId)) {
+            throw new IllegalStateException("只能转让给同群组成员");
+        }
+        this.role = GroupRole.ADMIN;
+        target.role = GroupRole.OWNER;
+    }
 }

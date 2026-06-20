@@ -118,4 +118,67 @@ public class GroupMemberAppService {
 
         return GroupMemberAssembler.INSTANCE.toResponse(member);
     }
+
+    /**
+     * 更新成员角色（仅 OWNER，ADMIN / MEMBER 互转）
+     */
+    @Transactional
+    public void updateRole(Long groupId, Long targetUserId, String role) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        enforceOwner(groupId, currentUserId);
+
+        GroupMember target = groupMemberRepository.findById(targetUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        if (!target.getGroupId().equals(groupId)) {
+            throw new BusinessException(ResultCode.NOT_GROUP_MEMBER);
+        }
+
+        if (target.getRole() == GroupRole.OWNER) {
+            throw new BusinessException(ResultCode.CANNOT_CHANGE_OWNER_ROLE);
+        }
+
+        if ("ADMIN".equals(role)) {
+            target.promoteToAdmin();
+        } else if ("MEMBER".equals(role)) {
+            target.demoteToMember();
+        } else {
+            throw new BusinessException(ResultCode.PARAM_ERROR);
+        }
+        groupMemberRepository.save(target);
+    }
+
+    /**
+     * 转让群主（仅 OWNER，转让后原 OWNER 变为 ADMIN）
+     */
+    @Transactional
+    public void transferOwnership(Long groupId, Long toUserId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        GroupMember owner = enforceOwner(groupId, currentUserId);
+
+        GroupMember target = groupMemberRepository.findById(toUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        if (!target.getGroupId().equals(groupId)) {
+            throw new BusinessException(ResultCode.NOT_GROUP_MEMBER);
+        }
+
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(ResultCode.GROUP_NOT_FOUND));
+        group.updateOwner(toUserId);
+        studyGroupRepository.save(group);
+
+        owner.transferOwnershipTo(target);
+        groupMemberRepository.save(owner);
+        groupMemberRepository.save(target);
+    }
+
+    private GroupMember enforceOwner(Long groupId, Long currentUserId) {
+        GroupMember current = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+        if (current.getRole() != GroupRole.OWNER) {
+            throw new BusinessException(ResultCode.NOT_GROUP_OWNER);
+        }
+        return current;
+    }
 }

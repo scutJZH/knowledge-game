@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -227,6 +228,110 @@ class GroupMemberControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(403))
                     .andExpect(jsonPath("$.message").value("非群组成员"));
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT /{id}/members/{userId}（更新角色）")
+    class UpdateRoleTests {
+
+        @Test
+        @DisplayName("成功应返回 200 + null data")
+        void updateRole_validRequest_returns200WithNullData() throws Exception {
+            String body = "{\"role\":\"ADMIN\"}";
+
+            mockMvc.perform(put("/api/study-groups/1/members/200")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.data").isEmpty());
+        }
+
+        @Test
+        @DisplayName("role 为空应返回 400")
+        void updateRole_blankRole_returns400() throws Exception {
+            String body = "{\"role\":\"\"}";
+
+            mockMvc.perform(put("/api/study-groups/1/members/200")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(400));
+        }
+
+        @Test
+        @DisplayName("role 非法值应返回 400")
+        void updateRole_invalidRole_returns400() throws Exception {
+            String body = "{\"role\":\"OWNER\"}";
+
+            mockMvc.perform(put("/api/study-groups/1/members/200")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(400));
+        }
+
+        @Test
+        @DisplayName("非 OWNER 操作应返回 NOT_GROUP_OWNER")
+        void updateRole_nonOwner_returnsNotGroupOwner() throws Exception {
+            doThrow(new BusinessException(ResultCode.NOT_GROUP_OWNER))
+                    .when(appService).updateRole(1L, 200L, "ADMIN");
+
+            String body = "{\"role\":\"ADMIN\"}";
+
+            mockMvc.perform(put("/api/study-groups/1/members/200")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(403))
+                    .andExpect(jsonPath("$.message").value("仅群主可操作"));
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /{id}/transfer-ownership（转让群主）")
+    class TransferOwnershipTests {
+
+        @Test
+        @DisplayName("成功应返回 200 + null data")
+        void transferOwnership_validRequest_returns200WithNullData() throws Exception {
+            String body = "{\"toUserId\":200}";
+
+            mockMvc.perform(post("/api/study-groups/1/transfer-ownership")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.data").isEmpty());
+        }
+
+        @Test
+        @DisplayName("toUserId 为空应返回 400")
+        void transferOwnership_nullToUserId_returns400() throws Exception {
+            String body = "{}";
+
+            mockMvc.perform(post("/api/study-groups/1/transfer-ownership")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(400));
+        }
+
+        @Test
+        @DisplayName("非 OWNER 操作应返回 NOT_GROUP_OWNER")
+        void transferOwnership_nonOwner_returnsNotGroupOwner() throws Exception {
+            doThrow(new BusinessException(ResultCode.NOT_GROUP_OWNER))
+                    .when(appService).transferOwnership(1L, 200L);
+
+            String body = "{\"toUserId\":200}";
+
+            mockMvc.perform(post("/api/study-groups/1/transfer-ownership")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(403))
+                    .andExpect(jsonPath("$.message").value("仅群主可操作"));
         }
     }
 }

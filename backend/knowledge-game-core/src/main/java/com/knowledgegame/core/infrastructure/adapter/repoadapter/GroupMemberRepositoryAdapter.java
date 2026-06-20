@@ -50,4 +50,10 @@ public class GroupMemberRepositoryAdapter implements GroupMemberRepository {
     public void deleteByGroupIdAndUserId(Long groupId, Long userId) {
         jpaRepository.deleteByGroupIdAndUserId(groupId, userId);
     }
+
+    @Override
+    public Optional<GroupMember> findById(Long id) {
+        return jpaRepository.findById(id)
+                .map(GroupMemberConverter.INSTANCE::toDomain);
+    }
 }

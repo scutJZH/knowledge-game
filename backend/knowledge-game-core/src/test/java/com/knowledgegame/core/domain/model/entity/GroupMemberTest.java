@@ -2,7 +2,10 @@ package com.knowledgegame.core.domain.model.entity;
 
 import com.knowledgegame.core.domain.model.domainenum.GroupRole;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.LocalDateTime;
 
@@ -63,5 +66,108 @@ class GroupMemberTest {
         assertEquals(0, member.getPoints());
         assertNotNull(member.getJoinedAt());
         assertNull(member.getId());
+    }
+
+    @Nested
+    @DisplayName("promoteToAdmin")
+    class PromoteToAdminTests {
+
+        @Test
+        @DisplayName("MEMBER → ADMIN 角色应变为 ADMIN")
+        void memberPromotesToAdmin_roleBecomesAdmin() {
+            GroupMember member = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+            member.promoteToAdmin();
+            assertEquals(GroupRole.ADMIN, member.getRole());
+        }
+
+        @Test
+        @DisplayName("ADMIN 幂等调用应保持 ADMIN")
+        void adminPromotesToAdmin_isIdempotent() {
+            GroupMember member = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.ADMIN, 0, LocalDateTime.now());
+            member.promoteToAdmin();
+            assertEquals(GroupRole.ADMIN, member.getRole());
+        }
+
+        @Test
+        @DisplayName("OWNER 调用应抛 IllegalStateException")
+        void ownerCannotPromote_throwsIllegalStateException() {
+            GroupMember owner = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            assertThrows(IllegalStateException.class, owner::promoteToAdmin);
+        }
+    }
+
+    @Nested
+    @DisplayName("demoteToMember")
+    class DemoteToMemberTests {
+
+        @Test
+        @DisplayName("ADMIN → MEMBER 角色应变为 MEMBER")
+        void adminDemotesToMember_roleBecomesMember() {
+            GroupMember member = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.ADMIN, 0, LocalDateTime.now());
+            member.demoteToMember();
+            assertEquals(GroupRole.MEMBER, member.getRole());
+        }
+
+        @Test
+        @DisplayName("MEMBER 幂等调用应保持 MEMBER")
+        void memberDemotesToMember_isIdempotent() {
+            GroupMember member = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+            member.demoteToMember();
+            assertEquals(GroupRole.MEMBER, member.getRole());
+        }
+
+        @Test
+        @DisplayName("OWNER 调用应抛 IllegalStateException")
+        void ownerCannotDemote_throwsIllegalStateException() {
+            GroupMember owner = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            assertThrows(IllegalStateException.class, owner::demoteToMember);
+        }
+    }
+
+    @Nested
+    @DisplayName("transferOwnershipTo")
+    class TransferOwnershipToTests {
+
+        @Test
+        @DisplayName("OWNER 转让后原 OWNER 变 ADMIN，目标变 OWNER")
+        void ownerTransfersToMember_rolesSwap() {
+            GroupMember owner = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+
+            owner.transferOwnershipTo(target);
+
+            assertEquals(GroupRole.ADMIN, owner.getRole());
+            assertEquals(GroupRole.OWNER, target.getRole());
+        }
+
+        @Test
+        @DisplayName("非 OWNER 转让应抛 IllegalStateException")
+        void nonOwnerTransfers_throwsIllegalStateException() {
+            GroupMember admin = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.ADMIN, 0, LocalDateTime.now());
+            GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+
+            assertThrows(IllegalStateException.class, () -> admin.transferOwnershipTo(target));
+        }
+
+        @Test
+        @DisplayName("转让给不同群组成员应抛 IllegalStateException")
+        void transferToDifferentGroup_throwsIllegalStateException() {
+            GroupMember owner = GroupMember.reconstruct(1L, 10L, 100L,
+                    GroupRole.OWNER, 0, LocalDateTime.now());
+            GroupMember otherGroup = GroupMember.reconstruct(2L, 20L, 200L,
+                    GroupRole.MEMBER, 0, LocalDateTime.now());
+
+            assertThrows(IllegalStateException.class, () -> owner.transferOwnershipTo(otherGroup));
+        }
     }
 }
