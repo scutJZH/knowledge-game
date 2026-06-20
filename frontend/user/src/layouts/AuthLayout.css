@@ -5,7 +5,7 @@
 
 .brand-area {
   flex: 1;
-  background: linear-gradient(135deg, #3b0764, #7c2d12);
+  background: linear-gradient(135deg, #8b5cf6, #c084fc, #f472b6);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -29,7 +29,7 @@
 
 .brand-area .brand-slogan {
   font-size: 13px;
-  opacity: 0.7;
+  opacity: 0.85;
 }
 
 .form-area {
@@ -37,12 +37,22 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f8fafc;
 }
 
 .form-area .form-container {
   max-width: 400px;
   width: 100%;
   padding: 32px 24px;
+}
+
+/* 覆盖 Chrome 自动填充，浅色主题适配 */
+.form-area input:-webkit-autofill,
+.form-area input:-webkit-autofill:hover,
+.form-area input:-webkit-autofill:focus,
+.form-area input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #fff inset !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 @media (max-width: 991px) {

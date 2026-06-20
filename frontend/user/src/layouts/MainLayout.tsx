@@ -52,6 +52,7 @@ function MainLayout() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          background: 'linear-gradient(135deg, #8b5cf6, #c084fc)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
@@ -63,7 +64,8 @@ function MainLayout() {
             selectedKeys={[selectedKey]}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
-            style={{ flex: 1, minWidth: 0 }}
+            style={{ flex: 1, minWidth: 0, background: 'transparent', borderBottom: 'none' }}
+            theme="dark"
           />
         </div>
         {user ? (
@@ -74,7 +76,7 @@ function MainLayout() {
                 src={user.avatarUrl}
                 icon={!user.avatarUrl ? <UserOutlined /> : undefined}
               />
-              <span style={{ color: 'rgba(255,255,255,0.85)' }}>{user.nickname}</span>
+              <span style={{ color: '#fff' }}>{user.nickname}</span>
             </div>
           </Dropdown>
         ) : (

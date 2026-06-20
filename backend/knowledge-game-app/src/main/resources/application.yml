@@ -3,7 +3,7 @@ server:
 
 logging:
   file:
-    path: logs
+    path: ../logs
 
 cors:
   allowed-origins: http://localhost:*
