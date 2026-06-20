@@ -201,14 +201,47 @@ interface UserInfo { id: number; username: string; nickname: string; role: strin
 
 ### 手动验证步骤
 
-1. **启动开发环境**：`cd frontend/user && npm run dev`，后端 app 服务（8082）启动
-2. **未登录拦截**：访问 `http://localhost:5173/home` → 被重定向到 `/login?redirect=%2Fhome`
-3. **登录流程**（需 REQ-28 完成后）：登录 → 跳转回 `/home` → Header 显示用户昵称+头像
-4. **刷新保持登录态**：F5 刷新 → 仍保持登录，Header 仍显示用户信息
-5. **登出**：点击 Header 用户区 → "退出登录" → 清空 token → 跳转 `/login`
-6. **Token 自动刷新**：等待或手动过期 access token → 调任意 API → 自动刷新，用户无感知
-7. **Refresh 过期**：手动删除 localStorage 中 refresh token → 调任意 API → 弹出 Modal → 确认后跳转 `/login`
-8. **API 代理**：DevTools Network 确认 `/api/**` 请求携带 `Authorization: Bearer <token>`
+> 前置：启动后端 `cd backend/knowledge-game-app && mvn spring-boot:run`，启动前端 `cd frontend/user && npm run dev`
+
+#### 基础功能
+
+| # | 用例 | 操作 | 预期 |
+|---|------|------|------|
+| 1 | 未登录拦截 | 浏览器打开 `http://localhost:5173/home` | 跳转 `/login?redirect=%2Fhome`，显示登录页占位 |
+| 2 | 白名单不拦截 | 访问 `/login` | 显示登录页占位，不重定向 |
+| 3 | 注册页不拦截 | 访问 `/register` | 显示注册页占位，不重定向 |
+| 4 | 根路径重定向 | 访问 `/` | → `/home` → AuthGuard → `/login?redirect=%2Fhome` |
+
+#### 登录态模拟（通过 localStorage，不依赖 REQ-28）
+
+| # | 用例 | 操作 | 预期 |
+|---|------|------|------|
+| 5 | 模拟登录态 | DevTools → Application → localStorage，添加 key `auth-storage`，value: `{"state":{"accessToken":"test-token","refreshToken":"test-refresh","expiresIn":1800,"user":{"id":1,"username":"admin","nickname":"管理员","role":"ADMIN","avatarFileId":null,"avatarUrl":null}},"version":0}` → 刷新页面 | Header 显示"管理员"，不再显示"未登录" |
+| 6 | 退出登录 | 已登录态下点击 Header "管理员" → 下拉菜单 → "退出登录" | 清除 token，跳转 `/login` |
+| 7 | F5 保持登录态 | 模拟登录态后按 F5 刷新 | Header 仍显示"管理员" |
+| 8 | 清除登录态 | 删除 localStorage 的 `auth-storage` key → 刷新 | 显示"未登录"，访问 `/home` 被拦截 |
+
+#### 网络鉴权
+
+| # | 用例 | 操作 | 预期 |
+|---|------|------|------|
+| 9 | API 携带 token | 模拟登录态后，DevTools Network 面板观察任意 `/api/` 请求 | 请求头含 `Authorization: Bearer test-token` |
+
+#### 构建验证
+
+| # | 用例 | 命令 | 预期 |
+|---|------|------|------|
+| 10 | 单元测试 | `npm run test` | 10 文件 36 用例全绿 |
+| 11 | 类型检查 | `npx tsc --noEmit` | 无错误 |
+| 12 | 生产构建 | `npm run build` | 构建成功 |
+| 13 | ESLint | `npx eslint src/` | 无报错 |
+
+#### 401 刷新流程（需后端 app 服务运行）
+
+| # | 用例 | 操作 | 预期 |
+|---|------|------|------|
+| 14 | access token 过期自动刷新 | 将后端 access token 有效期调短为 1min → 模拟登录态 → 等待过期 → 访问需认证 API | Network 可见 1 次 401 + 1 次 `/api/users/refresh-token` → 重放成功 |
+| 15 | refresh token 过期 | 将 localStorage 中 refreshToken 设为无效值 → 访问 API | 弹出 Modal "登录已过期" / "请重新登录"，确认后跳转 `/login` |
 
 ### 自动化测试覆盖
 
