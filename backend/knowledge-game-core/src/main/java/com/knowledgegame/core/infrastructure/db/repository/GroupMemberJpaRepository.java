@@ -2,6 +2,7 @@ package com.knowledgegame.core.infrastructure.db.repository;
 
 import com.knowledgegame.core.infrastructure.db.entity.GroupMemberPO;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -15,4 +16,7 @@ public interface GroupMemberJpaRepository extends JpaRepository<GroupMemberPO, L
     boolean existsByGroupIdAndUserId(Long groupId, Long userId);
 
     Optional<GroupMemberPO> findByGroupIdAndUserId(Long groupId, Long userId);
+
+    @Modifying
+    void deleteByGroupIdAndUserId(Long groupId, Long userId);
 }

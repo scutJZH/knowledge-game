@@ -1,7 +1,10 @@
 package com.knowledgegame.core.infrastructure.db.entity;
 
+import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -44,6 +47,13 @@ public class StudyGroupPO {
 
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "join_policy", nullable = false, length = 20, columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'OPEN'")
+    private JoinPolicy joinPolicy;
+
+    @Column(name = "invite_code", nullable = false, length = 8, unique = true)
+    private String inviteCode;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

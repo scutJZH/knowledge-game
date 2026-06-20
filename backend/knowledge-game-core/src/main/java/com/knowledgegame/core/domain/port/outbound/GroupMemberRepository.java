@@ -23,4 +23,9 @@ public interface GroupMemberRepository {
      * 判断成员关系是否存在
      */
     boolean existsByGroupIdAndUserId(Long groupId, Long userId);
+
+    /**
+     * 删除指定群组中指定用户的成员关系
+     */
+    void deleteByGroupIdAndUserId(Long groupId, Long userId);
 }

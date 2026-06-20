@@ -11,6 +11,8 @@ public class StudyGroupResponse {
     private Long avatarFileId;
     private String avatarUrl;
     private Long ownerId;
+    private String joinPolicy;
+    private String inviteCode;
     private Long createdAt;
     private Long updatedAt;
 
@@ -31,6 +33,12 @@ public class StudyGroupResponse {
 
     public Long getOwnerId() { return ownerId; }
     public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
+
+    public String getJoinPolicy() { return joinPolicy; }
+    public void setJoinPolicy(String joinPolicy) { this.joinPolicy = joinPolicy; }
+
+    public String getInviteCode() { return inviteCode; }
+    public void setInviteCode(String inviteCode) { this.inviteCode = inviteCode; }
 
     public Long getCreatedAt() { return createdAt; }
     public void setCreatedAt(Long createdAt) { this.createdAt = createdAt; }

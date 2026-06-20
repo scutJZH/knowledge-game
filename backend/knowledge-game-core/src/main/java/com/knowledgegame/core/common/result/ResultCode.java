@@ -23,7 +23,15 @@ public enum ResultCode {
     FILE_BIZ_TYPE_MISMATCH(400, "文件业务类型不匹配"),
     FILE_OWNER_MISMATCH(403, "无权使用该文件"),
     PARAM_ERROR(400, "参数错误"),
-    NOT_IMPLEMENTED(501, "功能未实现");
+    NOT_IMPLEMENTED(501, "功能未实现"),
+    GROUP_NOT_FOUND(404, "群组不存在"),
+    GROUP_JOIN_POLICY_MISMATCH(400, "该群组需要邀请码加入"),
+    ALREADY_GROUP_MEMBER(400, "已是群组成员"),
+    INVITE_CODE_INVALID(400, "邀请码无效"),
+    NOT_GROUP_MEMBER(403, "非群组成员"),
+    OWNER_CANNOT_LEAVE(400, "群主不能退出，请先转让群组"),
+    NOT_GROUP_OWNER(403, "仅群主可操作"),
+    INVITE_CODE_GENERATION_FAILED(400, "邀请码生成失败，请重试");
 
     private final int code;
     private final String message;

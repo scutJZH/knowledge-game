@@ -51,4 +51,17 @@ class GroupMemberTest {
         assertEquals(50, member.getPoints());
         assertEquals(joinedAt, member.getJoinedAt());
     }
+
+    @Test
+    @DisplayName("joinAsMember() 应创建 role=MEMBER / points=0 的成员记录")
+    void joinAsMember_returnsMemberRoleZeroPoints() {
+        GroupMember member = GroupMember.joinAsMember(10L, 100L);
+
+        assertEquals(10L, member.getGroupId());
+        assertEquals(100L, member.getUserId());
+        assertEquals(GroupRole.MEMBER, member.getRole());
+        assertEquals(0, member.getPoints());
+        assertNotNull(member.getJoinedAt());
+        assertNull(member.getId());
+    }
 }

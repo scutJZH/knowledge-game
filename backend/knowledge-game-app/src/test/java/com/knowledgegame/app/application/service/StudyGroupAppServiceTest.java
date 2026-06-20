@@ -8,10 +8,16 @@ import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.common.result.ResultCode;
 import com.knowledgegame.core.domain.model.domainenum.GroupRole;
+import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
 import com.knowledgegame.core.domain.model.entity.GroupMember;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
+import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.model.vo.InviteCode;
 import com.knowledgegame.core.domain.port.outbound.GroupMemberRepository;
 import com.knowledgegame.core.domain.port.outbound.StudyGroupRepository;
+import org.springframework.dao.DataIntegrityViolationException;
+
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,11 +31,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -64,9 +72,8 @@ class StudyGroupAppServiceTest {
     @Test
     @DisplayName("正常创建群组（含头像校验）")
     void create_shouldCreateGroupWithAvatar() {
-        CreateStudyGroupRequest request = buildRequest("测试群组", "描述", 10L);
+        CreateStudyGroupRequest request = buildRequest("测试群组", "描述", 10L, null);
 
-        // mock FileServiceClient 返回有效 FileInfo
         FileInfoResponse fileInfo = FileInfoResponse.builder()
                 .fileId(10L)
                 .url("https://example.com/avatar.png")
@@ -74,10 +81,10 @@ class StudyGroupAppServiceTest {
                 .build();
         when(fileServiceClient.getFileInfo(10L)).thenReturn(Result.success(fileInfo));
 
-        // mock 仓储 save
         StudyGroup mockSaved = StudyGroup.reconstruct(1L, "测试群组", "描述",
-                com.knowledgegame.core.domain.model.vo.FileRef.of(10L, "https://example.com/avatar.png"),
-                100L, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+                FileRef.of(10L, "https://example.com/avatar.png"),
+                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
         when(studyGroupRepository.save(any())).thenReturn(mockSaved);
 
         StudyGroupResponse response = appService.create(request);
@@ -88,7 +95,6 @@ class StudyGroupAppServiceTest {
         assertEquals(10L, response.getAvatarFileId());
         assertEquals("https://example.com/avatar.png", response.getAvatarUrl());
 
-        // 捕获 StudyGroup save 参数
         ArgumentCaptor<StudyGroup> groupCaptor = ArgumentCaptor.forClass(StudyGroup.class);
         verify(studyGroupRepository).save(groupCaptor.capture());
         assertEquals("测试群组", groupCaptor.getValue().getName());
@@ -96,7 +102,6 @@ class StudyGroupAppServiceTest {
         assertNotNull(groupCaptor.getValue().getAvatar());
         assertEquals("https://example.com/avatar.png", groupCaptor.getValue().getAvatar().url());
 
-        // 捕获 GroupMember save 参数
         ArgumentCaptor<GroupMember> memberCaptor = ArgumentCaptor.forClass(GroupMember.class);
         verify(groupMemberRepository).save(memberCaptor.capture());
         assertEquals(1L, memberCaptor.getValue().getGroupId());
@@ -108,10 +113,11 @@ class StudyGroupAppServiceTest {
     @Test
     @DisplayName("avatarFileId 为 null 时跳过 FileRef 校验")
     void create_shouldSkipFileRefWhenAvatarFileIdNull() {
-        CreateStudyGroupRequest request = buildRequest("群组", null, null);
+        CreateStudyGroupRequest request = buildRequest("群组", null, null, null);
 
         StudyGroup mockSaved = StudyGroup.reconstruct(1L, "群组", null, null,
-                100L, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
         when(studyGroupRepository.save(any())).thenReturn(mockSaved);
 
         StudyGroupResponse response = appService.create(request);
@@ -123,7 +129,7 @@ class StudyGroupAppServiceTest {
     @Test
     @DisplayName("文件不存在时抛 FILE_NOT_FOUND")
     void create_shouldThrowWhenFileNotFound() {
-        CreateStudyGroupRequest request = buildRequest("群组", null, 10L);
+        CreateStudyGroupRequest request = buildRequest("群组", null, 10L, null);
         when(fileServiceClient.getFileInfo(10L)).thenReturn(Result.success(null));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> appService.create(request));
@@ -133,7 +139,7 @@ class StudyGroupAppServiceTest {
     @Test
     @DisplayName("bizType 不匹配时抛 FILE_BIZ_TYPE_MISMATCH")
     void create_shouldThrowWhenBizTypeMismatch() {
-        CreateStudyGroupRequest request = buildRequest("群组", null, 10L);
+        CreateStudyGroupRequest request = buildRequest("群组", null, 10L, null);
         FileInfoResponse fileInfo = FileInfoResponse.builder()
                 .fileId(10L)
                 .url("https://example.com/avatar.png")
@@ -148,7 +154,7 @@ class StudyGroupAppServiceTest {
     @Test
     @DisplayName("userId 不匹配时抛 FILE_OWNER_MISMATCH")
     void create_shouldThrowWhenOwnerMismatch() {
-        CreateStudyGroupRequest request = buildRequest("群组", null, 10L);
+        CreateStudyGroupRequest request = buildRequest("群组", null, 10L, null);
         FileInfoResponse fileInfo = FileInfoResponse.builder()
                 .fileId(10L)
                 .url("https://example.com/avatar.png")
@@ -163,7 +169,7 @@ class StudyGroupAppServiceTest {
     @Test
     @DisplayName("result.isSuccess()=false 时抛 INTERNAL_ERROR")
     void create_shouldThrowInternalErrorWhenResultNotSuccess() {
-        CreateStudyGroupRequest request = buildRequest("群组", null, 10L);
+        CreateStudyGroupRequest request = buildRequest("群组", null, 10L, null);
         when(fileServiceClient.getFileInfo(10L)).thenReturn(Result.fail(500, "服务内部错误"));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> appService.create(request));
@@ -173,18 +179,145 @@ class StudyGroupAppServiceTest {
     @Test
     @DisplayName("Feign 调用异常应透传")
     void create_shouldPropagateFeignException() {
-        CreateStudyGroupRequest request = buildRequest("群组", null, 10L);
+        CreateStudyGroupRequest request = buildRequest("群组", null, 10L, null);
         when(fileServiceClient.getFileInfo(10L)).thenThrow(new RuntimeException("network error"));
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> appService.create(request));
         assertEquals("network error", ex.getMessage());
     }
 
-    private CreateStudyGroupRequest buildRequest(String name, String description, Long avatarFileId) {
+    @Test
+    @DisplayName("joinPolicy 为 null 时应默认为 OPEN")
+    void create_withNullJoinPolicy_defaultsToOpen() {
+        CreateStudyGroupRequest request = buildRequest("群组", null, null, null);
+
+        StudyGroup mockSaved = StudyGroup.reconstruct(1L, "群组", null, null,
+                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(studyGroupRepository.save(any())).thenReturn(mockSaved);
+
+        StudyGroupResponse response = appService.create(request);
+
+        assertEquals("OPEN", response.getJoinPolicy());
+    }
+
+    @Test
+    @DisplayName("joinPolicy 为 INVITE_ONLY 时应透传")
+    void create_withExplicitInviteOnly_passesThrough() {
+        CreateStudyGroupRequest request = buildRequest("群组", null, null, JoinPolicy.INVITE_ONLY);
+
+        StudyGroup mockSaved = StudyGroup.reconstruct(1L, "群组", null, null,
+                100L, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(studyGroupRepository.save(any())).thenReturn(mockSaved);
+
+        StudyGroupResponse response = appService.create(request);
+
+        assertEquals("INVITE_ONLY", response.getJoinPolicy());
+    }
+
+    @Test
+    @DisplayName("regenerateInviteCode: 群组不存在应抛 GROUP_NOT_FOUND")
+    void regenerateInviteCode_groupNotFound_throwsGroupNotFound() {
+        when(studyGroupRepository.findById(1L)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.regenerateInviteCode(1L));
+        assertEquals(ResultCode.GROUP_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("regenerateInviteCode: 非成员应抛 NOT_GROUP_MEMBER")
+    void regenerateInviteCode_nonMember_throwsNotGroupMember() {
+        StudyGroup group = StudyGroup.create("群组", null, null, 200L, JoinPolicy.OPEN);
+        when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L))
+                .thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.regenerateInviteCode(1L));
+        assertEquals(ResultCode.NOT_GROUP_MEMBER.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("regenerateInviteCode: 非 OWNER 应抛 NOT_GROUP_OWNER")
+    void regenerateInviteCode_nonOwner_throwsNotGroupOwner() {
+        StudyGroup group = StudyGroup.create("群组", null, null, 200L, JoinPolicy.OPEN);
+        when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
+        GroupMember member = GroupMember.reconstruct(99L, 1L, 100L,
+                GroupRole.MEMBER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L))
+                .thenReturn(Optional.of(member));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.regenerateInviteCode(1L));
+        assertEquals(ResultCode.NOT_GROUP_OWNER.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("regenerateInviteCode: OWNER 操作成功应返回新邀请码（不同于原码）")
+    void regenerateInviteCode_owner_successReturnsNewInviteCode() {
+        // 使用真实 StudyGroup（不是 mock），让 regenerateInviteCode() 真实执行
+        StudyGroup group = StudyGroup.create("群组", null, null, 200L, JoinPolicy.OPEN);
+        String oldCode = group.getInviteCodeValue();
+        when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
+        GroupMember owner = GroupMember.reconstruct(99L, 1L, 100L,
+                GroupRole.OWNER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L))
+                .thenReturn(Optional.of(owner));
+        // mock save 返回传入的 group（real 对象，inviteCode 已变更）
+        when(studyGroupRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        StudyGroupResponse response = appService.regenerateInviteCode(1L);
+
+        assertNotNull(response.getInviteCode());
+        assertNotEquals(oldCode, response.getInviteCode());
+    }
+
+    @Test
+    @DisplayName("regenerateInviteCode: 首次碰撞重试一次成功")
+    void regenerateInviteCode_firstCollision_retriesAndSucceeds() {
+        StudyGroup group = StudyGroup.create("群组", null, null, 200L, JoinPolicy.OPEN);
+        String oldCode = group.getInviteCodeValue();
+        when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
+        GroupMember owner = GroupMember.reconstruct(99L, 1L, 100L,
+                GroupRole.OWNER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L))
+                .thenReturn(Optional.of(owner));
+        // 第一次 save 抛 DIVI，第二次成功
+        when(studyGroupRepository.save(any()))
+                .thenThrow(new DataIntegrityViolationException("dup"))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        StudyGroupResponse response = appService.regenerateInviteCode(1L);
+
+        verify(studyGroupRepository, times(2)).save(any());
+        assertNotEquals(oldCode, response.getInviteCode());
+    }
+
+    @Test
+    @DisplayName("regenerateInviteCode: 连续碰撞两次应抛 INVITE_CODE_GENERATION_FAILED")
+    void regenerateInviteCode_persistentCollision_throwsGenerationFailed() {
+        StudyGroup group = StudyGroup.create("群组", null, null, 200L, JoinPolicy.OPEN);
+        when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
+        GroupMember owner = GroupMember.reconstruct(99L, 1L, 100L,
+                GroupRole.OWNER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L))
+                .thenReturn(Optional.of(owner));
+        when(studyGroupRepository.save(any())).thenThrow(new DataIntegrityViolationException("dup"));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.regenerateInviteCode(1L));
+        assertEquals(ResultCode.INVITE_CODE_GENERATION_FAILED.getCode(), ex.getCode());
+    }
+
+    private CreateStudyGroupRequest buildRequest(String name, String description, Long avatarFileId,
+                                                  JoinPolicy joinPolicy) {
         CreateStudyGroupRequest request = new CreateStudyGroupRequest();
         request.setName(name);
         request.setDescription(description);
         request.setAvatarFileId(avatarFileId);
+        request.setJoinPolicy(joinPolicy);
         return request;
     }
 }

@@ -20,6 +20,11 @@ public interface StudyGroupRepository {
     Optional<StudyGroup> findById(Long id);
 
     /**
+     * 根据邀请码查询
+     */
+    Optional<StudyGroup> findByInviteCode(String inviteCode);
+
+    /**
      * 判断 ID 是否存在
      */
     boolean existsById(Long id);

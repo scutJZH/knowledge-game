@@ -41,6 +41,11 @@ public class StudyGroupRepositoryAdapter implements StudyGroupRepository {
     }
 
     @Override
+    public Optional<StudyGroup> findByInviteCode(String inviteCode) {
+        return jpaRepository.findByInviteCode(inviteCode).map(StudyGroupConverter.INSTANCE::toDomain);
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return jpaRepository.existsById(id);
     }
