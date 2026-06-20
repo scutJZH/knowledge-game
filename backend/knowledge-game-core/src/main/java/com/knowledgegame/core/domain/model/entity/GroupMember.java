@@ -32,6 +32,19 @@ public class GroupMember {
     }
 
     /**
+     * 作为成员加入群组（工厂方法）
+     */
+    public static GroupMember joinAsMember(Long groupId, Long userId) {
+        GroupMember member = new GroupMember();
+        member.groupId = groupId;
+        member.userId = userId;
+        member.role = GroupRole.MEMBER;
+        member.points = 0;
+        member.joinedAt = LocalDateTime.now();
+        return member;
+    }
+
+    /**
      * 从持久化重建（用于 Repository 加载）
      */
     public static GroupMember reconstruct(Long id, Long groupId, Long userId,

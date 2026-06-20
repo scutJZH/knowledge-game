@@ -9,11 +9,14 @@ import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.common.result.ResultCode;
+import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.GroupRole;
 import com.knowledgegame.core.domain.model.entity.GroupMember;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.GroupMemberRepository;
 import com.knowledgegame.core.domain.port.outbound.StudyGroupRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,7 +45,8 @@ public class StudyGroupAppService {
     public StudyGroupResponse create(CreateStudyGroupRequest request) {
         Long ownerId = SecurityUtils.getCurrentUserId();
         FileRef avatar = resolveAvatar(request.getAvatarFileId(), ownerId);
-        StudyGroup group = StudyGroup.create(request.getName(), request.getDescription(), avatar, ownerId);
+        JoinPolicy joinPolicy = request.getJoinPolicy() != null ? request.getJoinPolicy() : JoinPolicy.OPEN;
+        StudyGroup group = StudyGroup.create(request.getName(), request.getDescription(), avatar, ownerId, joinPolicy);
         StudyGroup saved = studyGroupRepository.save(group);
         GroupMember owner = GroupMember.createOwner(saved.getId(), ownerId);
         groupMemberRepository.save(owner);
@@ -67,5 +71,38 @@ public class StudyGroupAppService {
         if (!Objects.equals(ownerId, metaUserIdLong))
             throw new BusinessException(ResultCode.FILE_OWNER_MISMATCH);
         return FileRef.of(fileId, info.getUrl());
+    }
+
+    /**
+     * 重新生成邀请码（仅群主可操作）
+     */
+    @Transactional
+    public StudyGroupResponse regenerateInviteCode(Long groupId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(ResultCode.GROUP_NOT_FOUND));
+
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        if (member.getRole() != GroupRole.OWNER) {
+            throw new BusinessException(ResultCode.NOT_GROUP_OWNER);
+        }
+
+        group.regenerateInviteCode();
+        try {
+            StudyGroup saved = studyGroupRepository.save(group);
+            return StudyGroupAssembler.INSTANCE.toResponse(saved);
+        } catch (DataIntegrityViolationException e) {
+            // update 场景下唯一可能是 invite_code 唯一约束冲突（其他字段未变）
+            group.regenerateInviteCode();
+            try {
+                StudyGroup saved = studyGroupRepository.save(group);
+                return StudyGroupAssembler.INSTANCE.toResponse(saved);
+            } catch (DataIntegrityViolationException ex) {
+                throw new BusinessException(ResultCode.INVITE_CODE_GENERATION_FAILED);
+            }
+        }
     }
 }

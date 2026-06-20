@@ -1,5 +1,6 @@
 package com.knowledgegame.app.api.dto;
 
+import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -17,6 +18,8 @@ public class CreateStudyGroupRequest {
 
     private Long avatarFileId;
 
+    private JoinPolicy joinPolicy;
+
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
@@ -25,4 +28,7 @@ public class CreateStudyGroupRequest {
 
     public Long getAvatarFileId() { return avatarFileId; }
     public void setAvatarFileId(Long avatarFileId) { this.avatarFileId = avatarFileId; }
+
+    public JoinPolicy getJoinPolicy() { return joinPolicy; }
+    public void setJoinPolicy(JoinPolicy joinPolicy) { this.joinPolicy = joinPolicy; }
 }

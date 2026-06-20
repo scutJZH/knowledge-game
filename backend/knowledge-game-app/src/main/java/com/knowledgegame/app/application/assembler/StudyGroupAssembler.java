@@ -20,6 +20,8 @@ public interface StudyGroupAssembler {
 
     @Mapping(target = "avatarFileId", expression = "java(fileIdOf(group.getAvatar()))")
     @Mapping(target = "avatarUrl", expression = "java(urlOf(group.getAvatar()))")
+    @Mapping(target = "joinPolicy", expression = "java(group.getJoinPolicy() != null ? group.getJoinPolicy().name() : null)")
+    @Mapping(target = "inviteCode", expression = "java(group.getInviteCodeValue())")
     @Mapping(target = "createdAt", expression = "java(toEpochMilli(group.getCreatedAt()))")
     @Mapping(target = "updatedAt", expression = "java(toEpochMilli(group.getUpdatedAt()))")
     StudyGroupResponse toResponse(StudyGroup group);

@@ -45,4 +45,9 @@ public class GroupMemberRepositoryAdapter implements GroupMemberRepository {
     public boolean existsByGroupIdAndUserId(Long groupId, Long userId) {
         return jpaRepository.existsByGroupIdAndUserId(groupId, userId);
     }
+
+    @Override
+    public void deleteByGroupIdAndUserId(Long groupId, Long userId) {
+        jpaRepository.deleteByGroupIdAndUserId(groupId, userId);
+    }
 }

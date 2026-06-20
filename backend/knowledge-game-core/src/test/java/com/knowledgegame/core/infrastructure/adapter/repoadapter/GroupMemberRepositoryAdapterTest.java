@@ -22,6 +22,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -64,13 +65,11 @@ class GroupMemberRepositoryAdapterTest {
     @Test
     @DisplayName("UNIQUE(group_id, user_id) 重复插入应抛 DataIntegrityViolationException")
     void shouldThrowOnDuplicateGroupUser() {
-        // 先通过适配器正常保存第一条
         GroupMember first = GroupMember.createOwner(20L, 200L);
         adapter.save(first);
         entityManager.flush();
         entityManager.clear();
 
-        // 用相同 group_id + user_id 再次保存，通过适配器触发唯一约束
         GroupMember duplicate = GroupMember.createOwner(20L, 200L);
         assertThrows(DataIntegrityViolationException.class, () -> {
             adapter.save(duplicate);
@@ -126,5 +125,32 @@ class GroupMemberRepositoryAdapterTest {
     void findByGroupIdAndUserId_shouldReturnEmptyWhenNotFound() {
         Optional<GroupMember> result = adapter.findByGroupIdAndUserId(99999L, 99999L);
         assertFalse(result.isPresent());
+    }
+
+    @Test
+    @DisplayName("deleteByGroupIdAndUserId 存在时应在数据库移除记录")
+    void deleteByGroupIdAndUserId_existing_removesRecord() {
+        GroupMemberPO po = GroupMemberPO.builder()
+                .groupId(50L)
+                .userId(500L)
+                .role(GroupRole.MEMBER)
+                .points(0)
+                .joinedAt(LocalDateTime.now())
+                .build();
+        entityManager.persistAndFlush(po);
+        entityManager.clear();
+
+        adapter.deleteByGroupIdAndUserId(50L, 500L);
+        entityManager.flush();
+        entityManager.clear();
+
+        assertNull(entityManager.find(GroupMemberPO.class, po.getId()));
+    }
+
+    @Test
+    @DisplayName("deleteByGroupIdAndUserId 不存在时应无副作用")
+    void deleteByGroupIdAndUserId_nonExisting_noSideEffect() {
+        // 不应抛异常
+        adapter.deleteByGroupIdAndUserId(99999L, 99999L);
     }
 }

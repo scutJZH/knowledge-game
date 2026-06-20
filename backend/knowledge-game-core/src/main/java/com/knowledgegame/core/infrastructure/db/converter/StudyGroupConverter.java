@@ -1,7 +1,9 @@
 package com.knowledgegame.core.infrastructure.db.converter;
 
+import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.model.vo.InviteCode;
 import com.knowledgegame.core.infrastructure.db.entity.StudyGroupPO;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
@@ -23,12 +25,15 @@ public interface StudyGroupConverter {
             return null;
         }
         FileRef avatar = toFileRef(po.getAvatarFileId(), po.getAvatarUrl());
+        InviteCode inviteCode = toInviteCode(po.getInviteCode());
         return StudyGroup.reconstruct(
                 po.getId(),
                 po.getName(),
                 po.getDescription(),
                 avatar,
                 po.getOwnerId(),
+                po.getJoinPolicy(),
+                inviteCode,
                 po.getCreatedAt(),
                 po.getUpdatedAt()
         );
@@ -47,27 +52,33 @@ public interface StudyGroupConverter {
                 .avatarFileId(fileIdOf(domain.getAvatar()))
                 .avatarUrl(urlOf(domain.getAvatar()))
                 .ownerId(domain.getOwnerId())
+                .joinPolicy(domain.getJoinPolicy())
+                .inviteCode(inviteCodeOf(domain.getInviteCode()))
                 .createdAt(domain.getCreatedAt())
                 .updatedAt(domain.getUpdatedAt())
                 .build();
     }
 
     /**
-     * 用领域模型更新已有 PO（显式赋值双字段，不依赖 MapStruct IGNORE 策略）
+     * 用领域模型更新已有 PO（显式赋值，不依赖 MapStruct IGNORE 策略）
      */
     default void updatePO(@MappingTarget StudyGroupPO po, StudyGroup domain) {
-        // name 是 NOT NULL 字段，保留 if-null 守卫作为防御
         if (domain.getName() != null) {
             po.setName(domain.getName());
         }
-        // description / avatar 是 nullable，必须无条件写回 null，
-        // 否则领域 clearXxx() 调用产生的 null 会被吞掉
         po.setDescription(domain.getDescription());
         po.setAvatarFileId(fileIdOf(domain.getAvatar()));
         po.setAvatarUrl(urlOf(domain.getAvatar()));
-        // ownerId 是 NOT NULL 字段，保留 if-null 守卫
         if (domain.getOwnerId() != null) {
             po.setOwnerId(domain.getOwnerId());
+        }
+        // joinPolicy 是 NOT NULL 字段，保留 if-null 守卫
+        if (domain.getJoinPolicy() != null) {
+            po.setJoinPolicy(domain.getJoinPolicy());
+        }
+        // inviteCode 是 NOT NULL 字段，保留 if-null 守卫
+        if (domain.getInviteCode() != null) {
+            po.setInviteCode(domain.getInviteCode().getValue());
         }
         po.setUpdatedAt(domain.getUpdatedAt());
     }
@@ -85,5 +96,16 @@ public interface StudyGroupConverter {
 
     default String urlOf(FileRef ref) {
         return ref != null ? ref.url() : null;
+    }
+
+    default InviteCode toInviteCode(String value) {
+        if (value == null) {
+            return null;
+        }
+        return InviteCode.of(value);
+    }
+
+    default String inviteCodeOf(InviteCode inviteCode) {
+        return inviteCode != null ? inviteCode.getValue() : null;
     }
 }

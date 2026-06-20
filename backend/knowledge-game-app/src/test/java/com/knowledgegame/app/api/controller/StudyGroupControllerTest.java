@@ -4,23 +4,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.app.application.service.StudyGroupAppService;
+import com.knowledgegame.app.config.JacksonConfig;
+import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
+import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.common.result.ResultCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(StudyGroupController.class)
+@WebMvcTest(controllers = StudyGroupController.class)
 @AutoConfigureMockMvc(addFilters = false)
+@Import({GlobalExceptionHandler.class, JacksonConfig.class})
 class StudyGroupControllerTest {
 
     @Autowired
@@ -33,7 +40,7 @@ class StudyGroupControllerTest {
     private ObjectMapper objectMapper;
 
     @Test
-    @DisplayName("创建成功应返回 200 + 正确字段")
+    @DisplayName("创建成功应返回 200 + 正确字段（含 joinPolicy + inviteCode）")
     void create_shouldReturn200() throws Exception {
         StudyGroupResponse response = new StudyGroupResponse();
         response.setId(1L);
@@ -42,6 +49,8 @@ class StudyGroupControllerTest {
         response.setAvatarFileId(10L);
         response.setAvatarUrl("https://example.com/avatar.png");
         response.setOwnerId(100L);
+        response.setJoinPolicy("OPEN");
+        response.setInviteCode("ABC12345");
         response.setCreatedAt(1718800000000L);
         response.setUpdatedAt(1718800000000L);
         when(appService.create(any())).thenReturn(response);
@@ -61,7 +70,52 @@ class StudyGroupControllerTest {
                 .andExpect(jsonPath("$.data.avatarFileId").value(10))
                 .andExpect(jsonPath("$.data.avatarUrl").value("https://example.com/avatar.png"))
                 .andExpect(jsonPath("$.data.ownerId").value(100))
+                .andExpect(jsonPath("$.data.joinPolicy").value("OPEN"))
+                .andExpect(jsonPath("$.data.inviteCode").value("ABC12345"))
                 .andExpect(jsonPath("$.data.createdAt").value(1718800000000L))
                 .andExpect(jsonPath("$.data.updatedAt").value(1718800000000L));
+    }
+
+    @Test
+    @DisplayName("重新生成邀请码成功应返回 200 + 新邀请码")
+    void regenerateInviteCode_owner_returns200WithNewInviteCode() throws Exception {
+        StudyGroupResponse response = new StudyGroupResponse();
+        response.setId(1L);
+        response.setName("测试群组");
+        response.setJoinPolicy("OPEN");
+        response.setInviteCode("NEWCODE1");
+        response.setCreatedAt(1718800000000L);
+        response.setUpdatedAt(1719900000000L);
+        when(appService.regenerateInviteCode(anyLong())).thenReturn(response);
+
+        mockMvc.perform(post("/api/study-groups/1/invite-code/regenerate"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.inviteCode").value("NEWCODE1"))
+                .andExpect(jsonPath("$.data.updatedAt").value(1719900000000L));
+    }
+
+    @Test
+    @DisplayName("非 OWNER 重新生成应返回 200 + NOT_GROUP_OWNER")
+    void regenerateInviteCode_nonOwner_returns200WithNotGroupOwner() throws Exception {
+        when(appService.regenerateInviteCode(anyLong()))
+                .thenThrow(new BusinessException(ResultCode.NOT_GROUP_OWNER));
+
+        mockMvc.perform(post("/api/study-groups/1/invite-code/regenerate"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").value("仅群主可操作"));
+    }
+
+    @Test
+    @DisplayName("生成失败应返回 200 + INVITE_CODE_GENERATION_FAILED")
+    void regenerateInviteCode_appServiceThrowsGenerationFailed_returns200WithCode() throws Exception {
+        when(appService.regenerateInviteCode(anyLong()))
+                .thenThrow(new BusinessException(ResultCode.INVITE_CODE_GENERATION_FAILED));
+
+        mockMvc.perform(post("/api/study-groups/1/invite-code/regenerate"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("邀请码生成失败，请重试"));
     }
 }
