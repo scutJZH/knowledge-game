@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   vi.resetModules();
 });
 
@@ -116,12 +117,12 @@ describe('auth-store', () => {
         refreshToken: 'cached-refresh',
         expiresIn: 7200,
         user,
+        rememberMe: true,
       },
       version: 0,
     });
     localStorage.setItem('auth-storage', persisted);
 
-    // 注意：必须在此之后导入，确保 persist 中间件读取到预置的 localStorage
     const useAuthStore = await getStore();
     const state = useAuthStore.getState();
     expect(state.accessToken).toBe('cached-access');
@@ -129,5 +130,55 @@ describe('auth-store', () => {
     expect(state.expiresIn).toBe(7200);
     expect(state.user).toEqual(user);
     expect(state.isAuthenticated()).toBe(true);
+  });
+
+  // 用例 8：rememberMe 默认为 true
+  it('rememberMe 默认为 true', async () => {
+    const useAuthStore = await getStore();
+    expect(useAuthStore.getState().rememberMe).toBe(true);
+  });
+
+  // 用例 9：remember=false 时写入 sessionStorage 而非 localStorage
+  it('remember=false 时 login 写入 sessionStorage 而非 localStorage', async () => {
+    const useAuthStore = await getStore();
+    const user = { id: 1, username: 'test', nickname: 'T', role: 'USER', avatarFileId: null, avatarUrl: null };
+    useAuthStore.getState().login('at', 'rt', 1800, user, false);
+
+    expect(localStorage.getItem('auth-storage')).toBeNull();
+    const raw = sessionStorage.getItem('auth-storage');
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw!);
+    expect(parsed.state.accessToken).toBe('at');
+    expect(parsed.state.rememberMe).toBe(false);
+  });
+
+  // 用例 10：setRememberMe 触发迁移
+  it('setRememberMe 从 localStorage 迁移到 sessionStorage', async () => {
+    const useAuthStore = await getStore();
+    const user = { id: 2, username: 'u2', nickname: 'U2', role: 'USER', avatarFileId: null, avatarUrl: null };
+    useAuthStore.getState().login('at2', 'rt2', 3600, user, true);
+    expect(localStorage.getItem('auth-storage')).not.toBeNull();
+
+    useAuthStore.getState().setRememberMe(false);
+    expect(localStorage.getItem('auth-storage')).toBeNull();
+    const raw = sessionStorage.getItem('auth-storage');
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw!);
+    expect(parsed.state.accessToken).toBe('at2');
+    expect(parsed.state.rememberMe).toBe(false);
+  });
+
+  // 用例 11：hydration 从正确 storage 恢复（sessionStorage）
+  it('hydration 从 sessionStorage 恢复（rememberMe: false）', async () => {
+    const user = { id: 3, username: 'sess', nickname: 'Session', role: 'USER', avatarFileId: null, avatarUrl: null };
+    sessionStorage.setItem('auth-storage', JSON.stringify({
+      state: { accessToken: 'sess-at', refreshToken: 'sess-rt', expiresIn: 7200, user, rememberMe: false },
+      version: 0,
+    }));
+
+    const useAuthStore = await getStore();
+    const state = useAuthStore.getState();
+    expect(state.accessToken).toBe('sess-at');
+    expect(state.rememberMe).toBe(false);
   });
 });

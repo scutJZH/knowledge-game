@@ -1,8 +1,12 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import MainLayout from '@/layouts/MainLayout';
+import AuthLayout from '@/layouts/AuthLayout';
 import AuthGuard from '@/components/AuthGuard';
 import Home from '@/pages/Home';
 import NotFound from '@/pages/NotFound';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import ForgotPassword from '@/pages/ForgotPassword';
 
 const router = createBrowserRouter([
   {
@@ -10,12 +14,12 @@ const router = createBrowserRouter([
     element: <Navigate to="/home" replace />,
   },
   {
-    path: '/login',
-    element: <div style={{ padding: 48, textAlign: 'center', color: '#999' }}>登录页面（REQ-28 实现）</div>,
-  },
-  {
-    path: '/register',
-    element: <div style={{ padding: 48, textAlign: 'center', color: '#999' }}>注册页面（REQ-28 实现）</div>,
+    element: <AuthLayout />,
+    children: [
+      { path: '/login', element: <Login /> },
+      { path: '/register', element: <Register /> },
+      { path: '/forgot-password', element: <ForgotPassword /> },
+    ],
   },
   {
     element: <AuthGuard />,
