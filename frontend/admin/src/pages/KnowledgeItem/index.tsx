@@ -13,6 +13,7 @@ import {
   listKnowledgeItems,
   type KnowledgeItemResponse,
   type BatchSortItem,
+  type KnowledgeItemQuery,
 } from '@/services/knowledge-item';
 import {
   getTree,
@@ -312,7 +313,7 @@ const KnowledgeItemPage: React.FC = () => {
             categoryId: params.categoryId,
             tag: params.tag,
             status: params.status,
-            sort: sortField as any,
+            sort: sortField as KnowledgeItemQuery['sort'],
             order: sortOrder as 'asc' | 'desc' | undefined,
             page: (params.current || 1) - 1,
             size: params.pageSize || 20,

@@ -246,13 +246,14 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
                 .where(cb.equal(relRoot.get("categoryId"), catRoot.get("id")),
                        cb.equal(relRoot.get("itemId"), root.get("id")));
 
-        // COALESCE 实现 NULLS LAST：ASC 时 null → "~~~"（排在所有真实名称后），
-        // DESC 时 null → ""（排在所有真实名称后）
+        // NULLS LAST: CASE WHEN subquery IS NULL THEN 1 ELSE 0 END 作为第一排序键
+        // 非 NULL=0 排前面，NULL=1 排最后；再按实际值方向排序
         boolean isAsc = sortField.getDirection() == SortField.Direction.ASC;
-        Expression<String> categorySortExpr = isAsc
-                ? cb.coalesce(subquery, "~~~")
-                : cb.coalesce(subquery, "");
-        cq.orderBy(isAsc ? cb.asc(categorySortExpr) : cb.desc(categorySortExpr),
+        Expression<Integer> nullOrder = cb.<Integer>selectCase()
+                .when(cb.isNull(subquery), 1)
+                .otherwise(0);
+        cq.orderBy(cb.asc(nullOrder),
+                isAsc ? cb.asc(subquery) : cb.desc(subquery),
                 cb.asc(root.get("sortOrder")),
                 cb.desc(root.get("createdAt")));
 

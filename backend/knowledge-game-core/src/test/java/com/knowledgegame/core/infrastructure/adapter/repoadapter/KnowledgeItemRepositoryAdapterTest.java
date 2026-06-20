@@ -32,6 +32,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -312,17 +313,19 @@ class KnowledgeItemRepositoryAdapterTest {
 
     /**
      * sort="categoryName" → 走 EntityManager 路径，不调 itemJpaRepository.findAll(Spec, Pageable)
-     * （因 EntityManager mock 链不完整会抛异常，此用例验证入口路由正确即可）
+     * 由于完整 mock EntityManager + CriteriaBuilder 链过于臃肿，此用例仅验证入口路由正确：
+     * categoryName 时不会调用 itemJpaRepository.findAll(Spec, Pageable)。完整行为由集成测试覆盖。
      */
     @Test
     void findByConditions_shouldRouteToEntityManager_whenCategoryName() {
+        // 通过 mock em.getCriteriaBuilder() 触发 NullPointerException 来验证走了 EntityManager 路径
+        // 若走了 toSpringSort → itemJpaRepository.findAll，则 mock 不会触发 NPE，verify 会失败
         try {
             adapter.findByConditions(null, null, null, null,
                     new SortField("categoryName", SortField.Direction.ASC), 0, 20);
-        } catch (Exception ignored) {
-            // EntityManager mock 不完整，预期抛异常
+        } catch (NullPointerException expected) {
+            // EntityManager mock 返回 null → CriteriaBuilder 调用时抛 NPE，证明走了 EntityManager 路径
         }
-        // 验证未走 JPA Specification + PageRequest 路径
         verify(itemJpaRepository, never()).findAll(any(Specification.class), any(PageRequest.class));
     }
 
@@ -331,7 +334,7 @@ class KnowledgeItemRepositoryAdapterTest {
      */
     @Test
     void findByConditions_shouldThrowBusinessException_whenInvalidField() {
-        BusinessException ex = org.junit.jupiter.api.Assertions.assertThrows(
+        BusinessException ex = assertThrows(
                 BusinessException.class,
                 () -> adapter.findByConditions(null, null, null, null,
                         new SortField("invalidField", SortField.Direction.ASC), 0, 20)

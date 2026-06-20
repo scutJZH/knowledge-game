@@ -9,6 +9,7 @@ import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemCategoryRelationPO;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemPO;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -66,7 +67,7 @@ class KnowledgeItemRepositoryAdapterIntegrationTest {
         assertEquals(3, result.getTotalElements());
         List<KnowledgeItem> content = result.getContent();
         // AAA-文学 < BBB-艺术，所以 item1（AAA-文学）在 item3（BBB-艺术）前面
-        // item2 无分类，COALESCE(~) 使其排在最后（NULLS LAST）
+        // item2 无分类，CASE WHEN IS NULL 使其排在最后（NULLS LAST）
         assertEquals(item1.getId(), content.get(0).getId());
         assertEquals(item3.getId(), content.get(1).getId());
         assertEquals(item2.getId(), content.get(2).getId());
@@ -161,6 +162,7 @@ class KnowledgeItemRepositoryAdapterIntegrationTest {
      */
     @Test
     @DisplayName("性能基准 → 1000 条目 + 5000 关联 < 500ms")
+    @Tag("performance")
     void shouldBeFastEnough_withLargeDataset() {
         // 预插入 5 个分类
         KnowledgeCategoryPO[] cats = new KnowledgeCategoryPO[5];
