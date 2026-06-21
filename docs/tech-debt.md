@@ -173,7 +173,25 @@
 - **修复计划：** 全量迁移 `admin/api/assembler/` → `admin/application/assembler/`，同步更新 CLAUDE.md 强制规范。或反向修订 CLAUDE.md，承认现状（Assembler 放 api 层）
 - **触发条件：** 下一次 DDD 大重构，或新增 Assembler 时（**当前规范：跟随现状，放 `admin/api/assembler/`**，与 4-15 一致）
 
-## DD-18: REQ-48 ControllerTest slice 覆盖度偏低
+## DD-19: core 模块 @DataJpaTest 集成测试 ddl-auto=create-drop 全量实体扫描 DDL 失败
+
+- **发现日期：** 2026-06-21
+- **来源需求：** REQ-109（集成测试编写）
+- **问题：** `@EntityScan(basePackages = "com.knowledgegame.core.infrastructure.db.entity")` 扫描 core 模块全部实体（含 card_template / group_member / ip_series 等），`ddl-auto: create-drop` 按依赖顺序创建表时，某些表的 unique constraint ALTER 引用尚未创建完成的表，导致部分表创建失败（如 group_member），后续测试 INSERT 报 Table doesn't exist
+- **影响：** 单模块 (`-pl knowledge-game-core`) 运行时偶发失败；双模块 reactor (`-pl core,admin`) 时几乎必发失败（admin 模块 EntityManagerFactory 与 core 模块 DDL 互相干扰）
+- **临时方案：** `application-test.yml` 改为 `ddl-auto: update`，避免 DROP TABLE 重建导致的 DDL 竞争
+- **暂缓原因：** 影响范围有限（仅 `@DataJpaTest` 测试类），`update` 模式作为临时方案可工作
+- **修复计划：** ① 按测试类需要精细化 `@EntityScan` 扫描范围（仅扫描被测实体及依赖）；② 或为 `knowledge_game_test` 数据库预建表结构，`ddl-auto: none`
+- **触发条件：** 下一次 core 模块新增 `@DataJpaTest` 测试，或双模块 reactor 测试稳定化需求
+
+## DD-20: KnowledgeItemRepositoryAdapter.findByConditions 双路径分支
+
+- **发现日期：** 2026-06-21
+- **来源需求：** REQ-109（categoryName 排序实现）
+- **问题：** `findByConditions` 通过 `if (sortField != null && "categoryName".equals(...))` 分支选择 EntityManager + CriteriaBuilder 路径，正常字段走 Specification + PageRequest 路径。当前仅 categoryName 一个字段走 EntityManager 路径，若未来新增更多 JOIN 排序字段（如关联表属性排序），分支会快速膨胀
+- **暂缓原因：** 当前仅 1 个字段需要特殊路径，if-else 保持简单可读；过早抽象引入不必要复杂度
+- **修复计划：** 当 JOIN 排序字段 ≥ 3 时，抽取排序策略接口（`SortStrategy<T>`），不同策略实现各自的排序查询逻辑
+- **触发条件：** 新增第 2 个 JOIN 排序字段时
 
 - **发现日期：** 2026-06-19
 - **来源需求：** REQ-48（第二轮代码审查 #10）
