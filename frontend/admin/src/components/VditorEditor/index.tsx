@@ -17,6 +17,7 @@ const VditorEditor: React.FC<VditorEditorProps> = ({ value, onChange }) => {
       import('vditor').then((mod) => {
         const Vditor = mod.default || mod;
         Vditor.preview(previewRef.current!, value || '', {
+          mode: 'light',
           hljs: { style: 'github' },
         });
       });

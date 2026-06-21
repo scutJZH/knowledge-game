@@ -38,7 +38,7 @@ beforeEach(() => {
 
 /** 模拟分类树数据 */
 const mockTreeData = [
-  { id: 1, parentId: null, name: '科学', status: 'ACTIVE', iconUrl: null, color: null, sortOrder: 0 },
+  { id: 1, parentId: null, name: '科学', status: 'ACTIVE', iconFileId: null, iconUrl: null, color: null, sortOrder: 0 },
 ];
 
 /** 模拟编辑中的分类数据 */

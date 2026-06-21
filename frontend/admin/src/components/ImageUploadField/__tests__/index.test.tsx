@@ -51,7 +51,7 @@ describe('ImageUploadField', () => {
     });
 
     it('有 value 时应渲染缩略图', () => {
-      render(<ImageUploadField bizType="IP_SERIES" value="http://example.com/cover.png" />);
+      render(<ImageUploadField bizType="IP_SERIES" value={1} />);
       const listItem = document.querySelector('.ant-upload-list-item');
       expect(listItem).toBeInTheDocument();
     });
@@ -209,7 +209,7 @@ describe('ImageUploadField', () => {
       render(
         <ImageUploadField
           bizType="IP_SERIES"
-          value="http://example.com/cover.png"
+          value={1}
           allowRemove
         />,
       );
@@ -221,7 +221,7 @@ describe('ImageUploadField', () => {
       render(
         <ImageUploadField
           bizType="CARD_TEMPLATE"
-          value="http://example.com/star.png"
+          value={2}
           allowRemove={false}
         />,
       );
@@ -235,7 +235,7 @@ describe('ImageUploadField', () => {
       render(
         <ImageUploadField
           bizType="IP_SERIES"
-          value="http://example.com/cover.png"
+          value={1}
           preview
         />,
       );
@@ -256,7 +256,7 @@ describe('ImageUploadField', () => {
       const { container } = render(
         <ImageUploadField
           bizType="IP_SERIES"
-          value="http://example.com/cover.png"
+          value={1}
           preview={false}
         />,
       );

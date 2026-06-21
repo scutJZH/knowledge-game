@@ -25,14 +25,15 @@ const mockTreeData = [
     parentId: null,
     name: '科学',
     status: 'ACTIVE',
+    iconFileId: null,
     iconUrl: null,
     color: null,
     sortOrder: 0,
     children: [
-      { id: 2, parentId: 1, name: '物理', status: 'ACTIVE', iconUrl: null, color: null, sortOrder: 0 },
+      { id: 2, parentId: 1, name: '物理', status: 'ACTIVE', iconFileId: null, iconUrl: null, color: null, sortOrder: 0 },
     ],
   },
-  { id: 3, parentId: null, name: '历史', status: 'INACTIVE', iconUrl: null, color: null, sortOrder: 1 },
+  { id: 3, parentId: null, name: '历史', status: 'INACTIVE', iconFileId: null, iconUrl: null, color: null, sortOrder: 1 },
 ];
 
 describe('CategoryTree', () => {

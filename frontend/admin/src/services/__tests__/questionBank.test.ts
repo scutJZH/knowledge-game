@@ -166,7 +166,7 @@ describe('questionBank API', () => {
           data: expect.any(FormData),
         }),
       );
-      const callData = mockRequest.mock.calls[0][1] as any;
+      const callData = (mockRequest.mock.calls[0] as any)[1];
       expect(callData.data.get('file')).toBe(file);
     });
   });
