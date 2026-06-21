@@ -190,7 +190,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/admin/questions/import-template | GET | 下载 Excel 导入模板 | 已实现 |
 | /api/admin/questions/import | POST | 导入题目（Excel multipart） | 已实现 |
 | /api/admin/knowledge-items | POST | 创建知识条目 | 已实现 |
-| /api/admin/knowledge-items | GET | 分页查询（keyword/categoryId/tag/status 筛选 + sort/order 排序，默认 sortOrder ASC + createdAt DESC） | 已实现 |
+| /api/admin/knowledge-items | GET | 分页查询（keyword/categoryId/tag/status 筛选 + sort/order 排序，默认 sortOrder ASC + createdAt DESC，返回 KnowledgeItemListResponse 不含 content/contentHtml） | 已实现 |
 | /api/admin/knowledge-items/{id} | GET | 查询知识条目详情 | 已实现 |
 | /api/admin/knowledge-items/{id} | PUT | 更新知识条目 | 已实现 |
 | /api/admin/knowledge-items/{id} | DELETE | 软删除（含分类关联校验） | 已实现 |
@@ -331,6 +331,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | 知识条目排序 | 默认 sortOrder ASC + createdAt DESC 复合排序，batchSort 无父子层级（跳过同父级校验） | 2026-06-18 REQ-97 |
 | 知识条目-分类双向停用校验 | 创建时校验全部分类 ACTIVE；停用分类时校验无 ACTIVE 条目关联；启用条目时校验全部分类 ACTIVE | 2026-06-18 REQ-97 |
 | 知识条目编辑器 | vditor 3.x wysiwyg 模式，动态 import 拆分 chunk（~2MB），ImageUploadField 凭证式封面图上传 | 2026-06-18 REQ-97 |
+| 知识条目列表性能优化 | JPA CriteriaQuery&lt;Tuple&gt; 投影查询只 SELECT 9 个非正文列（跳过 MEDIUMTEXT content/contentHtml），KnowledgeItemSummary VO + KnowledgeItemListResponse DTO 分离列表与详情 | 2026-06-21 REQ-114 |
 | IP 系列管理页 | ProTable + ModalForm CRUD + 凭证式封面图上传 + 启用/停用切换，默认筛选 ACTIVE | 2026-06-13 |
 | 机机鉴权 V2 | REQ-91 V2：调用方 `m2m.auth.services` 多目标服务密钥映射，按 Feign target 选 Key，未命中抛 IllegalStateException，被调用方零改动 | 2026-06-14 |
 | 凭证式上传组件 | ImageUploadField：通用 bizType 驱动凭证式上传组件，统一 CoverImageUpload/StarImageUpload 三处调用点，可删除重传 | 2026-06-15 |

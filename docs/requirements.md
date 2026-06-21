@@ -297,4 +297,4 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 |------|---------|------|-----|------|---------|
 | REQ-81 | Token 黑名单 Redis 存储迁移 | idea | - | P3：从内存迁移到 Redis，支持多实例部署。REQ-06 预留接口 | REQ-06 ✅ |
 | REQ-99 | 知识库 — 学习记录追踪 + 富媒体扩展 | idea | - | P0：`user_learning_record` 表（用户维度，浏览/停留时长/累计学习统计），富媒体扩展（视频/外链等） | REQ-97 ✅, REQ-98 |
-| REQ-114 | 知识条目列表性能优化 — 列表与详情分离 | in-progress | [req-114-knowledge-item-list-optimization.md](prd/req-114-knowledge-item-list-optimization.md) | P2：DTO + JPA 投影双裁剪，Tuple 查询只 SELECT 9 个非正文列。列表接口返回 `KnowledgeItemListResponse`（不含 content/contentHtml），详情/创建/更新不变。前端 TS 类型对齐新 ListResponse | REQ-97 ✅ |
+| REQ-114 | 知识条目列表性能优化 — 列表与详情分离 | done | [req-114-knowledge-item-list-optimization.md](prd/req-114-knowledge-item-list-optimization.md) | P2：DTO + JPA 投影双裁剪，Tuple 查询只 SELECT 9 个非正文列。列表接口返回 `KnowledgeItemListResponse`（不含 content/contentHtml），详情/创建/更新不变。前端 TS 类型对齐新 ListResponse | REQ-97 ✅ |
