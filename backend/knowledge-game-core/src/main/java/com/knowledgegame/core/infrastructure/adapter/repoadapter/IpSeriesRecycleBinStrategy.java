@@ -20,9 +20,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
-import java.util.Optional;
 import java.time.LocalDateTime;
 
 /**
@@ -30,8 +28,10 @@ import java.time.LocalDateTime;
  * <p>
  * 实现 validateDeletable / moveToRecycleBin / restore / purge 四方法。
  * 读操作走 Port（返回领域对象），写/删操作走 JPA Repository。
+ * <p>
+ * 由 admin 模块通过 @Bean 显式注册，不标记 @Component。
+ * core 模块不依赖 component-feign，FileCleanupPort 由 admin 模块的 FileCleanupAdapter 实现。
  */
-@Component
 public class IpSeriesRecycleBinStrategy implements RecycleBinItemStrategy<IpSeries> {
 
     private static final Logger log = LoggerFactory.getLogger(IpSeriesRecycleBinStrategy.class);
@@ -60,14 +60,14 @@ public class IpSeriesRecycleBinStrategy implements RecycleBinItemStrategy<IpSeri
                                        IpSeriesJpaRepository ipSeriesJpaRepository,
                                        IpSeriesDeletedJpaRepository ipSeriesDeletedJpaRepository,
                                        RecycleBinItemJpaRepository recycleBinItemJpaRepository,
-                                       Optional<FileCleanupPort> fileCleanupPort) {
+                                       FileCleanupPort fileCleanupPort) {
         this.ipSeriesDomainService = ipSeriesDomainService;
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
         this.recycleBinItemRepositoryPort = recycleBinItemRepositoryPort;
         this.ipSeriesJpaRepository = ipSeriesJpaRepository;
         this.ipSeriesDeletedJpaRepository = ipSeriesDeletedJpaRepository;
         this.recycleBinItemJpaRepository = recycleBinItemJpaRepository;
-        this.fileCleanupPort = fileCleanupPort.orElse(null);
+        this.fileCleanupPort = fileCleanupPort;
     }
 
     @Override
@@ -175,7 +175,7 @@ public class IpSeriesRecycleBinStrategy implements RecycleBinItemStrategy<IpSeri
         IpSeriesDeletedPO deletedPO = ipSeriesDeletedJpaRepository.findByOriginalId(originalId)
                 .orElse(null);
 
-        if (fileCleanupPort != null && deletedPO != null && deletedPO.getCoverImageFileId() != null) {
+        if (deletedPO != null && deletedPO.getCoverImageFileId() != null) {
             try {
                 fileCleanupPort.deleteFile(deletedPO.getCoverImageFileId());
             } catch (Exception e) {
