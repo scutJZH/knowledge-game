@@ -3,17 +3,21 @@ import {
   ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
-import { Button, Image, Input, message, Modal, Popconfirm, Space, Tag, Tooltip, TreeSelect } from 'antd';
+import { Button, Image, Input, message, Modal, Popconfirm, Space, Tag, Tooltip, TreeSelect, Upload } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import {
   batchActivate,
   batchDeactivate,
   batchSort,
+  downloadImportTemplate,
   getKnowledgeItemById,
+  importExcel,
+  importMarkdownZip,
   listKnowledgeItems,
   type KnowledgeItemListResponse,
   type BatchSortItem,
   type KnowledgeItemQuery,
+  type KnowledgeItemImportResult,
 } from '@/services/knowledge-item';
 import {
   getTree,
@@ -21,7 +25,8 @@ import {
   type CategoryTreeNode,
 } from '@/services/knowledge-category';
 import KnowledgeItemFormDrawer from './components/KnowledgeItemFormDrawer';
-import { PlusOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
+import ImportResultModal from './components/ImportResultModal';
+import { PlusOutlined, EditOutlined, EyeOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 
 const flattenTree = (nodes: CategoryTreeNode[]): Map<number, string> => {
   const map = new Map<number, string>();
@@ -47,6 +52,8 @@ const KnowledgeItemPage: React.FC = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState('');
   const [previewHtml, setPreviewHtml] = useState('');
+  const [importResult, setImportResult] = useState<KnowledgeItemImportResult | null>(null);
+  const [importModalOpen, setImportModalOpen] = useState(false);
 
   useEffect(() => {
     getTree()
@@ -93,6 +100,22 @@ const KnowledgeItemPage: React.FC = () => {
       actionRef.current?.reload();
     } catch {
       // 错误已由全局拦截器展示
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await downloadImportTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'knowledge_item_import_template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      message.error(e?.message || '下载模板失败');
     }
   };
 
@@ -359,6 +382,65 @@ const KnowledgeItemPage: React.FC = () => {
             >
               <Button key="btnDeactivate">批量停用</Button>
             </Popconfirm>,
+            <Button
+              key="downloadTemplate"
+              icon={<DownloadOutlined />}
+              onClick={handleDownloadTemplate}
+            >
+              下载模板
+            </Button>,
+            <Upload
+              key="importExcel"
+              accept=".xlsx"
+              showUploadList={false}
+              beforeUpload={async (file) => {
+                if (!file.name.endsWith('.xlsx')) {
+                  message.error('仅支持 .xlsx 格式文件');
+                  return false;
+                }
+                if (file.size > 10 * 1024 * 1024) {
+                  message.error('文件大小不能超过 10MB');
+                  return false;
+                }
+                try {
+                  const result = await importExcel(file);
+                  setImportResult(result);
+                  setImportModalOpen(true);
+                  actionRef.current?.reload();
+                } catch (e: any) {
+                  message.error(e?.message || 'Excel 导入失败');
+                }
+                return false;
+              }}
+            >
+              <Button icon={<UploadOutlined />}>Excel 批量导入</Button>
+            </Upload>,
+            <Upload
+              key="importMarkdownZip"
+              accept=".zip"
+              showUploadList={false}
+              beforeUpload={async (file) => {
+                if (!file.name.endsWith('.zip')) {
+                  message.error('仅支持 .zip 格式文件');
+                  return false;
+                }
+                if (file.size > 20 * 1024 * 1024) {
+                  message.error('文件大小不能超过 20MB');
+                  return false;
+                }
+                try {
+                  const result = await importMarkdownZip(file);
+                  setImportResult(result);
+                  setImportModalOpen(true);
+                  actionRef.current?.reload();
+                } catch (e: any) {
+                  message.error(e?.message || 'Markdown zip 导入失败');
+                }
+                return false;
+              }}
+            >
+              <Button icon={<UploadOutlined />}>Markdown zip 导入</Button>
+            </Upload>,
           ],
         }}
         rowSelection={{
@@ -396,6 +478,11 @@ const KnowledgeItemPage: React.FC = () => {
           <div style={{ textAlign: 'center', color: '#999', padding: 40 }}>暂无内容</div>
         )}
       </Modal>
+      <ImportResultModal
+        open={importModalOpen}
+        result={importResult}
+        onClose={() => setImportModalOpen(false)}
+      />
     </>
   );
 };

@@ -4,6 +4,8 @@ import com.knowledgegame.admin.api.dto.request.BatchSortItem;
 import com.knowledgegame.admin.api.dto.request.BatchSortRequest;
 import com.knowledgegame.admin.api.dto.request.CreateKnowledgeItemRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeItemRequest;
+import com.knowledgegame.admin.api.dto.response.ImportFailDetail;
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemImportResult;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemListResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
 import com.knowledgegame.components.feign.client.FileServiceClient;
@@ -22,13 +24,24 @@ import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPo
 import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
 import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
 import com.knowledgegame.core.infrastructure.markdown.MarkdownRenderer;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -351,6 +365,353 @@ class KnowledgeItemAppServiceTest {
         appService.updateCategories(1L, List.of(10L));
 
         verify(itemRepository).saveCategoryRelations(1L, List.of(10L));
+    }
+
+    // ========== Excel 导入测试 ==========
+
+    /**
+     * 场景 a: 正常导入（5 行有效数据，含标签和分类名称）→ 全部成功
+     */
+    @Test
+    @DisplayName("导入 - 正常导入 5 行全部成功")
+    void importExcel_shouldSucceed() throws IOException {
+        byte[] excel = createTestExcel(new String[][]{
+                {"标题1", "内容1", "Java", "Java基础", "启用", "0"},
+                {"标题2", "内容2", "Python", "Java基础,Python进阶", "停用", "1"},
+                {"标题3", "内容3", "", "Java基础", "", ""},
+                {"标题4", "内容4", "Go,Rust", "Java基础", "启用", "10"},
+                {"标题5", "内容5", "JS", "Python进阶", "停用", "2"},
+        });
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excel);
+
+        KnowledgeCategory javaCat = buildCategory(1L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        KnowledgeCategory pyCat = buildCategory(2L, "Python进阶", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of(javaCat, pyCat));
+        when(markdownRenderer.render(anyString())).thenReturn("<p>rendered</p>");
+        KnowledgeItem item = buildItem(1L);
+        when(itemDomainService.validateAndCreate(anyString(), anyString(), any(), anyList(), anyInt(), anyList()))
+                .thenReturn(item);
+        when(itemRepository.save(any())).thenReturn(item);
+
+        KnowledgeItemImportResult result = appService.importExcel(file);
+
+        assertEquals(5, result.getTotalCount());
+        assertEquals(5, result.getSuccessCount());
+        assertEquals(0, result.getFailCount());
+        verify(itemRepository, org.mockito.Mockito.times(5)).save(any());
+        verify(itemRepository, org.mockito.Mockito.times(5)).saveCategoryRelations(anyLong(), anyList());
+    }
+
+    /**
+     * 场景 b: 分类名称不存在 → 1 行失败
+     */
+    @Test
+    @DisplayName("导入 - 分类名称不存在返回失败")
+    void importExcel_categoryNotExist_shouldFail() throws IOException {
+        byte[] excel = createTestExcel(new String[][]{
+                {"标题", "内容", "", "不存在分类", "启用", "0"},
+        });
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excel);
+
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of());
+
+        KnowledgeItemImportResult result = appService.importExcel(file);
+
+        assertEquals(1, result.getTotalCount());
+        assertEquals(0, result.getSuccessCount());
+        assertEquals(1, result.getFailCount());
+        assertTrue(result.getFailDetails().get(0).getReason().contains("分类名称不存在或已停用"));
+    }
+
+    /**
+     * 场景 c: 状态格式错误 → 1 行失败
+     */
+    @Test
+    @DisplayName("导入 - 状态格式错误返回失败")
+    void importExcel_invalidStatus_shouldFail() throws IOException {
+        byte[] excel = createTestExcel(new String[][]{
+                {"标题", "内容", "", "Java基础", "无效状态", "0"},
+        });
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excel);
+
+        KnowledgeCategory cat = buildCategory(1L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of(cat));
+
+        KnowledgeItemImportResult result = appService.importExcel(file);
+
+        assertEquals(1, result.getTotalCount());
+        assertEquals(0, result.getSuccessCount());
+        assertEquals(1, result.getFailCount());
+        assertTrue(result.getFailDetails().get(0).getReason().contains("状态格式错误"));
+    }
+
+    /**
+     * 场景 d: 行数超限（201 行）→ throw BusinessException
+     */
+    @Test
+    @DisplayName("导入 - 超过 200 行抛异常")
+    void importExcel_exceeds200_shouldThrow() throws IOException {
+        String[][] data = new String[201][];
+        for (int i = 0; i < 201; i++) {
+            data[i] = new String[]{"标题" + i, "内容" + i, "", "Java基础", "", ""};
+        }
+        byte[] excel = createTestExcel(data);
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excel);
+
+        KnowledgeCategory cat = buildCategory(1L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of(cat));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> appService.importExcel(file));
+        assertTrue(exception.getMessage().contains("单次导入上限 200 行"));
+    }
+
+    /**
+     * 场景 e: 空模板（仅表头 + 填写说明行）→ 返回零统计
+     */
+    @Test
+    @DisplayName("导入 - 空模板返回零统计")
+    void importExcel_emptyTemplate_shouldReturnZero() throws IOException {
+        byte[] excel = createTestExcel(new String[][]{});
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excel);
+
+        KnowledgeItemImportResult result = appService.importExcel(file);
+
+        assertEquals(0, result.getTotalCount());
+        assertEquals(0, result.getSuccessCount());
+        assertEquals(0, result.getFailCount());
+    }
+
+    /**
+     * 场景 f: domainService.validateAndCreate() 抛异常 → 失败记入 failDetails
+     */
+    @Test
+    @DisplayName("导入 - domainService 校验失败返回失败明细")
+    void importExcel_domainServiceException_shouldFail() throws IOException {
+        byte[] excel = createTestExcel(new String[][]{
+                {"标题", "内容", "", "Java基础", "启用", "0"},
+        });
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excel);
+
+        KnowledgeCategory cat = buildCategory(1L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of(cat));
+        when(markdownRenderer.render(anyString())).thenReturn("<p>rendered</p>");
+        when(itemDomainService.validateAndCreate(anyString(), anyString(), any(), anyList(), anyInt(), anyList()))
+                .thenThrow(new BusinessException("知识条目标题不能超过 200 字"));
+
+        KnowledgeItemImportResult result = appService.importExcel(file);
+
+        assertEquals(1, result.getTotalCount());
+        assertEquals(0, result.getSuccessCount());
+        assertEquals(1, result.getFailCount());
+        assertTrue(result.getFailDetails().get(0).getReason().contains("200"));
+    }
+
+    /**
+     * 场景 h: 导入停用条目 → status 应为 INACTIVE
+     */
+    @Test
+    @DisplayName("导入 - 停用条目 status 正确应用")
+    void importExcel_inactiveStatus_shouldDeactivate() throws IOException {
+        byte[] excel = createTestExcel(new String[][]{
+                {"标题", "内容", "", "Java基础", "停用", "0"},
+        });
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excel);
+
+        KnowledgeCategory cat = buildCategory(1L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of(cat));
+        when(markdownRenderer.render(anyString())).thenReturn("<p>rendered</p>");
+        KnowledgeItem item = buildItem(1L);
+        when(itemDomainService.validateAndCreate(anyString(), anyString(), any(), anyList(), anyInt(), anyList()))
+                .thenReturn(item);
+        when(itemRepository.save(any())).thenReturn(item);
+
+        appService.importExcel(file);
+
+        // 验证 deactivate() 被调用（status → INACTIVE）
+        assertEquals(KnowledgeItemStatus.INACTIVE, item.getStatus());
+    }
+
+    /**
+     * 场景 g: 非 .xlsx 文件 → throw BusinessException
+     */
+    @Test
+    @DisplayName("导入 - 非 xlsx 文件抛异常")
+    void importExcel_notXlsx_shouldThrow() {
+        MockMultipartFile file = new MockMultipartFile("file", "test.txt",
+                "text/plain", "not excel".getBytes());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> appService.importExcel(file));
+        assertEquals("仅支持 .xlsx 格式文件", exception.getMessage());
+    }
+
+    // ========== Markdown zip 导入测试 ==========
+
+    /**
+     * 场景 a: 正常导入（index.xlsx 含 3 条 + 3 个 .md 文件）→ 全部成功
+     */
+    @Test
+    @DisplayName("Zip 导入 - 正常导入 3 条全部成功")
+    void importMarkdownZip_shouldSucceed() throws IOException {
+        byte[] zipBytes = createTestZip(new String[][]{
+                {"readme.md", "标题1", "", "Java基础", "启用", "0"},
+                {"notes.md", "标题2", "Python", "Java基础,Python进阶", "", ""},
+                {"faq.md", "标题3", "", "Java基础", "停用", "5"},
+        }, new String[]{"# 内容1", "内容2内容2", "# FAQ\n常见问题解答。"});
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.zip",
+                "application/zip", zipBytes);
+
+        KnowledgeCategory javaCat = buildCategory(1L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        KnowledgeCategory pyCat = buildCategory(2L, "Python进阶", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of(javaCat, pyCat));
+        when(markdownRenderer.render(anyString())).thenReturn("<p>rendered</p>");
+        KnowledgeItem item = buildItem(1L);
+        when(itemDomainService.validateAndCreate(anyString(), anyString(), any(), anyList(), anyInt(), anyList()))
+                .thenReturn(item);
+        when(itemRepository.save(any())).thenReturn(item);
+
+        KnowledgeItemImportResult result = appService.importMarkdownZip(file);
+
+        assertEquals(3, result.getTotalCount());
+        assertEquals(3, result.getSuccessCount());
+        assertEquals(0, result.getFailCount());
+    }
+
+    /**
+     * 场景 b: index.xlsx 引用缺失的 .md 文件 → 失败
+     */
+    @Test
+    @DisplayName("Zip 导入 - 缺失 md 文件返回失败")
+    void importMarkdownZip_missingMd_shouldFail() throws IOException {
+        byte[] zipBytes = createTestZip(new String[][]{
+                {"missing.md", "标题", "", "Java基础", "启用", "0"},
+        }, new String[0]);
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.zip",
+                "application/zip", zipBytes);
+
+        KnowledgeCategory cat = buildCategory(1L, "Java基础", KnowledgeCategoryStatus.ACTIVE);
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of(cat));
+
+        KnowledgeItemImportResult result = appService.importMarkdownZip(file);
+
+        assertEquals(1, result.getTotalCount());
+        assertEquals(0, result.getSuccessCount());
+        assertEquals(1, result.getFailCount());
+        assertTrue(result.getFailDetails().get(0).getReason().contains("Markdown 文件不存在"));
+    }
+
+    /**
+     * 场景 d: 仅含表头的 index.xlsx（无数据行）→ totalCount=0
+     */
+    @Test
+    @DisplayName("Zip 导入 - 空模板返回零统计")
+    void importMarkdownZip_emptyTemplate_shouldReturnZero() throws IOException {
+        byte[] zipBytes = createTestZip(new String[][]{}, new String[0]);
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.zip",
+                "application/zip", zipBytes);
+
+        KnowledgeItemImportResult result = appService.importMarkdownZip(file);
+
+        assertEquals(0, result.getTotalCount());
+        assertEquals(0, result.getSuccessCount());
+        assertEquals(0, result.getFailCount());
+    }
+
+    /**
+     * 场景 e: 非 .zip 文件 → throw BusinessException
+     */
+    @Test
+    @DisplayName("Zip 导入 - 非 zip 文件抛异常")
+    void importMarkdownZip_notZip_shouldThrow() {
+        MockMultipartFile file = new MockMultipartFile("file", "test.rar",
+                "application/x-rar-compressed", "not zip".getBytes());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> appService.importMarkdownZip(file));
+        assertEquals("仅支持 .zip 格式文件", exception.getMessage());
+    }
+
+    // ========== 辅助方法 ==========
+
+    /**
+     * 创建测试用 Excel byte[]
+     */
+    private byte[] createTestExcel(String[][] data) throws IOException {
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            String[] headers = {"标题", "Markdown正文", "标签", "分类名称", "状态", "排序"};
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+            for (int r = 0; r < data.length; r++) {
+                Row row = sheet.createRow(r + 1);
+                for (int c = 0; c < data[r].length; c++) {
+                    if (data[r][c] != null && !data[r][c].isEmpty()) {
+                        row.createCell(c).setCellValue(data[r][c]);
+                    }
+                }
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            wb.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    /**
+     * 创建测试用 zip byte[]（含 index.xlsx + 若干 .md 文件）
+     */
+    private byte[] createTestZip(String[][] rows, String[] mdContents) throws IOException {
+        // 构建 index.xlsx
+        byte[] xlsxBytes;
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet();
+            String[] headers = {"文件名", "标题", "标签", "分类名称", "状态", "排序"};
+            Row header = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                header.createCell(i).setCellValue(headers[i]);
+            }
+            for (int r = 0; r < rows.length; r++) {
+                Row row = sheet.createRow(r + 1);
+                for (int c = 0; c < rows[r].length; c++) {
+                    if (rows[r][c] != null && !rows[r][c].isEmpty()) {
+                        row.createCell(c).setCellValue(rows[r][c]);
+                    }
+                }
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            wb.write(out);
+            xlsxBytes = out.toByteArray();
+        }
+
+        // 构建 zip
+        ByteArrayOutputStream zipOut = new ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(zipOut)) {
+            ZipEntry xlsxEntry = new ZipEntry("index.xlsx");
+            zos.putNextEntry(xlsxEntry);
+            zos.write(xlsxBytes);
+            zos.closeEntry();
+
+            for (int i = 0; i < mdContents.length; i++) {
+                String mdName = rows[i][0];
+                ZipEntry mdEntry = new ZipEntry(mdName);
+                zos.putNextEntry(mdEntry);
+                zos.write(mdContents[i].getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+            }
+        }
+        return zipOut.toByteArray();
     }
 
     private CreateKnowledgeItemRequest buildCreateRequest() {

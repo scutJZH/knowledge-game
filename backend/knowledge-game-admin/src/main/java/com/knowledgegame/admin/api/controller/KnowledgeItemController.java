@@ -5,11 +5,13 @@ import com.knowledgegame.admin.api.dto.request.BatchStatusRequest;
 import com.knowledgegame.admin.api.dto.request.CreateKnowledgeItemRequest;
 import com.knowledgegame.admin.api.dto.request.KnowledgeItemCategoryUpdateRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeItemRequest;
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemImportResult;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemListResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
 import com.knowledgegame.admin.application.service.KnowledgeItemAppService;
 import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,7 +22,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -135,5 +139,31 @@ public class KnowledgeItemController {
     public Result<Void> batchSort(@Valid @RequestBody BatchSortRequest request) {
         appService.batchSort(request);
         return Result.success();
+    }
+
+    /**
+     * 下载导入模板
+     */
+    @GetMapping("/import-template")
+    public void downloadImportTemplate(HttpServletResponse response) throws IOException {
+        appService.downloadImportTemplate(response);
+    }
+
+    /**
+     * Excel 批量导入知识条目
+     */
+    @PostMapping("/import")
+    public Result<KnowledgeItemImportResult> importExcel(@RequestParam("file") MultipartFile file) throws IOException {
+        KnowledgeItemImportResult result = appService.importExcel(file);
+        return Result.success(result);
+    }
+
+    /**
+     * Markdown zip 批量导入知识条目
+     */
+    @PostMapping("/import-markdown")
+    public Result<KnowledgeItemImportResult> importMarkdownZip(@RequestParam("file") MultipartFile file) throws IOException {
+        KnowledgeItemImportResult result = appService.importMarkdownZip(file);
+        return Result.success(result);
     }
 }

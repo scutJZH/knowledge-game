@@ -13,6 +13,9 @@ jest.mock('@/services/knowledge-item', () => ({
   batchActivate: jest.fn().mockResolvedValue({}),
   batchDeactivate: jest.fn().mockResolvedValue({}),
   batchSort: jest.fn().mockResolvedValue({}),
+  downloadImportTemplate: jest.fn().mockResolvedValue(new Blob()),
+  importExcel: jest.fn().mockResolvedValue({ totalCount: 0, successCount: 0, failCount: 0, failDetails: [] }),
+  importMarkdownZip: jest.fn().mockResolvedValue({ totalCount: 0, successCount: 0, failCount: 0, failDetails: [] }),
 }));
 
 jest.mock('@/services/knowledge-category', () => ({
