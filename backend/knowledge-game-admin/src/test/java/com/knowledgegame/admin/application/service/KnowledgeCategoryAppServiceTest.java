@@ -396,7 +396,7 @@ class KnowledgeCategoryAppServiceTest {
                 KnowledgeCategoryStatus.INACTIVE, now, now);
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
         when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        Mockito.doNothing().when(categoryDomainService).validateActivate(any());
+        Mockito.doNothing().when(categoryDomainService).validateActivate(any(KnowledgeCategory.class));
 
         UpdateKnowledgeCategoryRequest req = new UpdateKnowledgeCategoryRequest();
         req.setStatus(KnowledgeCategoryStatus.ACTIVE);
@@ -425,7 +425,7 @@ class KnowledgeCategoryAppServiceTest {
         appService.update(1L, req);
 
         verify(categoryDomainService, Mockito.never()).validateDelete(Mockito.anyLong());
-        verify(categoryDomainService, Mockito.never()).validateActivate(Mockito.any());
+        verify(categoryDomainService, Mockito.never()).validateActivate(any(KnowledgeCategory.class));
     }
 
     // ============ 其他不变 ============
