@@ -136,3 +136,47 @@ export async function batchSort(items: BatchSortItem[]) {
     data: { items },
   });
 }
+
+/** 导入失败明细 */
+export interface ImportFailDetail {
+  row: number;
+  reason: string;
+}
+
+/** 知识条目导入结果 */
+export interface KnowledgeItemImportResult {
+  totalCount: number;
+  successCount: number;
+  failCount: number;
+  failDetails: ImportFailDetail[];
+}
+
+/** 下载导入模板 */
+export async function downloadImportTemplate() {
+  return request<Blob>('/api/admin/knowledge-items/import-template', {
+    method: 'GET',
+    responseType: 'blob',
+  });
+}
+
+/** Excel 批量导入 */
+export async function importExcel(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request<KnowledgeItemImportResult>('/api/admin/knowledge-items/import', {
+    method: 'POST',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+/** Markdown zip 批量导入 */
+export async function importMarkdownZip(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request<KnowledgeItemImportResult>('/api/admin/knowledge-items/import-markdown', {
+    method: 'POST',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}

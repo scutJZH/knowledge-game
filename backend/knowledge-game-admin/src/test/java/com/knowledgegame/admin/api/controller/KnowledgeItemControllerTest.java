@@ -1,8 +1,11 @@
 package com.knowledgegame.admin.api.controller;
 
+import com.knowledgegame.admin.api.dto.response.ImportFailDetail;
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemImportResult;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
 import com.knowledgegame.admin.application.service.KnowledgeItemAppService;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
+import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -19,10 +23,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -197,5 +203,142 @@ class KnowledgeItemControllerTest {
                         .content("{\"items\":[{\"id\":1,\"sortOrder\":3},{\"id\":2,\"sortOrder\":5}]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
+    }
+
+    /**
+     * 下载导入模板 - 200（Content-Type 由 AppService 设置，mock 环境下不验证）
+     */
+    @Test
+    void downloadImportTemplate_shouldReturn200() throws Exception {
+        mockMvc.perform(get("/api/admin/knowledge-items/import-template"))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Excel 导入 - 正常返回 200
+     */
+    @Test
+    void importExcel_shouldReturn200() throws Exception {
+        KnowledgeItemImportResult importResult = KnowledgeItemImportResult.builder()
+                .totalCount(1).successCount(1).failCount(0).failDetails(List.of()).build();
+        when(appService.importExcel(any())).thenReturn(importResult);
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "fake excel content".getBytes());
+
+        mockMvc.perform(multipart("/api/admin/knowledge-items/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.successCount").value(1))
+                .andExpect(jsonPath("$.data.failCount").value(0));
+    }
+
+    /**
+     * Excel 导入 - 非 xlsx 文件抛 BusinessException → 400
+     */
+    @Test
+    void importExcel_nonXlsx_shouldReturn400() throws Exception {
+        when(appService.importExcel(any()))
+                .thenThrow(new BusinessException("仅支持 .xlsx 格式文件"));
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.txt",
+                "text/plain", "not excel".getBytes());
+
+        mockMvc.perform(multipart("/api/admin/knowledge-items/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("仅支持 .xlsx 格式文件"));
+    }
+
+    /**
+     * Excel 导入 - 超 200 行抛 BusinessException → 400
+     */
+    @Test
+    void importExcel_exceeds200_shouldReturn400() throws Exception {
+        when(appService.importExcel(any()))
+                .thenThrow(new BusinessException("单次导入上限 200 行，当前 201 行"));
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "fake excel content".getBytes());
+
+        mockMvc.perform(multipart("/api/admin/knowledge-items/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("单次导入上限 200 行，当前 201 行"));
+    }
+
+    /**
+     * Excel 导入 - 空模板返回 totalCount=0
+     */
+    @Test
+    void importExcel_emptyTemplate_shouldReturn200() throws Exception {
+        KnowledgeItemImportResult importResult = KnowledgeItemImportResult.builder()
+                .totalCount(0).successCount(0).failCount(0).failDetails(List.of()).build();
+        when(appService.importExcel(any())).thenReturn(importResult);
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "fake excel content".getBytes());
+
+        mockMvc.perform(multipart("/api/admin/knowledge-items/import").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.totalCount").value(0));
+    }
+
+    /**
+     * Markdown zip 导入 - 正常返回 200
+     */
+    @Test
+    void importMarkdownZip_shouldReturn200() throws Exception {
+        KnowledgeItemImportResult importResult = KnowledgeItemImportResult.builder()
+                .totalCount(2).successCount(2).failCount(0).failDetails(List.of()).build();
+        when(appService.importMarkdownZip(any())).thenReturn(importResult);
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.zip",
+                "application/zip", "fake zip content".getBytes());
+
+        mockMvc.perform(multipart("/api/admin/knowledge-items/import-markdown").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.totalCount").value(2))
+                .andExpect(jsonPath("$.data.successCount").value(2));
+    }
+
+    /**
+     * Markdown zip 导入 - 非 zip 文件抛 BusinessException → 400
+     */
+    @Test
+    void importMarkdownZip_nonZip_shouldReturn400() throws Exception {
+        when(appService.importMarkdownZip(any()))
+                .thenThrow(new BusinessException("仅支持 .zip 格式文件"));
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.rar",
+                "application/x-rar-compressed", "not zip".getBytes());
+
+        mockMvc.perform(multipart("/api/admin/knowledge-items/import-markdown").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("仅支持 .zip 格式文件"));
+    }
+
+    /**
+     * Markdown zip 导入 - 超 200 行抛 BusinessException → 400
+     */
+    @Test
+    void importMarkdownZip_exceeds200_shouldReturn400() throws Exception {
+        when(appService.importMarkdownZip(any()))
+                .thenThrow(new BusinessException("单次导入上限 200 行，当前 201 行"));
+
+        MockMultipartFile file = new MockMultipartFile("file", "test.zip",
+                "application/zip", "fake zip content".getBytes());
+
+        mockMvc.perform(multipart("/api/admin/knowledge-items/import-markdown").file(file))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("单次导入上限 200 行，当前 201 行"));
     }
 }
