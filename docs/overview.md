@@ -190,7 +190,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/admin/questions/import-template | GET | 下载 Excel 导入模板 | 已实现 |
 | /api/admin/questions/import | POST | 导入题目（Excel multipart） | 已实现 |
 | /api/admin/knowledge-items | POST | 创建知识条目 | 已实现 |
-| /api/admin/knowledge-items | GET | 分页查询（keyword/categoryId/tag/status 筛选 + 6 字段列头排序 id/title/categoryName/status/createdAt/updatedAt，默认 sortOrder ASC + createdAt DESC，categoryName 走 JOIN 子查询 NULLS LAST） | 已实现 |
+| /api/admin/knowledge-items | GET | 分页查询（keyword/categoryId/tag/status 筛选 + sort/order 排序，默认 sortOrder ASC + createdAt DESC） | 已实现 |
 | /api/admin/knowledge-items/{id} | GET | 查询知识条目详情 | 已实现 |
 | /api/admin/knowledge-items/{id} | PUT | 更新知识条目 | 已实现 |
 | /api/admin/knowledge-items/{id} | DELETE | 软删除（含分类关联校验） | 已实现 |
@@ -222,7 +222,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | 卡牌管理 | /content/card-template | ProTable CRUD + 凭证式图片上传（单图）+ 启停切换 | 已实现 |
 | 分类管理 | /content/category | 左侧分类树 + 右侧详情面板 + 凭证式图片上传（图标/封面图）+ 拖拽排序/移动 + 增删改 | 已实现 |
 | 题库管理 | /content/question-bank | ProTable + Drawer 4 题型动态表单 + 批量启停 + Excel 导入/模板下载 + 分类筛选 + 列头排序 | 已实现 |
-| 知识条目管理 | /content/knowledge-item | ProTable + Drawer + vditor Markdown 编辑器 + 凭证式封面图上传 + 分类多选 + 上移/下移排序 + 批量启停 + 6 列头排序（含分类名称 NULLS LAST）+ 创建时间列 | 已实现 |
+| 知识条目管理 | /content/knowledge-item | ProTable + Drawer + vditor Markdown 编辑器 + 凭证式封面图上传 + 分类多选 + 上移/下移排序 + 批量启停 | 已实现 |
 | 商品管理 | /shop/product | 占位页面 | 待实现 |
 | 订单管理 | /shop/order | 占位页面 | 待实现 |
 | 盲盒配置 | /config/blind-box | 占位页面 | 待实现 |
@@ -328,9 +328,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | 移动校验 | validateMove：不能移到自身/后代 + 目标 ACTIVE + 目标父级下同名唯一 | 2026-06-13 |
 | 知识条目 Markdown 渲染 | 后端渲染（commonmark-java 0.22 + jsoup 1.17 XSS 消毒），存 content_html 列供用户端零渲染依赖使用 | 2026-06-18 REQ-97 |
 | 知识条目封面图 | FileRef 双字段持久化（cover_image_file_id + cover_image_url），verifyFileRef 校验 metadata（bizType + userId） | 2026-06-18 REQ-97 |
-| 知识条目排序 | 默认 sortOrder ASC + createdAt DESC 复合排序，batchSort 无父子层级（跳过同父级校验）；REQ-109 扩展为 6 字段白名单排序（id/title/categoryName/status/createdAt/updatedAt），sortOrder 仅默认排序不暴露为列头 | 2026-06-18 REQ-97；2026-06-21 REQ-109 |
-| 知识条目分类名称排序 | categoryName 排序走 EntityManager + CriteriaBuilder + 子查询（`SELECT MIN(c.name)` JOIN category 表），CASE WHEN IS NULL 实现 NULLS LAST（无分类条目排最后），GROUP BY 替代 DISTINCT 解决 MySQL DISTINCT + ORDER BY 子查询冲突 | 2026-06-21 REQ-109 |
-| 黑盒测试分层 | 独立测试 Issue 默认使用 @WebMvcTest（Controller 层参数透传），校验/转换由 AppService 层单独覆盖；400 场景在 @WebMvcTest 中用 `when(...).thenThrow(BusinessException)` 模拟 | 2026-06-21 REQ-109 |
+| 知识条目排序 | 默认 sortOrder ASC + createdAt DESC 复合排序，batchSort 无父子层级（跳过同父级校验） | 2026-06-18 REQ-97 |
 | 知识条目-分类双向停用校验 | 创建时校验全部分类 ACTIVE；停用分类时校验无 ACTIVE 条目关联；启用条目时校验全部分类 ACTIVE | 2026-06-18 REQ-97 |
 | 知识条目编辑器 | vditor 3.x wysiwyg 模式，动态 import 拆分 chunk（~2MB），ImageUploadField 凭证式封面图上传 | 2026-06-18 REQ-97 |
 | IP 系列管理页 | ProTable + ModalForm CRUD + 凭证式封面图上传 + 启用/停用切换，默认筛选 ACTIVE | 2026-06-13 |

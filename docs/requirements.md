@@ -76,7 +76,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | **用户端前端页面** | REQ-26 项目搭建, REQ-27 Axios封装, REQ-28 登录/注册 | 3 |
 | **群组系统** | REQ-48 创建群组 | 1 |
 | **回收站系统** | REQ-100 架构+列表页, REQ-103 恢复框架, REQ-102 永久删除 | 3 |
-| **跨领域增强** | REQ-86 统一排序, REQ-88 清空可选字段, REQ-92 卡牌单图简化, REQ-93 图片file_id关联, REQ-94 停用前关联校验, REQ-90 图片上传组件, REQ-96 分类页改名, REQ-109 知识条目排序增强 | 8 |
+| **跨领域增强** | REQ-86 统一排序, REQ-88 清空可选字段, REQ-92 卡牌单图简化, REQ-93 图片file_id关联, REQ-94 停用前关联校验, REQ-90 图片上传组件, REQ-96 分类页改名 | 7 |
 
 ### 可立即开发（前置全部 ✅）
 
@@ -101,6 +101,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-42 | 管理后台仪表盘 | REQ-40 ✅, REQ-41 ✅ |
 | REQ-47 | 管理后台用户管理 | REQ-40 ✅, REQ-41 ✅ |
 | REQ-77 | 成就模板 CRUD | REQ-17 ✅ |
+| REQ-109 | 知识条目排序增强 | REQ-97 ✅ |
 | REQ-110 | 卡牌批量导入 | REQ-17 ✅ |
 | REQ-111 | 知识条目批量导入 | REQ-97 ✅ |
 | REQ-112 | Markdown 源码编辑 | REQ-97 ✅ |
@@ -313,7 +314,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-104 | IP 系列对接回收站 | in-progress | [PRD](prd/req-104-ip-series-recycle-bin.md) | DELETE 改为移入回收站；实现 `IpSeriesRecycleBinStrategy` Bean。**设计时必须参考 [REQ-100 PRD](prd/req-100-recycle-bin.md)：策略接口契约、`ip_series_deleted` 表结构、强校验拒绝规则** | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-16 ✅ |
+| REQ-104 | IP 系列对接回收站 | confirmed | - | DELETE 改为移入回收站；实现 `IpSeriesRecycleBinStrategy` Bean。**设计时必须参考 [REQ-100 PRD](prd/req-100-recycle-bin.md)：策略接口契约、`ip_series_deleted` 表结构、强校验拒绝规则** | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-16 ✅ |
 | REQ-105 | 卡牌管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `CardTemplateRecycleBinStrategy` Bean。**设计时必须参考 [REQ-100 PRD](prd/req-100-recycle-bin.md)：策略接口契约、`card_template_deleted` 表结构** | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-17 ✅ |
 | REQ-106 | 题库管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `QuestionRecycleBinStrategy` Bean。**设计时必须参考 [REQ-100 PRD](prd/req-100-recycle-bin.md)：策略接口契约、`question_deleted.related_data` JSON 快照** | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-09 ✅ |
 | REQ-107 | 分类管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `KnowledgeCategoryRecycleBinStrategy` Bean。**设计时必须参考 [REQ-100 PRD](prd/req-100-recycle-bin.md)：策略接口契约、`knowledge_category_deleted` 表结构、「拒绝删除有子分类的父分类」约束** | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-07 ✅ |
@@ -325,7 +326,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-109 | 知识条目管理 — 排序增强 | done | [req-109-knowledge-item-sort.md](prd/req-109-knowledge-item-sort.md) | 6 字段列头排序（id/title/categoryName/status/createdAt/updatedAt），分类名称走 CriteriaBuilder 子查询 JOIN + CASE WHEN NULLS LAST | REQ-97 ✅ |
+| REQ-109 | 知识条目管理 — 排序增强 | in-progress | [req-109-knowledge-item-sort.md](prd/req-109-knowledge-item-sort.md) | 在现有 sortOrder ASC + createdAt DESC 基础上，前端列头支持点击排序：ID/分类名称/排序号/状态/更新时间。后端增加对应 SortField 映射（分类名称排序需要 JOIN category 表，按 category.name 排序） | REQ-97 ✅ |
 | REQ-110 | 卡牌管理 — 批量导入 | done | [req-110-card-template-import.md](prd/req-110-card-template-import.md) | Excel 批量导入卡牌模板（参考题库 REQ-43 导入模式）。模板含：编码/名称/所属IP系列编码/稀有度/描述/状态。校验：IP 系列存在、编码唯一性 | REQ-17 ✅ |
 | REQ-111 | 知识条目管理 — 批量导入 | idea | - | Excel/Markdown 批量导入知识条目（参考题库 REQ-43 导入模式）。模板含：标题/Markdown正文/标签/分类/状态。校验：分类存在且 ACTIVE | REQ-97 ✅ |
 | REQ-112 | 知识条目管理 — Markdown 源码编辑 + 在线预览 | done | - | Input.TextArea 纯文本编辑 + vditor 静态 preview() 预览 Modal；列表页眼睛按钮预览 contentHtml | REQ-97 ✅ |

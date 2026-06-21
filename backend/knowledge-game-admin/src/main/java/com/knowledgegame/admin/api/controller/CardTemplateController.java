@@ -3,11 +3,13 @@ package com.knowledgegame.admin.api.controller;
 import com.knowledgegame.admin.api.dto.request.BatchStatusRequest;
 import com.knowledgegame.admin.api.dto.request.CreateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateCardTemplateRequest;
+import com.knowledgegame.admin.api.dto.response.CardTemplateImportResult;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
 import com.knowledgegame.admin.application.service.CardTemplateAppService;
 import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.domain.model.vo.PageResult;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +19,11 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 /**
  * 卡牌模板管理端 Controller（仅参数接收 + 结果返回，无业务逻辑）
@@ -112,5 +118,22 @@ public class CardTemplateController {
     public Result<Void> batchDeactivate(@Valid @RequestBody BatchStatusRequest request) {
         cardTemplateAppService.batchDeactivate(request.getIds());
         return Result.success();
+    }
+
+    /**
+     * 下载卡牌模板导入模板
+     */
+    @GetMapping("/import-template")
+    public void downloadImportTemplate(HttpServletResponse response) throws IOException {
+        cardTemplateAppService.downloadImportTemplate(response);
+    }
+
+    /**
+     * 批量导入卡牌模板
+     */
+    @PostMapping("/import")
+    public Result<CardTemplateImportResult> importCardTemplates(@RequestPart MultipartFile file) throws IOException {
+        CardTemplateImportResult result = cardTemplateAppService.importCardTemplates(file);
+        return Result.success(result);
     }
 }

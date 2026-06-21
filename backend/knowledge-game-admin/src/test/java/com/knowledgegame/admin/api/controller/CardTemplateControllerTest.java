@@ -3,8 +3,10 @@ package com.knowledgegame.admin.api.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgegame.admin.api.dto.request.CreateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateCardTemplateRequest;
+import com.knowledgegame.admin.api.dto.response.CardTemplateImportResult;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
+import com.knowledgegame.admin.api.dto.response.ImportFailDetail;
 import com.knowledgegame.admin.application.service.CardTemplateAppService;
 import com.knowledgegame.admin.config.JacksonConfig;
 import com.knowledgegame.admin.config.WebMvcConfig;
@@ -38,14 +40,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -520,5 +526,41 @@ class CardTemplateControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").isNotEmpty());
+    }
+
+    // ========== REQ-110：批量导入端点测试 ==========
+
+    @Test
+    @DisplayName("GET /import-template 端点可达，返回 Excel Content-Type")
+    void downloadImportTemplate_shouldReturnExcel() throws Exception {
+        doAnswer(inv -> {
+            jakarta.servlet.http.HttpServletResponse resp = inv.getArgument(0);
+            resp.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            resp.setHeader("Content-Disposition", "attachment; filename=card_template_import_template.xlsx");
+            return null;
+        }).when(cardTemplateAppService).downloadImportTemplate(any());
+
+        mockMvc.perform(get("/api/admin/card-templates/import-template"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        containsString("card_template_import_template.xlsx")));
+    }
+
+    @Test
+    @DisplayName("POST /import 返回导入结果")
+    void importCardTemplates_shouldReturnResult() throws Exception {
+        CardTemplateImportResult mockResult = CardTemplateImportResult.builder()
+                .totalCount(1).successCount(1).failCount(0).failDetails(List.of()).build();
+
+        when(cardTemplateAppService.importCardTemplates(any()))
+                .thenReturn(mockResult);
+
+        mockMvc.perform(multipart("/api/admin/card-templates/import")
+                        .file("file", new byte[]{0x50, 0x4B, 0x03, 0x04}))  // ZIP/xlsx magic bytes
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.totalCount").value(1))
+                .andExpect(jsonPath("$.data.successCount").value(1))
+                .andExpect(jsonPath("$.data.failCount").value(0));
     }
 }
