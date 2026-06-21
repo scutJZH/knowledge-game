@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
 import java.time.LocalDateTime;
 
 /**
@@ -59,14 +60,14 @@ public class IpSeriesRecycleBinStrategy implements RecycleBinItemStrategy<IpSeri
                                        IpSeriesJpaRepository ipSeriesJpaRepository,
                                        IpSeriesDeletedJpaRepository ipSeriesDeletedJpaRepository,
                                        RecycleBinItemJpaRepository recycleBinItemJpaRepository,
-                                       FileCleanupPort fileCleanupPort) {
+                                       Optional<FileCleanupPort> fileCleanupPort) {
         this.ipSeriesDomainService = ipSeriesDomainService;
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
         this.recycleBinItemRepositoryPort = recycleBinItemRepositoryPort;
         this.ipSeriesJpaRepository = ipSeriesJpaRepository;
         this.ipSeriesDeletedJpaRepository = ipSeriesDeletedJpaRepository;
         this.recycleBinItemJpaRepository = recycleBinItemJpaRepository;
-        this.fileCleanupPort = fileCleanupPort;
+        this.fileCleanupPort = fileCleanupPort.orElse(null);
     }
 
     @Override
@@ -174,7 +175,7 @@ public class IpSeriesRecycleBinStrategy implements RecycleBinItemStrategy<IpSeri
         IpSeriesDeletedPO deletedPO = ipSeriesDeletedJpaRepository.findByOriginalId(originalId)
                 .orElse(null);
 
-        if (deletedPO != null && deletedPO.getCoverImageFileId() != null) {
+        if (fileCleanupPort != null && deletedPO != null && deletedPO.getCoverImageFileId() != null) {
             try {
                 fileCleanupPort.deleteFile(deletedPO.getCoverImageFileId());
             } catch (Exception e) {
