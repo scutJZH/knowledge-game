@@ -15,6 +15,7 @@ import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesRecycleBinStrategy;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,12 +32,15 @@ public class IpSeriesAppService {
 
     private final IpSeriesRepositoryPort ipSeriesRepositoryPort;
     private final FileServiceClient fileServiceClient;
+    private final IpSeriesRecycleBinStrategy ipSeriesRecycleBinStrategy;
 
 
     public IpSeriesAppService(IpSeriesRepositoryPort ipSeriesRepositoryPort,
-                               FileServiceClient fileServiceClient) {
+                               FileServiceClient fileServiceClient,
+                               IpSeriesRecycleBinStrategy ipSeriesRecycleBinStrategy) {
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
         this.fileServiceClient = fileServiceClient;
+        this.ipSeriesRecycleBinStrategy = ipSeriesRecycleBinStrategy;
     }
 
     /**
@@ -125,14 +129,15 @@ public class IpSeriesAppService {
     }
 
     /**
-     * 软删除 IP 系列
+     * 删除 IP 系列（移入回收站）
      */
     @Transactional
     public void deleteIpSeries(Long id) {
-        IpSeries ipSeries = ipSeriesRepositoryPort.findById(id)
-                .orElseThrow(() -> new BusinessException("IP 系列不存在: " + id));
-        ipSeries.deactivate();
-        ipSeriesRepositoryPort.save(ipSeries);
+        if (!ipSeriesRepositoryPort.existsById(id)) {
+            throw new BusinessException("IP 系列不存在: " + id);
+        }
+        ipSeriesRecycleBinStrategy.validateDeletable(id);
+        ipSeriesRecycleBinStrategy.moveToRecycleBin(id, SecurityUtils.getCurrentUsername());
     }
 
     /**
