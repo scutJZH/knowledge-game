@@ -279,7 +279,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-104 | IP 系列对接回收站 | confirmed | - | DELETE 改为移入回收站；实现 `IpSeriesRecycleBinStrategy` Bean | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-16 ✅ |
+| REQ-104 | IP 系列对接回收站 | done | [PRD](prd/req-104-ip-series-recycle-bin.md) | DELETE 改为移入回收站；实现 `IpSeriesRecycleBinStrategy` Bean | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-16 ✅ |
 | REQ-105 | 卡牌管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `CardTemplateRecycleBinStrategy` Bean | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-17 ✅ |
 | REQ-106 | 题库管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `QuestionRecycleBinStrategy` Bean，`question_deleted.related_data` JSON 快照 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-09 ✅ |
 | REQ-107 | 分类管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `KnowledgeCategoryRecycleBinStrategy` Bean，拒绝删除有子分类的父分类 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-07 ✅ |
@@ -297,4 +297,4 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 |------|---------|------|-----|------|---------|
 | REQ-81 | Token 黑名单 Redis 存储迁移 | idea | - | P3：从内存迁移到 Redis，支持多实例部署。REQ-06 预留接口 | REQ-06 ✅ |
 | REQ-99 | 知识库 — 学习记录追踪 + 富媒体扩展 | idea | - | P0：`user_learning_record` 表（用户维度，浏览/停留时长/累计学习统计），富媒体扩展（视频/外链等） | REQ-97 ✅, REQ-98 |
-| REQ-114 | 知识条目列表性能优化 — 列表与详情分离 | designed | [req-114-knowledge-item-list-optimization.md](prd/req-114-knowledge-item-list-optimization.md) | P2：DTO + JPA 投影双裁剪，Tuple 查询只 SELECT 9 个非正文列。列表接口返回 `KnowledgeItemListResponse`（不含 content/contentHtml），详情/创建/更新不变。前端 TS 类型对齐新 ListResponse | REQ-97 ✅ |
+| REQ-114 | 知识条目列表性能优化 — 列表与详情分离 | in-progress | [req-114-knowledge-item-list-optimization.md](prd/req-114-knowledge-item-list-optimization.md) | P2：DTO + JPA 投影双裁剪，Tuple 查询只 SELECT 9 个非正文列。列表接口返回 `KnowledgeItemListResponse`（不含 content/contentHtml），详情/创建/更新不变。前端 TS 类型对齐新 ListResponse | REQ-97 ✅ |

@@ -9,7 +9,7 @@
 | 依赖 | 说明 | 状态 |
 |------|------|------|
 | REQ-97 | 知识条目管理端 CRUD API + 管理页 | done |
-| REQ-07 | 知识点分类管理端 CRUD API（用于校验分类 code 存在性） | done |
+| REQ-07 | 知识点分类管理端 CRUD API（用于校验分类名称存在性） | done |
 
 ## 用户故事
 
@@ -36,11 +36,11 @@
 | A | 标题 | 1~200 字符 | ✅ | 文本 |
 | B | Markdown正文 | 知识条目正文内容，最大 50000 字符 | ✅ | — |
 | C | 标签 | 逗号分隔，最多 10 个，每个最长 20 字符 | 否 | 文本 |
-| D | 分类编码 | KnowledgeCategory code，逗号分隔多选，必须全部存在且 ACTIVE | ✅ | — |
+| D | 分类名称 | KnowledgeCategory name，逗号分隔多选，必须全部存在且 ACTIVE | ✅ | — |
 | E | 状态 | 启用 / 停用，缺失默认启用 | 否 | 下拉选择 |
 | F | 排序 | 整数，默认 0 | 否 | — |
 
-> **分类编码必填理由**：`KnowledgeItemDomainService.validateAndCreate()` 要求 `categoryIds` 非空，与现有创建 API 的 `@NotNull categoryIds` 一致。
+> **分类名称必填理由**：`KnowledgeItemDomainService.validateAndCreate()` 要求 `categoryIds` 非空，与现有创建 API 的 `@NotNull categoryIds` 一致。
 
 ### 2. Excel 批量导入
 
@@ -58,8 +58,8 @@
 | 标题超过 200 字符 | 知识条目标题不能超过 200 字 |
 | Markdown正文为空 | Markdown正文不能为空 |
 | Markdown正文超过 50000 字符 | 知识条目内容不能超过 50000 字 |
-| 分类编码为空 | 知识条目必须关联至少一个分类 |
-| 分类编码不存在或非 ACTIVE | 分类编码不存在或已停用：XXX |
+| 分类名称为空 | 知识条目必须关联至少一个分类 |
+| 分类名称不存在或非 ACTIVE | 分类名称不存在或已停用：XXX |
 | 状态不在 启用/停用 范围 | 状态格式错误：XXX，可选值 启用/停用 |
 | 排序值非数字 | 排序值格式错误：XXX，必须为整数 |
 | 标签超过 10 个 | 标签最多 10 个 |
@@ -83,7 +83,7 @@
 
 ```
 knowledge_items.zip
-├── index.xlsx          ← 元数据：文件名 | 标题 | 标签 | 分类编码 | 状态 | 排序
+├── index.xlsx          ← 元数据：文件名 | 标题 | 标签 | 分类名称 | 状态 | 排序
 ├── java-basics.md      ← Markdown 正文
 ├── spring-ioc.md
 └── design-patterns.md
@@ -102,7 +102,7 @@ knowledge_items.zip
 | A | 文件名 | 对应 zip 内 .md 文件名（含 `.md` 扩展名） | ✅ |
 | B | 标题 | 1~200 字符 | ✅ |
 | C | 标签 | 逗号分隔，最多 10 个，每个最长 20 字符 | 否 |
-| D | 分类编码 | KnowledgeCategory code，逗号分隔多选，必须全部存在且 ACTIVE | ✅ |
+| D | 分类名称 | KnowledgeCategory code，逗号分隔多选，必须全部存在且 ACTIVE | ✅ |
 | E | 状态 | 启用 / 停用，默认启用 | 否 |
 | F | 排序 | 整数，默认 0 | 否 |
 
@@ -116,8 +116,8 @@ knowledge_items.zip
 | .md 文件缺失 | Markdown 文件不存在：xxx.md |
 | .md 文件内容为空 | Markdown正文不能为空 |
 | .md 文件内容超过 50000 字符 | 知识条目内容不能超过 50000 字 |
-| 分类编码为空 | 知识条目必须关联至少一个分类 |
-| 分类编码不存在或非 ACTIVE | 分类编码不存在或已停用：XXX |
+| 分类名称为空 | 知识条目必须关联至少一个分类 |
+| 分类名称不存在或非 ACTIVE | 分类名称不存在或已停用：XXX |
 | 状态不在 启用/停用 范围 | 状态格式错误：XXX |
 | 标签超过 10 个 | 标签最多 10 个 |
 | 标签长度超过 20 字符 | 标签长度不能超过 20 字: XXX |
@@ -145,7 +145,7 @@ JSON 示例：
   "successCount": 8,
   "failCount": 2,
   "failDetails": [
-    { "row": 3, "reason": "分类编码不存在或已停用：JAVA" },
+    { "row": 3, "reason": "分类名称不存在或已停用：JAVA" },
     { "row": 7, "reason": "Markdown 文件不存在：missing-file.md" }
   ]
 }
@@ -212,7 +212,7 @@ importExcel(MultipartFile file)
   6. 预加载所有 ACTIVE 分类 code→id 映射（调用 categoryRepositoryPort.findAll() 一次性查库）
   7. 逐行解析（从第2行开始）：
      - 跳过空行 + 填写说明行（首列以【开头）
-     - parseRow() → 校验必填/枚举/分类编码
+     - parseRow() → 校验必填/枚举/分类名称
      - importOne() → markdownRenderer.render() → domainService.validateAndCreate() → itemRepository.save() → itemRepository.saveCategoryRelations()
      - try/catch per row, 失败记入 failDetails
   8. 返回 KnowledgeItemImportResult
@@ -240,7 +240,7 @@ importMarkdownZip(MultipartFile file)
 ### 校验职责
 
 - **AppService 层**：文件类型校验（.xlsx/.zip）、大小校验（≤10MB/20MB）、行数上限、逐行解析、枚举转换
-- **DomainService 层**：标题/内容/标签/分类编码校验（全部已有，`validateAndCreate()` 一条龙覆盖）
+- **DomainService 层**：标题/内容/标签/分类名称校验（全部已有，`validateAndCreate()` 一条龙覆盖）
 
 ## Impact Analysis
 
@@ -258,8 +258,8 @@ importMarkdownZip(MultipartFile file)
 1. 启动后端 + 前端
 2. 导航到「知识条目管理」页
 3. 点击「下载模板」→ 浏览器下载 `knowledge_item_import_template.xlsx`，确认列名和示例数据正确、标题/标签列为文本格式、状态列为下拉选择
-4. Excel 导入：填写 5 行有效数据（含多个分类编码 + 标签）→ 上传 → 结果 Modal 显示全部成功
-5. Excel 导入：填写含错误的 Excel（非法状态、不存在的分类编码、标签超限）→ 上传 → 失败明细正确
+4. Excel 导入：填写 5 行有效数据（含多个分类名称 + 标签）→ 上传 → 结果 Modal 显示全部成功
+5. Excel 导入：填写含错误的 Excel（非法状态、不存在的分类名称、标签超限）→ 上传 → 失败明细正确
 6. Excel 导入：仅含表头的空模板上传 → 返回 `{ totalCount: 0, successCount: 0 }`，不报错
 7. Markdown zip 导入：准备 zip（index.xlsx + 3 个 .md 文件）→ 上传 → 全部成功
 8. Markdown zip 导入：index.xlsx 引用缺失的 .md 文件 → 失败明细显示「Markdown 文件不存在」
@@ -273,7 +273,7 @@ importMarkdownZip(MultipartFile file)
   - mock `MultipartFile`：使用 `MockMultipartFile` 构造测试 Excel/zip
   - mock `KnowledgeCategoryRepositoryPort.findAll()` 返回预设分类列表
   - mock `KnowledgeItemRepository` 和 `KnowledgeItemDomainService`
-  - 覆盖：正常导入 / 各校验失败路径 / 行数超限 / 分类编码不存在 / 空模板 / zip 中 .md 文件缺失
+  - 覆盖：正常导入 / 各校验失败路径 / 行数超限 / 分类名称不存在 / 空模板 / zip 中 .md 文件缺失
 - **`KnowledgeItemControllerTest`**（`@WebMvcTest`）：
   - 使用 `mockMvc.perform(multipart(...).file(mockFile))` 测试两个导入端点
   - 使用 `mockMvc.perform(get(...))` 测试模板下载
@@ -287,4 +287,4 @@ importMarkdownZip(MultipartFile file)
 - 状态列支持中文（启用/停用），不支持英文枚举值
 - 无编码唯一性校验（知识条目无 code 字段）
 - Markdown zip 导入将所有 .md 文件内容加载到内存，超大 zip（500+ 文件）可能 OOM
-- 分类编码必填，无分类的知识条目需走手动创建
+- 分类名称必填，无分类的知识条目需走手动创建
