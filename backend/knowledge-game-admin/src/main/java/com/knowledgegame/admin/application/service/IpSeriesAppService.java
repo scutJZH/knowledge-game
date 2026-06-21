@@ -15,6 +15,7 @@ import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesRecycleBinStrategy;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.stereotype.Service;
@@ -32,14 +33,17 @@ public class IpSeriesAppService {
 
     private final IpSeriesRepositoryPort ipSeriesRepositoryPort;
     private final FileServiceClient fileServiceClient;
+    private final IpSeriesDomainService ipSeriesDomainService;
     private final IpSeriesRecycleBinStrategy ipSeriesRecycleBinStrategy;
 
 
     public IpSeriesAppService(IpSeriesRepositoryPort ipSeriesRepositoryPort,
                                FileServiceClient fileServiceClient,
+                               IpSeriesDomainService ipSeriesDomainService,
                                IpSeriesRecycleBinStrategy ipSeriesRecycleBinStrategy) {
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
         this.fileServiceClient = fileServiceClient;
+        this.ipSeriesDomainService = ipSeriesDomainService;
         this.ipSeriesRecycleBinStrategy = ipSeriesRecycleBinStrategy;
     }
 
@@ -112,6 +116,12 @@ public class IpSeriesAppService {
                     throw new BusinessException("IP 系列名称已存在: " + req.getName());
                 }
             });
+        }
+
+        // 停用前校验：ACTIVE → INACTIVE 时检查是否有 ACTIVE 卡牌引用
+        if (req.getStatus() == IpSeriesStatus.INACTIVE
+                && ipSeries.getStatus() == IpSeriesStatus.ACTIVE) {
+            ipSeriesDomainService.validateDeactivatable(id);
         }
 
         // 必填字段：null=不更新

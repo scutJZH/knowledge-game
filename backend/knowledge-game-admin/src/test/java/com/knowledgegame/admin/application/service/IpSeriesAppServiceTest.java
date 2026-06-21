@@ -11,6 +11,7 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesRecycleBinStrategy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,6 +46,9 @@ class IpSeriesAppServiceTest {
 
     @Mock
     private FileServiceClient fileServiceClient;
+
+    @Mock
+    private IpSeriesDomainService ipSeriesDomainService;
 
     @Mock
     private IpSeriesRecycleBinStrategy ipSeriesRecycleBinStrategy;
@@ -275,6 +279,36 @@ class IpSeriesAppServiceTest {
 
         assertNotNull(result);
         verify(ipSeriesRepositoryPort).save(any(IpSeries.class));
+    }
+
+    @Test
+    void update_shouldCallValidateDeactivatable_whenStatusChangesToInactive() {
+        Long id = 1L;
+        IpSeries existing = buildIpSeries(id, "MARVEL", "漫威", "描述", IpSeriesStatus.ACTIVE);
+        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        req.setStatus(IpSeriesStatus.INACTIVE);
+
+        ipSeriesAppService.update(id, req);
+
+        verify(ipSeriesDomainService).validateDeactivatable(id);
+    }
+
+    @Test
+    void update_shouldNotCallValidateDeactivatable_whenAlreadyInactive() {
+        Long id = 1L;
+        IpSeries existing = buildIpSeries(id, "MARVEL", "漫威", "描述", IpSeriesStatus.INACTIVE);
+        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
+        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UpdateIpSeriesRequest req = new UpdateIpSeriesRequest();
+        req.setStatus(IpSeriesStatus.INACTIVE);
+
+        ipSeriesAppService.update(id, req);
+
+        verify(ipSeriesDomainService, never()).validateDeactivatable(anyLong());
     }
 
     /**

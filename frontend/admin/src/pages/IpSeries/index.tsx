@@ -12,6 +12,7 @@ import {
 
 import {
   createIpSeries,
+  deleteIpSeries,
   listIpSeries,
   updateIpSeries,
 } from '@/services/ipSeries';
@@ -130,6 +131,12 @@ const IpSeries: React.FC = () => {
               <a style={{ color: '#52c41a' }}>启用</a>
             )}
           </Popconfirm>
+          <Popconfirm
+            title="确定删除该 IP 系列吗？删除后将移入回收站。"
+            onConfirm={() => handleDelete(record)}
+          >
+            <a style={{ color: '#ff4d4f' }}>删除</a>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -144,6 +151,17 @@ const IpSeries: React.FC = () => {
       actionRef.current?.reload();
     } catch (e: any) {
       message.error(e.message || '操作失败');
+    }
+  };
+
+  /** 删除 */
+  const handleDelete = async (record: IpSeriesResponse) => {
+    try {
+      await deleteIpSeries(record.id);
+      message.success('已移入回收站');
+      actionRef.current?.reload();
+    } catch (e: any) {
+      message.error(e.message || '删除失败');
     }
   };
 
