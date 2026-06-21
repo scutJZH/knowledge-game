@@ -26,10 +26,18 @@ import com.knowledgegame.core.domain.service.CardTemplateDomainService;
 import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.DataValidation;
+import org.apache.poi.ss.usermodel.DataValidationConstraint;
+import org.apache.poi.ss.usermodel.DataValidationHelper;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.ss.util.CellRangeAddressList;
+import org.apache.poi.xssf.usermodel.XSSFDataValidationHelper;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.stereotype.Service;
@@ -219,6 +227,11 @@ public class CardTemplateAppService {
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("卡牌模板导入");
 
+            // 编码列（A 列）设为文本格式，防止 Excel 将 001 转为数字 1
+            CellStyle textStyle = workbook.createCellStyle();
+            DataFormat dataFormat = workbook.createDataFormat();
+            textStyle.setDataFormat(dataFormat.getFormat("@"));
+
             String[] headers = {"编码", "名称", "所属IP系列编码", "稀有度", "描述", "状态"};
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
@@ -228,6 +241,7 @@ public class CardTemplateAppService {
             // 示例行 1
             Row row1 = sheet.createRow(1);
             row1.createCell(0).setCellValue("PIKACHU");
+            row1.getCell(0).setCellStyle(textStyle);
             row1.createCell(1).setCellValue("皮卡丘");
             row1.createCell(2).setCellValue("PKM");
             row1.createCell(3).setCellValue("SR");
@@ -237,11 +251,15 @@ public class CardTemplateAppService {
             // 示例行 2
             Row row2 = sheet.createRow(2);
             row2.createCell(0).setCellValue("CHARIZARD");
+            row2.getCell(0).setCellStyle(textStyle);
             row2.createCell(1).setCellValue("喷火龙");
             row2.createCell(2).setCellValue("PKM");
             row2.createCell(3).setCellValue("SSR");
             row2.createCell(4).setCellValue("");
             row2.createCell(5).setCellValue("启用");
+
+            // A 列默认文本格式（新单元格继承）
+            sheet.setDefaultColumnStyle(0, textStyle);
 
             // 填写说明
             Row tipRow = sheet.createRow(3);
@@ -249,6 +267,25 @@ public class CardTemplateAppService {
             tipRow.createCell(1).setCellValue("编码：2~50字符，同一IP系列下唯一；名称：1~50字符；所属IP系列编码：必须存在且为启用状态；稀有度：N/R/SR/SSR/SP；状态：启用/停用，留空默认启用；描述：最大500字符，可选");
 
             sheet.addMergedRegion(new CellRangeAddress(3, 3, 1, 5));
+
+            // 稀有度下拉（D 列，index=3）
+            DataValidationHelper dvHelper = new XSSFDataValidationHelper((XSSFSheet) sheet);
+            DataValidationConstraint rarityConstraint = dvHelper.createExplicitListConstraint(
+                    new String[]{"N", "R", "SR", "SSR", "SP"});
+            CellRangeAddressList rarityRange = new CellRangeAddressList(1, 201, 3, 3);
+            DataValidation rarityValidation = dvHelper.createValidation(rarityConstraint, rarityRange);
+            rarityValidation.setShowErrorBox(true);
+            rarityValidation.createErrorBox("稀有度格式错误", "请选择 N / R / SR / SSR / SP");
+            sheet.addValidationData(rarityValidation);
+
+            // 状态下拉（F 列，index=5）
+            DataValidationConstraint statusConstraint = dvHelper.createExplicitListConstraint(
+                    new String[]{"启用", "停用"});
+            CellRangeAddressList statusRange = new CellRangeAddressList(1, 201, 5, 5);
+            DataValidation statusValidation = dvHelper.createValidation(statusConstraint, statusRange);
+            statusValidation.setShowErrorBox(true);
+            statusValidation.createErrorBox("状态格式错误", "请选择 启用 或 停用");
+            sheet.addValidationData(statusValidation);
 
             workbook.write(response.getOutputStream());
         }
