@@ -40,3 +40,5 @@ m2m:
 knowledgegame:
   file:
     upload-base-url: http://localhost:8083
+  recycle-bin:
+    cleanup-cron: "0 0 3 * * ?"
