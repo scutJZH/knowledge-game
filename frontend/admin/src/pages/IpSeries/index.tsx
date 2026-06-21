@@ -149,8 +149,8 @@ const IpSeries: React.FC = () => {
       await updateIpSeries(record.id, { status: newStatus });
       message.success(newStatus === 'ACTIVE' ? '已启用' : '已停用');
       actionRef.current?.reload();
-    } catch (e: any) {
-      message.error(e.message || '操作失败');
+    } catch {
+      // 错误已由全局拦截器展示
     }
   };
 
@@ -160,8 +160,8 @@ const IpSeries: React.FC = () => {
       await deleteIpSeries(record.id);
       message.success('已移入回收站');
       actionRef.current?.reload();
-    } catch (e: any) {
-      message.error(e.message || '删除失败');
+    } catch {
+      // 错误已由全局拦截器展示
     }
   };
 
@@ -181,8 +181,7 @@ const IpSeries: React.FC = () => {
       setEditingRecord(null);
       actionRef.current?.reload();
       return true;
-    } catch (e: any) {
-      message.error(e.message || '操作失败');
+    } catch {
       return false;
     } finally {
       setSubmitLoading(false);

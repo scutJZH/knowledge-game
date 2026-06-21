@@ -55,7 +55,7 @@ const KnowledgeItemPage: React.FC = () => {
         setCategoryTree(treeData);
         setCategoryNameMap(flattenTree(treeData));
       })
-      .catch(() => message.error('加载分类树失败'));
+      .catch(() => {}); // 分类树加载失败，静默处理（错误已由全局拦截器展示）
   }, []);
 
   const handleMove = async (record: KnowledgeItemResponse, direction: 'up' | 'down') => {
@@ -72,8 +72,8 @@ const KnowledgeItemPage: React.FC = () => {
       ]);
       message.success('排序成功');
       actionRef.current?.reload();
-    } catch (e: any) {
-      message.error(e?.message || '排序失败');
+    } catch {
+      // 错误已由全局拦截器展示
     }
   };
 
@@ -91,8 +91,8 @@ const KnowledgeItemPage: React.FC = () => {
       message.success('操作成功');
       setSelectedRowKeys([]);
       actionRef.current?.reload();
-    } catch (e: any) {
-      message.error(e?.message || '操作失败');
+    } catch {
+      // 错误已由全局拦截器展示
     }
   };
 
@@ -230,8 +230,8 @@ const KnowledgeItemPage: React.FC = () => {
                 setPreviewTitle(res?.title || '');
                 setPreviewHtml(res?.contentHtml || '');
                 setPreviewOpen(true);
-              } catch (e: any) {
-                message.error(e?.message || '加载失败');
+              } catch {
+                // 错误已由全局拦截器展示
               }
             }}
           />
@@ -245,8 +245,8 @@ const KnowledgeItemPage: React.FC = () => {
                 setEditData(res || {});
                 setDrawerMode('edit');
                 setDrawerOpen(true);
-              } catch (e: any) {
-                message.error(e?.message || '加载失败');
+              } catch {
+                // 错误已由全局拦截器展示
               }
             }}
           >
@@ -263,8 +263,8 @@ const KnowledgeItemPage: React.FC = () => {
                 }
                 message.success('操作成功');
                 actionRef.current?.reload();
-              } catch (e: any) {
-                message.error(e?.message || '操作失败');
+              } catch {
+                // 错误已由全局拦截器展示
               }
             }}
           >

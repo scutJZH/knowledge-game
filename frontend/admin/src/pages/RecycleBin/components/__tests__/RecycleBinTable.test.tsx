@@ -133,8 +133,8 @@ describe('RecycleBinTable — 行内恢复', () => {
       try {
         await restoreItem(_id);
         (message.success as jest.Mock)('恢复成功');
-      } catch (e: any) {
-        (message.error as jest.Mock)(e?.message || '恢复失败');
+      } catch {
+        // 错误已由全局拦截器展示
       }
     });
     (restoreItem as jest.Mock).mockRejectedValueOnce(new Error(errorMsg));
@@ -350,8 +350,8 @@ describe('RecycleBinTable — 行内永久删除', () => {
       try {
         await purgeItem(id);
         (message.success as jest.Mock)('永久删除成功');
-      } catch (e: any) {
-        (message.error as jest.Mock)(e?.message || '永久删除失败');
+      } catch {
+        // 错误已由全局拦截器展示
       }
     });
     (purgeItem as jest.Mock).mockRejectedValueOnce(new Error(errorMsg));

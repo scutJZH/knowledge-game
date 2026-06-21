@@ -34,7 +34,7 @@ const RecycleBinPage: React.FC = () => {
   useEffect(() => {
     fetchSupportedTypes()
       .then((data) => setTypes(data || []))
-      .catch(() => message.error('加载资源类型失败'));
+      .catch(() => {}); // 错误已由全局拦截器展示
   }, []);
 
   const loadData = useCallback(async (params: RecycleBinListParams) => {
@@ -43,8 +43,8 @@ const RecycleBinPage: React.FC = () => {
       const result = await fetchRecycleBinList(params);
       setDataSource(result?.content || []);
       setTotal(result?.totalElements || 0);
-    } catch (e: any) {
-      message.error(e?.message || '查询失败');
+    } catch {
+      // 错误已由全局拦截器展示
     } finally {
       setLoading(false);
     }
@@ -92,8 +92,8 @@ const RecycleBinPage: React.FC = () => {
       await restoreItem(id);
       message.success('恢复成功，已回到原列表（停用状态）');
       refresh();
-    } catch (e: any) {
-      message.error(e?.message || '恢复失败');
+    } catch {
+      // 错误已由全局拦截器展示
     }
   };
 
@@ -111,8 +111,8 @@ const RecycleBinPage: React.FC = () => {
       }
       refresh();
       setSelectedRowKeys([]);
-    } catch (e: any) {
-      message.error(e?.message || '批量恢复失败');
+    } catch {
+      // 错误已由全局拦截器展示
     }
   };
 
@@ -121,8 +121,8 @@ const RecycleBinPage: React.FC = () => {
       await purgeItem(id);
       message.success('永久删除成功');
       refresh();
-    } catch (e: any) {
-      message.error(e?.message || '永久删除失败');
+    } catch {
+      // 错误已由全局拦截器展示
     }
   };
 

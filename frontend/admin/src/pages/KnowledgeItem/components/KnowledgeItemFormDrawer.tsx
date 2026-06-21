@@ -43,7 +43,7 @@ const KnowledgeItemFormDrawer: React.FC<KnowledgeItemFormDrawerProps> = ({
   useEffect(() => {
     getTree()
       .then((data) => setCategoryTree(data || []))
-      .catch(() => message.error('加载分类树失败'));
+      .catch(() => {}); // 错误已由全局拦截器展示
   }, []);
 
   useEffect(() => {
@@ -90,8 +90,7 @@ const KnowledgeItemFormDrawer: React.FC<KnowledgeItemFormDrawerProps> = ({
       }
       onSubmit();
       return true;
-    } catch (e: any) {
-      message.error(e?.message || '操作失败');
+    } catch {
       return false;
     }
   };

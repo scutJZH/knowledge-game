@@ -90,7 +90,6 @@ const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       onSuccess?.({ url: result.url });
     } catch (e: any) {
       onError?.(e);
-      message.error(e.message || '上传失败');
     } finally {
       setUploading(false);
     }
