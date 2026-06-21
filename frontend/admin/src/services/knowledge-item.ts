@@ -165,9 +165,17 @@ export interface KnowledgeItemImportResult {
   failDetails: ImportFailDetail[];
 }
 
-/** 下载导入模板 */
+/** 下载导入模板（Excel） */
 export async function downloadImportTemplate() {
   return request<Blob>('/api/admin/knowledge-items/import-template', {
+    method: 'GET',
+    responseType: 'blob',
+  });
+}
+
+/** 下载 Markdown zip 导入模板 */
+export async function downloadImportMarkdownZipTemplate() {
+  return request<Blob>('/api/admin/knowledge-items/import-markdown-template', {
     method: 'GET',
     responseType: 'blob',
   });

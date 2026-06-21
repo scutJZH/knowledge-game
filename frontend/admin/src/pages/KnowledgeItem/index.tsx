@@ -3,7 +3,7 @@ import {
   ProColumns,
   ProTable,
 } from '@ant-design/pro-components';
-import { Button, Image, Input, message, Modal, Popconfirm, Space, Tag, Tooltip, TreeSelect, Upload } from 'antd';
+import { Button, Dropdown, Image, Input, message, Modal, Popconfirm, Space, Tag, Tooltip, TreeSelect } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import {
   batchActivate,
@@ -12,6 +12,7 @@ import {
   downloadImportTemplate,
   getKnowledgeItemById,
   importExcel,
+  downloadImportMarkdownZipTemplate,
   importMarkdownZip,
   listKnowledgeItems,
   type KnowledgeItemListResponse,
@@ -382,65 +383,104 @@ const KnowledgeItemPage: React.FC = () => {
             >
               <Button key="btnDeactivate">批量停用</Button>
             </Popconfirm>,
-            <Button
+            <Dropdown
               key="downloadTemplate"
-              icon={<DownloadOutlined />}
-              onClick={handleDownloadTemplate}
-            >
-              下载模板
-            </Button>,
-            <Upload
-              key="importExcel"
-              accept=".xlsx"
-              showUploadList={false}
-              beforeUpload={async (file) => {
-                if (!file.name.endsWith('.xlsx')) {
-                  message.error('仅支持 .xlsx 格式文件');
-                  return false;
-                }
-                if (file.size > 10 * 1024 * 1024) {
-                  message.error('文件大小不能超过 10MB');
-                  return false;
-                }
-                try {
-                  const result = await importExcel(file);
-                  setImportResult(result);
-                  setImportModalOpen(true);
-                  actionRef.current?.reload();
-                } catch (e: any) {
-                  message.error(e?.message || 'Excel 导入失败');
-                }
-                return false;
+              menu={{
+                items: [
+                  {
+                    key: 'excel',
+                    label: 'Excel 模板',
+                    icon: <DownloadOutlined />,
+                    onClick: handleDownloadTemplate,
+                  },
+                  {
+                    key: 'markdown',
+                    label: 'Markdown zip 模板',
+                    icon: <DownloadOutlined />,
+                    onClick: async () => {
+                      try {
+                        const blob = await downloadImportMarkdownZipTemplate();
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = 'knowledge_item_import_markdown_template.zip';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                      } catch (e: any) {
+                        message.error(e?.message || '下载模板失败');
+                      }
+                    },
+                  },
+                ],
               }}
             >
-              <Button icon={<UploadOutlined />}>Excel 批量导入</Button>
-            </Upload>,
-            <Upload
-              key="importMarkdownZip"
-              accept=".zip"
-              showUploadList={false}
-              beforeUpload={async (file) => {
-                if (!file.name.endsWith('.zip')) {
-                  message.error('仅支持 .zip 格式文件');
-                  return false;
-                }
-                if (file.size > 20 * 1024 * 1024) {
-                  message.error('文件大小不能超过 20MB');
-                  return false;
-                }
-                try {
-                  const result = await importMarkdownZip(file);
-                  setImportResult(result);
-                  setImportModalOpen(true);
-                  actionRef.current?.reload();
-                } catch (e: any) {
-                  message.error(e?.message || 'Markdown zip 导入失败');
-                }
-                return false;
+              <Button icon={<DownloadOutlined />}>下载模板</Button>
+            </Dropdown>,
+            <Dropdown
+              key="batchImport"
+              menu={{
+                items: [
+                  {
+                    key: 'excel',
+                    label: 'Excel 批量导入',
+                    icon: <UploadOutlined />,
+                    onClick: () => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.xlsx';
+                      input.onchange = async () => {
+                        const file = input.files?.[0];
+                        if (!file) return;
+                        if (file.size > 10 * 1024 * 1024) {
+                          message.error('文件大小不能超过 10MB');
+                          return;
+                        }
+                        try {
+                          const result = await importExcel(file);
+                          setImportResult(result);
+                          setImportModalOpen(true);
+                          actionRef.current?.reload();
+                        } catch (e: any) {
+                          message.error(e?.message || 'Excel 导入失败');
+                        }
+                      };
+                      input.click();
+                    },
+                  },
+                  {
+                    key: 'markdown',
+                    label: 'Markdown zip 导入',
+                    icon: <UploadOutlined />,
+                    onClick: () => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.zip';
+                      input.onchange = async () => {
+                        const file = input.files?.[0];
+                        if (!file) return;
+                        if (file.size > 20 * 1024 * 1024) {
+                          message.error('文件大小不能超过 20MB');
+                          return;
+                        }
+                        try {
+                          const result = await importMarkdownZip(file);
+                          setImportResult(result);
+                          setImportModalOpen(true);
+                          actionRef.current?.reload();
+                        } catch (e: any) {
+                          message.error(e?.message || 'Markdown zip 导入失败');
+                        }
+                      };
+                      input.click();
+                    },
+                  },
+                ],
               }}
             >
-              <Button icon={<UploadOutlined />}>Markdown zip 导入</Button>
-            </Upload>,
+              <Button icon={<UploadOutlined />}>批量导入</Button>
+            </Dropdown>,
           ],
         }}
         rowSelection={{

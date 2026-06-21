@@ -150,6 +150,14 @@ public class KnowledgeItemController {
     }
 
     /**
+     * 下载 Markdown zip 导入模板
+     */
+    @GetMapping("/import-markdown-template")
+    public void downloadImportMarkdownZipTemplate(HttpServletResponse response) throws IOException {
+        appService.downloadImportMarkdownZipTemplate(response);
+    }
+
+    /**
      * Excel 批量导入知识条目
      */
     @PostMapping("/import")

@@ -236,7 +236,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-37 | 卡牌详情页面（升星/兑换/分解） | idea | - | 增加实体奖励兑换入口 | REQ-26 ✅, REQ-22, REQ-23, REQ-57 |
 | REQ-38 | 保底进度页面 | idea | - | 群组维度 | REQ-26 ✅, REQ-25 |
 | REQ-39 | 个人中心页面 | idea | - | | REQ-26 ✅ |
-| REQ-60 | 群组列表 + 创建/加入页面 | idea | - | 含 REQ-49 手工测试用例 | REQ-26 ✅, REQ-48 ✅, REQ-49 ✅ |
+| REQ-60 | 群组列表 + 创建/加入页面 | designed | [req-60-group-list-create-join.md](prd/req-60-group-list-create-join.md) | 含 REQ-49 手工测试用例 | REQ-26 ✅, REQ-48 ✅, REQ-49 ✅ |
 | REQ-61 | 群组详情 + 管理页面 | idea | - | 含 REQ-49 重新生成邀请码 + REQ-50 管理员设置与转让手工验收 | REQ-26 ✅, REQ-48 ✅ |
 | REQ-62 | 群组管理端 — IP 库关联页 | idea | - | 知识库全局共享，不需要群组授权 | REQ-26 ✅, REQ-51 |
 | REQ-63 | 群组管理端 — 成员与积分管理页 | idea | - | 成员列表查询 + 踢人 API + 积分修改。踢人仅 OWNER/ADMIN 可操作，不能踢 OWNER | REQ-26 ✅, REQ-49 ✅, REQ-52, REQ-50 ✅ |
@@ -273,7 +273,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-101 | 回收站定时清理任务 | idea | - | Spring `@Scheduled` 定时任务，每日执行，物理删除 `recycle_bin` 中 `restore_deadline < now()` 的记录 | REQ-100 ✅ |
+| REQ-101 | 回收站定时清理任务 | done | [req-101-scheduled-cleanup.md](prd/req-101-scheduled-cleanup.md) | Spring `@Scheduled` 定时任务 + 通用 `scheduled_task_log` 表 + 管理端查询页。50 tests + jest + tsc 全绿。设计时必须参考 [REQ-100 PRD](prd/req-100-recycle-bin.md)：复用 `restore_deadline`、`RecycleBinItemStrategy.purge()`、`ResourceType.toBizTypes()` 文件清理 | REQ-100 ✅ |
 
 **资源对接回收站**
 
@@ -289,7 +289,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-111 | 知识条目管理 — 批量导入 | confirmed | [req-111-knowledge-item-import.md](prd/req-111-knowledge-item-import.md) | Excel + Markdown zip 双模式批量导入。校验：分类存在且ACTIVE + 域层长度/数量限制 | REQ-97 ✅ |
+| REQ-111 | 知识条目管理 — 批量导入 | done | [req-111-knowledge-item-import.md](prd/req-111-knowledge-item-import.md) | Excel + Markdown zip 双模式批量导入。校验：分类存在且ACTIVE + 域层长度/数量限制 | REQ-97 ✅ |
 
 ### 后期优化 / 跨领域增强
 

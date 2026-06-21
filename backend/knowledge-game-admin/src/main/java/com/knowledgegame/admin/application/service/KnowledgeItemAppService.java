@@ -59,6 +59,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 /**
  * 知识条目管理端应用服务（流程编排 + 事务，返回 DTO）
@@ -314,7 +315,7 @@ public class KnowledgeItemAppService {
             // 填写说明
             Row tipRow = sheet.createRow(3);
             tipRow.createCell(0).setCellValue("【填写说明】");
-            tipRow.createCell(1).setCellValue("标题：1~200字符，必填；Markdown正文：1~50000字符，必填；标签：逗号分隔，最多10个，每个≤20字符，可选；分类名称：逗号分隔，必须存在且为启用状态，必填；状态：启用/停用，留空默认启用；排序：整数，留空默认0");
+            tipRow.createCell(1).setCellValue("标题：1~200字符，必填；Markdown正文：1~50000字符，必填；标签：逗号分隔，最多10个，每个≤20字符，可选；分类名称：逗号分隔，必须存在且为启用状态，必填；子分类请用「父级/子级」路径格式（如「编程语言/Java」）；状态：启用/停用，留空默认启用；排序：整数，留空默认0");
             sheet.addMergedRegion(new CellRangeAddress(3, 3, 1, 5));
 
             // 状态下拉（E 列，index=4）
@@ -328,6 +329,86 @@ public class KnowledgeItemAppService {
             sheet.addValidationData(statusValidation);
 
             workbook.write(response.getOutputStream());
+        }
+    }
+
+    /**
+     * 下载 Markdown zip 导入模板（含 index.xlsx + 示例 .md 文件）
+     */
+    public void downloadImportMarkdownZipTemplate(HttpServletResponse response) throws IOException {
+        response.setContentType("application/zip");
+        response.setHeader("Content-Disposition", "attachment; filename=knowledge_item_import_markdown_template.zip");
+
+        // 1. 生成 index.xlsx
+        byte[] xlsxBytes;
+        try (Workbook workbook = new XSSFWorkbook()) {
+            Sheet sheet = workbook.createSheet("知识条目导入");
+
+            CellStyle textStyle = workbook.createCellStyle();
+            DataFormat dataFormat = workbook.createDataFormat();
+            textStyle.setDataFormat(dataFormat.getFormat("@"));
+
+            String[] headers = {"文件名", "标题", "标签", "分类名称", "状态", "排序"};
+            Row headerRow = sheet.createRow(0);
+            for (int i = 0; i < headers.length; i++) {
+                headerRow.createCell(i).setCellValue(headers[i]);
+            }
+
+            // 示例行 1
+            Row row1 = sheet.createRow(1);
+            row1.createCell(0).setCellValue("java-basic.md");
+            row1.createCell(1).setCellValue("Java 基础语法");
+            row1.createCell(2).setCellValue("Java,入门");
+            row1.createCell(3).setCellValue("Java基础");
+            row1.createCell(4).setCellValue("启用");
+            row1.createCell(5).setCellValue("0");
+
+            // 示例行 2
+            Row row2 = sheet.createRow(2);
+            row2.createCell(0).setCellValue("python-data-structure.md");
+            row2.createCell(1).setCellValue("Python 数据结构");
+            row2.createCell(2).setCellValue("Python,数据结构");
+            row2.createCell(3).setCellValue("Python进阶");
+            row2.createCell(4).setCellValue("停用");
+            row2.createCell(5).setCellValue("1");
+
+            // 填写说明
+            Row tipRow = sheet.createRow(3);
+            tipRow.createCell(0).setCellValue("【填写说明】");
+            tipRow.createCell(1).setCellValue("文件名：对应 zip 内 .md 文件名（含 .md 扩展名），必填；标题：1~200字符，必填；标签：逗号分隔，最多10个，每个≤20字符，可选；分类名称：逗号分隔，必须存在且为启用状态，必填；子分类请用\"父级/子级\"路径格式（如\"编程语言/Java\"）；状态：启用/停用，留空默认启用；排序：整数，留空默认0");
+            sheet.addMergedRegion(new CellRangeAddress(3, 3, 1, 5));
+
+            // 状态下拉
+            DataValidationHelper dvHelper = new XSSFDataValidationHelper((XSSFSheet) sheet);
+            DataValidationConstraint statusConstraint = dvHelper.createExplicitListConstraint(
+                    new String[]{"启用", "停用"});
+            CellRangeAddressList statusRange = new CellRangeAddressList(1, 201, 4, 4);
+            DataValidation statusValidation = dvHelper.createValidation(statusConstraint, statusRange);
+            statusValidation.setShowErrorBox(true);
+            statusValidation.createErrorBox("状态格式错误", "请选择 启用 或 停用");
+            sheet.addValidationData(statusValidation);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            workbook.write(baos);
+            xlsxBytes = baos.toByteArray();
+        }
+
+        // 2. 打包为 zip
+        try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
+            ZipEntry xlsxEntry = new ZipEntry("index.xlsx");
+            zos.putNextEntry(xlsxEntry);
+            zos.write(xlsxBytes);
+            zos.closeEntry();
+
+            ZipEntry md1 = new ZipEntry("java-basic.md");
+            zos.putNextEntry(md1);
+            zos.write("# Java 基础语法\n\nJava 是一种面向对象的编程语言。\n\n## 基本语法\n- 变量声明\n- 数据类型\n- 控制流".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
+
+            ZipEntry md2 = new ZipEntry("python-data-structure.md");
+            zos.putNextEntry(md2);
+            zos.write("# Python 数据结构\n\n## 列表\n列表是有序的可变序列。\n\n## 元组\n元组是有序的不可变序列。\n\n## 字典\n字典是键值对集合。".getBytes(StandardCharsets.UTF_8));
+            zos.closeEntry();
         }
     }
 
@@ -349,7 +430,7 @@ public class KnowledgeItemAppService {
         int successCount = 0;
 
         // 预加载分类 name→id 映射（仅 ACTIVE）
-        Map<String, Long> categoryNameToId = buildCategoryNameMap();
+        Map<String, Long> categoryPathToId = buildCategoryPathMap();
 
         try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
@@ -383,7 +464,7 @@ public class KnowledgeItemAppService {
                 if (isRowEmpty(row)) continue;
 
                 try {
-                    ImportRowData data = parseRow(row, categoryNameToId);
+                    ImportRowData data = parseRow(row, categoryPathToId);
                     importOne(data);
                     successCount++;
                 } catch (BusinessException e) {
@@ -452,7 +533,7 @@ public class KnowledgeItemAppService {
         int successCount = 0;
 
         // 预加载分类 name→id 映射（仅 ACTIVE）
-        Map<String, Long> categoryNameToId = buildCategoryNameMap();
+        Map<String, Long> categoryPathToId = buildCategoryPathMap();
 
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(indexXlsxBytes))) {
             Sheet sheet = workbook.getSheetAt(0);
@@ -497,7 +578,7 @@ public class KnowledgeItemAppService {
                     if (mdContent == null) {
                         throw new BusinessException("Markdown 文件不存在: " + filename);
                     }
-                    ImportRowData data = parseZipRow(row, categoryNameToId, mdContent);
+                    ImportRowData data = parseZipRow(row, categoryPathToId, mdContent);
                     importOne(data);
                     successCount++;
                 } catch (BusinessException e) {
@@ -518,7 +599,7 @@ public class KnowledgeItemAppService {
     /**
      * 解析 Markdown zip 一行导入数据（列偏移：0=文件名 1=标题 2=标签 3=分类名称 4=状态 5=排序，正文来自 .md 文件）
      */
-    private ImportRowData parseZipRow(Row row, Map<String, Long> categoryNameToId, String content) {
+    private ImportRowData parseZipRow(Row row, Map<String, Long> categoryPathToId, String content) {
         String title = getCellStringValue(row, 1);
         String tagsStr = getCellStringValue(row, 2);
         String categoryNamesStr = getCellStringValue(row, 3);
@@ -546,9 +627,9 @@ public class KnowledgeItemAppService {
         List<Long> categoryIds = new ArrayList<>();
         for (String name : categoryNamesStr.trim().split("\\s*,\\s*")) {
             if (name.isBlank()) continue;
-            Long id = categoryNameToId.get(name);
+            Long id = categoryPathToId.get(name);
             if (id == null) {
-                throw new BusinessException("分类名称不存在或已停用：" + name);
+                throw new BusinessException("分类名称不存在或已停用：" + name + "（子分类请用\"父级/子级\"路径格式）");
             }
             categoryIds.add(id);
         }
@@ -583,23 +664,48 @@ public class KnowledgeItemAppService {
     }
 
     /**
-     * 构建分类 name → id 映射（仅 ACTIVE）
+     * 构建分类路径 → id 映射（仅 ACTIVE，支持 "父级/子级" 路径格式和简短名称）
      */
-    private Map<String, Long> buildCategoryNameMap() {
+    private Map<String, Long> buildCategoryPathMap() {
         List<KnowledgeCategory> allCategories = categoryRepositoryPort.findAll();
-        Map<String, Long> map = new HashMap<>();
-        for (KnowledgeCategory c : allCategories) {
-            if (c.getStatus() == KnowledgeCategoryStatus.ACTIVE) {
-                map.put(c.getName(), c.getId());
+        List<KnowledgeCategory> active = allCategories.stream()
+                .filter(c -> c.getStatus() == KnowledgeCategoryStatus.ACTIVE)
+                .toList();
+
+        // 构建 parentId → children 映射
+        Map<Long, List<KnowledgeCategory>> childrenMap = new HashMap<>();
+        List<KnowledgeCategory> roots = new ArrayList<>();
+        for (KnowledgeCategory c : active) {
+            if (c.getParentId() == null) {
+                roots.add(c);
+            } else {
+                childrenMap.computeIfAbsent(c.getParentId(), k -> new ArrayList<>()).add(c);
             }
         }
-        return map;
+
+        // 递归构建路径 → id 映射
+        Map<String, Long> pathToId = new LinkedHashMap<>();
+        for (KnowledgeCategory root : roots) {
+            buildCategoryPaths(root, "", childrenMap, pathToId);
+        }
+        return pathToId;
+    }
+
+    private void buildCategoryPaths(KnowledgeCategory node, String prefix,
+                                     Map<Long, List<KnowledgeCategory>> childrenMap,
+                                     Map<String, Long> pathToId) {
+        String path = prefix.isEmpty() ? node.getName() : prefix + "/" + node.getName();
+        pathToId.put(path, node.getId());
+        List<KnowledgeCategory> children = childrenMap.getOrDefault(node.getId(), List.of());
+        for (KnowledgeCategory child : children) {
+            buildCategoryPaths(child, path, childrenMap, pathToId);
+        }
     }
 
     /**
      * 解析一行导入数据
      */
-    private ImportRowData parseRow(Row row, Map<String, Long> categoryNameToId) {
+    private ImportRowData parseRow(Row row, Map<String, Long> categoryPathToId) {
         String title = getCellStringValue(row, 0);
         String content = getCellStringValue(row, 1);
         String tagsStr = getCellStringValue(row, 2);
@@ -629,9 +735,9 @@ public class KnowledgeItemAppService {
         List<Long> categoryIds = new ArrayList<>();
         for (String name : categoryNamesStr.trim().split("\\s*,\\s*")) {
             if (name.isBlank()) continue;
-            Long id = categoryNameToId.get(name);
+            Long id = categoryPathToId.get(name);
             if (id == null) {
-                throw new BusinessException("分类名称不存在或已停用：" + name);
+                throw new BusinessException("分类名称不存在或已停用：" + name + "（子分类请用\"父级/子级\"路径格式）");
             }
             categoryIds.add(id);
         }
