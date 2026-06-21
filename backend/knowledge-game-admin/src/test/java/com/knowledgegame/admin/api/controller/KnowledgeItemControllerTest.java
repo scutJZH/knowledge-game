@@ -1,5 +1,6 @@
 package com.knowledgegame.admin.api.controller;
 
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemListResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
 import com.knowledgegame.admin.application.service.KnowledgeItemAppService;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
@@ -91,14 +92,15 @@ class KnowledgeItemControllerTest {
     }
 
     /**
-     * 分页查询
+     * 分页查询 — 返回 KnowledgeItemListResponse，不含 content/contentHtml
      */
     @Test
     void list_shouldReturn200() throws Exception {
-        KnowledgeItemResponse item = KnowledgeItemResponse.builder()
+        KnowledgeItemListResponse item = KnowledgeItemListResponse.builder()
                 .id(1L).title("标题").status("ACTIVE").sortOrder(0)
+                .categoryIds(List.of(10L))
                 .createdAt(now).updatedAt(now).build();
-        PageResult<KnowledgeItemResponse> page = PageResult.<KnowledgeItemResponse>builder()
+        PageResult<KnowledgeItemListResponse> page = PageResult.<KnowledgeItemListResponse>builder()
                 .content(List.of(item)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
         when(appService.list(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(page);
@@ -106,7 +108,9 @@ class KnowledgeItemControllerTest {
         mockMvc.perform(get("/api/admin/knowledge-items"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
-                .andExpect(jsonPath("$.data.content[0].title").value("标题"));
+                .andExpect(jsonPath("$.data.content[0].title").value("标题"))
+                .andExpect(jsonPath("$.data.content[0].content").doesNotExist())
+                .andExpect(jsonPath("$.data.content[0].contentHtml").doesNotExist());
     }
 
     /**

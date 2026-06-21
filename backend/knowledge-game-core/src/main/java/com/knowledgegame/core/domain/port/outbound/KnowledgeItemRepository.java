@@ -2,6 +2,7 @@ package com.knowledgegame.core.domain.port.outbound;
 
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeItemStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
+import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 
@@ -30,6 +31,13 @@ public interface KnowledgeItemRepository {
     PageResult<KnowledgeItem> findByConditions(String keyword, Long categoryId, String tag,
                                                 KnowledgeItemStatus status, SortField sortField,
                                                 int pageNumber, int pageSize);
+
+    /**
+     * 分页查询摘要（不含正文 content/contentHtml，支持多条件筛选 + 排序）
+     */
+    PageResult<KnowledgeItemSummary> findByConditionsSummary(String keyword, Long categoryId, String tag,
+                                                              KnowledgeItemStatus status, SortField sortField,
+                                                              int pageNumber, int pageSize);
 
     /**
      * 批量查询 ID 列表对应的条目

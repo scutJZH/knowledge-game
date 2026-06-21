@@ -2,6 +2,7 @@ package com.knowledgegame.core.infrastructure.adapter.repoadapter;
 
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeItemStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
+import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
@@ -14,6 +15,7 @@ import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemPO;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemCategoryRelationJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemJpaRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Tuple;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
@@ -84,39 +86,7 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
     public PageResult<KnowledgeItem> findByConditions(String keyword, Long categoryId, String tag,
                                                        KnowledgeItemStatus status, SortField sortField,
                                                        int pageNumber, int pageSize) {
-        Specification<KnowledgeItemPO> spec = (root, query, cb) -> {
-            List<Predicate> predicates = new ArrayList<>();
-
-            // 关键词搜索（标题模糊匹配）
-            if (keyword != null && !keyword.isBlank()) {
-                predicates.add(cb.like(root.get("title"), "%" + keyword + "%"));
-            }
-
-            // 状态筛选
-            if (status != null) {
-                predicates.add(cb.equal(root.get("status"), status));
-            }
-
-            // 分类筛选（通过关联表子查询）
-            if (categoryId != null) {
-                Subquery<Long> subquery = query.subquery(Long.class);
-                Root<KnowledgeItemCategoryRelationPO> relRoot = subquery.from(KnowledgeItemCategoryRelationPO.class);
-                subquery.select(relRoot.get("itemId"))
-                        .where(cb.equal(relRoot.get("categoryId"), categoryId));
-                predicates.add(root.get("id").in(subquery));
-            }
-
-            // 标签筛选（JSON_CONTAINS 函数）
-            if (tag != null && !tag.isBlank()) {
-                predicates.add(cb.isTrue(cb.function(
-                        "JSON_CONTAINS", Boolean.class,
-                        root.get("tags"),
-                        cb.literal("\"" + tag + "\"")
-                )));
-            }
-
-            return cb.and(predicates.toArray(new Predicate[0]));
-        };
+        Specification<KnowledgeItemPO> spec = buildWhereSpec(keyword, categoryId, tag, status);
 
         if (sortField != null && "categoryName".equals(sortField.getField())) {
             SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
@@ -199,6 +169,194 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
     @Override
     public void batchUpdateStatus(List<Long> ids, KnowledgeItemStatus status) {
         itemJpaRepository.batchUpdateStatus(ids, status);
+    }
+
+    @Override
+    public PageResult<KnowledgeItemSummary> findByConditionsSummary(String keyword, Long categoryId, String tag,
+                                                                     KnowledgeItemStatus status, SortField sortField,
+                                                                     int pageNumber, int pageSize) {
+        Specification<KnowledgeItemPO> spec = buildWhereSpec(keyword, categoryId, tag, status);
+
+        if (sortField != null && "categoryName".equals(sortField.getField())) {
+            SortField validated = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
+            return findByConditionsSummaryOrderByCategoryName(spec, validated, pageNumber, pageSize);
+        }
+
+        return findByConditionsSummaryRegular(spec, sortField, pageNumber, pageSize);
+    }
+
+    /**
+     * 构建 WHERE 条件 Specification（findByConditions 与 findByConditionsSummary 共享）
+     */
+    private Specification<KnowledgeItemPO> buildWhereSpec(String keyword, Long categoryId, String tag,
+                                                           KnowledgeItemStatus status) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (keyword != null && !keyword.isBlank()) {
+                predicates.add(cb.like(root.get("title"), "%" + keyword + "%"));
+            }
+
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status));
+            }
+
+            if (categoryId != null) {
+                Subquery<Long> subquery = query.subquery(Long.class);
+                Root<KnowledgeItemCategoryRelationPO> relRoot = subquery.from(KnowledgeItemCategoryRelationPO.class);
+                subquery.select(relRoot.get("itemId"))
+                        .where(cb.equal(relRoot.get("categoryId"), categoryId));
+                predicates.add(root.get("id").in(subquery));
+            }
+
+            if (tag != null && !tag.isBlank()) {
+                predicates.add(cb.isTrue(cb.function(
+                        "JSON_CONTAINS", Boolean.class,
+                        root.get("tags"),
+                        cb.literal("\"" + tag + "\"")
+                )));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    /**
+     * Tuple 投影查询（常规排序路径）— 只 SELECT 9 个非正文列
+     */
+    private PageResult<KnowledgeItemSummary> findByConditionsSummaryRegular(
+            Specification<KnowledgeItemPO> spec, SortField sortField, int pageNumber, int pageSize) {
+        SortField validatedField = SortFieldSpec.validate(sortField, ALLOWED_SORT_FIELDS);
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+
+        CriteriaQuery<Tuple> cq = cb.createQuery(Tuple.class);
+        Root<KnowledgeItemPO> root = cq.from(KnowledgeItemPO.class);
+        cq.multiselect(
+                root.get("id").alias("id"),
+                root.get("title").alias("title"),
+                root.get("coverImageFileId").alias("coverImageFileId"),
+                root.get("coverImageUrl").alias("coverImageUrl"),
+                root.get("tags").alias("tags"),
+                root.get("sortOrder").alias("sortOrder"),
+                root.get("status").alias("status"),
+                root.get("createdAt").alias("createdAt"),
+                root.get("updatedAt").alias("updatedAt")
+        );
+        cq.where(spec.toPredicate(root, cq, cb));
+        cq.orderBy(toCriteriaOrders(root, validatedField));
+
+        TypedQuery<Tuple> typedQuery = em.createQuery(cq);
+        typedQuery.setFirstResult(pageNumber * pageSize);
+        typedQuery.setMaxResults(pageSize);
+        List<Tuple> tuples = typedQuery.getResultList();
+
+        CriteriaQuery<Long> countCq = cb.createQuery(Long.class);
+        Root<KnowledgeItemPO> countRoot = countCq.from(KnowledgeItemPO.class);
+        countCq.select(cb.count(countRoot));
+        countCq.where(spec.toPredicate(countRoot, countCq, cb));
+        Long total = em.createQuery(countCq).getSingleResult();
+
+        int totalPages = (int) Math.ceil((double) total / pageSize);
+
+        return PageResult.<KnowledgeItemSummary>builder()
+                .content(tuples.stream()
+                        .map(KnowledgeItemConverter.INSTANCE::toSummaryDomain)
+                        .toList())
+                .totalElements(total)
+                .pageNumber(pageNumber)
+                .pageSize(pageSize)
+                .totalPages(totalPages)
+                .build();
+    }
+
+    /**
+     * Tuple 投影查询（categoryName 排序路径）— 参照 findByConditionsOrderByCategoryName
+     */
+    private PageResult<KnowledgeItemSummary> findByConditionsSummaryOrderByCategoryName(
+            Specification<KnowledgeItemPO> spec, SortField sortField, int pageNumber, int pageSize) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+
+        CriteriaQuery<Tuple> cq = cb.createQuery(Tuple.class);
+        Root<KnowledgeItemPO> root = cq.from(KnowledgeItemPO.class);
+        cq.select(cb.tuple(
+                root.get("id").alias("id"),
+                root.get("title").alias("title"),
+                root.get("coverImageFileId").alias("coverImageFileId"),
+                root.get("coverImageUrl").alias("coverImageUrl"),
+                root.get("tags").alias("tags"),
+                root.get("sortOrder").alias("sortOrder"),
+                root.get("status").alias("status"),
+                root.get("createdAt").alias("createdAt"),
+                root.get("updatedAt").alias("updatedAt")
+        ));
+        cq.where(spec.toPredicate(root, cq, cb));
+
+        Subquery<String> subquery = cq.subquery(String.class);
+        Root<KnowledgeItemCategoryRelationPO> relRoot = subquery.from(KnowledgeItemCategoryRelationPO.class);
+        Root<KnowledgeCategoryPO> catRoot = subquery.from(KnowledgeCategoryPO.class);
+        subquery.select(cb.function("MIN", String.class, catRoot.get("name")))
+                .where(cb.equal(relRoot.get("categoryId"), catRoot.get("id")),
+                       cb.equal(relRoot.get("itemId"), root.get("id")));
+
+        boolean isAsc = sortField.getDirection() == SortField.Direction.ASC;
+        Expression<Integer> nullOrder = cb.<Integer>selectCase()
+                .when(cb.isNull(subquery), 1)
+                .otherwise(0);
+        cq.orderBy(cb.asc(nullOrder),
+                isAsc ? cb.asc(subquery) : cb.desc(subquery),
+                cb.asc(root.get("sortOrder")),
+                cb.desc(root.get("createdAt")));
+
+        cq.groupBy(root.get("id"));
+
+        TypedQuery<Tuple> typedQuery = em.createQuery(cq);
+        typedQuery.setFirstResult(pageNumber * pageSize);
+        typedQuery.setMaxResults(pageSize);
+        List<Tuple> tuples = typedQuery.getResultList();
+
+        CriteriaQuery<Long> countCq = cb.createQuery(Long.class);
+        Root<KnowledgeItemPO> countRoot = countCq.from(KnowledgeItemPO.class);
+        countCq.select(cb.count(countRoot));
+        countCq.where(spec.toPredicate(countRoot, countCq, cb));
+        Long total = em.createQuery(countCq).getSingleResult();
+
+        int totalPages = (int) Math.ceil((double) total / pageSize);
+
+        return PageResult.<KnowledgeItemSummary>builder()
+                .content(tuples.stream()
+                        .map(KnowledgeItemConverter.INSTANCE::toSummaryDomain)
+                        .toList())
+                .totalElements(total)
+                .pageNumber(pageNumber)
+                .pageSize(pageSize)
+                .totalPages(totalPages)
+                .build();
+    }
+
+    /**
+     * SortField → CriteriaBuilder Order 列表，用于 Tuple 查询排序
+     * <p>
+     * 调用方必须预先通过 {@link SortFieldSpec#validate} 校验 sortField（null 表示默认排序）。
+     * 此方法负责将已校验的排序字段转为 CriteriaBuilder 排序对象。
+     */
+    private List<jakarta.persistence.criteria.Order> toCriteriaOrders(Root<KnowledgeItemPO> root,
+                                                                       SortField validated) {
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        if (validated == null) {
+            return List.of(
+                    cb.asc(root.get("sortOrder")),
+                    cb.desc(root.get("createdAt"))
+            );
+        }
+        if ("categoryName".equals(validated.getField())) {
+            throw new IllegalStateException(
+                    "categoryName 排序应在 findByConditionsSummary 入口分支处理，不应到达 toCriteriaOrders");
+        }
+        if (validated.getDirection() == SortField.Direction.ASC) {
+            return List.of(cb.asc(root.get(validated.getField())));
+        } else {
+            return List.of(cb.desc(root.get(validated.getField())));
+        }
     }
 
     /**

@@ -5,6 +5,7 @@ import com.knowledgegame.admin.api.dto.request.BatchStatusRequest;
 import com.knowledgegame.admin.api.dto.request.CreateKnowledgeItemRequest;
 import com.knowledgegame.admin.api.dto.request.KnowledgeItemCategoryUpdateRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeItemRequest;
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemListResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
 import com.knowledgegame.admin.application.service.KnowledgeItemAppService;
 import com.knowledgegame.core.common.result.Result;
@@ -54,10 +55,10 @@ public class KnowledgeItemController {
     }
 
     /**
-     * 分页查询知识条目列表
+     * 分页查询知识条目列表（不含正文 content/contentHtml）
      */
     @GetMapping
-    public Result<PageResult<KnowledgeItemResponse>> list(
+    public Result<PageResult<KnowledgeItemListResponse>> list(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String tag,
@@ -66,7 +67,7 @@ public class KnowledgeItemController {
             @RequestParam(required = false) String order,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        PageResult<KnowledgeItemResponse> result = appService.list(
+        PageResult<KnowledgeItemListResponse> result = appService.list(
                 keyword, categoryId, tag, status, sort, order, page, size);
         return Result.success(result);
     }

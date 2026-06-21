@@ -11,7 +11,7 @@ import {
   batchSort,
   getKnowledgeItemById,
   listKnowledgeItems,
-  type KnowledgeItemResponse,
+  type KnowledgeItemListResponse,
   type BatchSortItem,
   type KnowledgeItemQuery,
 } from '@/services/knowledge-item';
@@ -42,7 +42,7 @@ const KnowledgeItemPage: React.FC = () => {
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [categoryTree, setCategoryTree] = useState<CategoryTreeNode[]>([]);
   const [categoryNameMap, setCategoryNameMap] = useState<Map<number, string>>(new Map());
-  const [dataSource, setDataSource] = useState<KnowledgeItemResponse[]>([]);
+  const [dataSource, setDataSource] = useState<KnowledgeItemListResponse[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState('');
@@ -58,7 +58,7 @@ const KnowledgeItemPage: React.FC = () => {
       .catch(() => message.error('加载分类树失败'));
   }, []);
 
-  const handleMove = async (record: KnowledgeItemResponse, direction: 'up' | 'down') => {
+  const handleMove = async (record: KnowledgeItemListResponse, direction: 'up' | 'down') => {
     const list = dataSource;
     const idx = list.findIndex((item) => item.id === record.id);
     if (idx === -1) return;
@@ -96,7 +96,7 @@ const KnowledgeItemPage: React.FC = () => {
     }
   };
 
-  const columns: ProColumns<KnowledgeItemResponse>[] = [
+  const columns: ProColumns<KnowledgeItemListResponse>[] = [
     {
       title: 'ID',
       dataIndex: 'id',
@@ -295,7 +295,7 @@ const KnowledgeItemPage: React.FC = () => {
 
   return (
     <>
-      <ProTable<KnowledgeItemResponse>
+      <ProTable<KnowledgeItemListResponse>
         columns={columns}
         actionRef={actionRef}
         cardBordered

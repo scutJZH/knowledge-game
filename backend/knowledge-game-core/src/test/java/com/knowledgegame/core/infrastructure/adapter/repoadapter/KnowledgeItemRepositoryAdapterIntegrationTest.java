@@ -3,6 +3,8 @@ package com.knowledgegame.core.infrastructure.adapter.repoadapter;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeItemStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
+import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
@@ -193,7 +195,129 @@ class KnowledgeItemRepositoryAdapterIntegrationTest {
                 "categoryName 排序耗时 " + elapsed + "ms 超过 500ms 阈值");
     }
 
+    /**
+     * findByConditionsSummary — 基本分页，返回 KnowledgeItemSummary 不含 content/contentHtml
+     */
+    @Test
+    @DisplayName("findByConditionsSummary → 返回 KnowledgeItemSummary，含 coverImage/tags，不含正文")
+    void shouldReturnSummaryWithoutContent() {
+        KnowledgeItemPO item = persistItemWithCoverImage("摘要条目", 0, 1L,
+                "https://example.com/cover.png", "[\"Java\",\"Spring\"]");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        PageResult<KnowledgeItemSummary> result = adapter.findByConditionsSummary(
+                null, null, null, null, null, 0, 20);
+
+        assertEquals(1, result.getTotalElements());
+        KnowledgeItemSummary summary = result.getContent().get(0);
+        assertEquals(item.getId(), summary.getId());
+        assertEquals("摘要条目", summary.getTitle());
+        assertEquals(1L, summary.getCoverImage().fileId());
+        assertEquals("https://example.com/cover.png", summary.getCoverImage().url());
+        assertEquals(List.of("Java", "Spring"), summary.getTags());
+        assertEquals(0, summary.getSortOrder());
+        assertEquals(KnowledgeItemStatus.ACTIVE, summary.getStatus());
+    }
+
+    /**
+     * findByConditionsSummary — categoryName 排序
+     */
+    @Test
+    @DisplayName("findByConditionsSummary + categoryName 升序 → 有分类在前，无分类 NULLS LAST")
+    void shouldSortSummaryByCategoryNameAsc() {
+        KnowledgeCategoryPO catA = persistCategory("AAA-文学");
+        KnowledgeCategoryPO catB = persistCategory("BBB-艺术");
+
+        KnowledgeItemPO item1 = persistItem("摘要A", 0);
+        KnowledgeItemPO item2 = persistItem("摘要B", 1);
+        KnowledgeItemPO item3 = persistItem("摘要C", 2);
+
+        persistRelation(item1.getId(), catA.getId());
+        persistRelation(item3.getId(), catB.getId());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        PageResult<KnowledgeItemSummary> result = adapter.findByConditionsSummary(
+                null, null, null, null,
+                new SortField("categoryName", SortField.Direction.ASC), 0, 20);
+
+        assertEquals(3, result.getTotalElements());
+        List<KnowledgeItemSummary> content = result.getContent();
+        assertEquals(item1.getId(), content.get(0).getId());
+        assertEquals(item3.getId(), content.get(1).getId());
+        assertEquals(item2.getId(), content.get(2).getId());
+    }
+
+    /**
+     * findByConditionsSummary — categoryName 降序
+     */
+    @Test
+    @DisplayName("findByConditionsSummary + categoryName 降序 → 有分类按名称 DESC 在前")
+    void shouldSortSummaryByCategoryNameDesc() {
+        KnowledgeCategoryPO catA = persistCategory("AAA-文学");
+        KnowledgeCategoryPO catB = persistCategory("BBB-艺术");
+
+        KnowledgeItemPO item1 = persistItem("摘要A", 0);
+        KnowledgeItemPO item2 = persistItem("摘要B", 1);
+        KnowledgeItemPO item3 = persistItem("摘要C", 2);
+
+        persistRelation(item1.getId(), catA.getId());
+        persistRelation(item3.getId(), catB.getId());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        PageResult<KnowledgeItemSummary> result = adapter.findByConditionsSummary(
+                null, null, null, null,
+                new SortField("categoryName", SortField.Direction.DESC), 0, 20);
+
+        assertEquals(3, result.getTotalElements());
+        List<KnowledgeItemSummary> content = result.getContent();
+        assertEquals(item3.getId(), content.get(0).getId());
+        assertEquals(item1.getId(), content.get(1).getId());
+        assertEquals(item2.getId(), content.get(2).getId());
+    }
+
+    /**
+     * findByConditionsSummary — 关键词 + 状态筛选
+     */
+    @Test
+    @DisplayName("findByConditionsSummary + keyword + status → 筛选正确")
+    void shouldFilterSummaryByKeywordAndStatus() {
+        persistItem("Java入门", 0);
+        persistItem("Spring实战", 1);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        PageResult<KnowledgeItemSummary> result = adapter.findByConditionsSummary(
+                "Java", null, null, KnowledgeItemStatus.ACTIVE, null, 0, 20);
+
+        assertEquals(1, result.getTotalElements());
+        assertEquals("Java入门", result.getContent().get(0).getTitle());
+    }
+
     // --- 辅助方法 ---
+
+    private KnowledgeItemPO persistItemWithCoverImage(String title, int sortOrder,
+                                                       Long fileId, String url, String tags) {
+        KnowledgeItemPO po = KnowledgeItemPO.builder()
+                .title(title)
+                .content("正文内容")
+                .contentHtml("<p>正文内容</p>")
+                .coverImageFileId(fileId)
+                .coverImageUrl(url)
+                .tags(tags)
+                .sortOrder(sortOrder)
+                .status(KnowledgeItemStatus.ACTIVE)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        return entityManager.persistFlushFind(po);
+    }
 
     private KnowledgeCategoryPO persistCategory(String name) {
         KnowledgeCategoryPO po = KnowledgeCategoryPO.builder()
