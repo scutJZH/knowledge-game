@@ -340,6 +340,47 @@ class KnowledgeItemRepositoryAdapterTest {
     }
 
     /**
+     * findByConditionsSummary 常规排序 → 走 EntityManager Tuple 查询路径，不调 itemJpaRepository.findAll
+     */
+    @Test
+    void findByConditionsSummary_shouldRouteToEntityManager_whenRegularSort() {
+        try {
+            adapter.findByConditionsSummary(null, null, null, null, null, 0, 20);
+        } catch (NullPointerException expected) {
+            // EntityManager mock 返回 null → CriteriaBuilder 时 NPE，证明走了 EntityManager 路径
+        }
+        verify(itemJpaRepository, never()).findAll(any(Specification.class), any(PageRequest.class));
+    }
+
+    /**
+     * findByConditionsSummary sort=categoryName → 走 EntityManager 子查询路径
+     */
+    @Test
+    void findByConditionsSummary_shouldRouteToEntityManager_whenCategoryName() {
+        try {
+            adapter.findByConditionsSummary(null, null, null, null,
+                    new SortField("categoryName", SortField.Direction.ASC), 0, 20);
+        } catch (NullPointerException expected) {
+            // EntityManager mock 返回 null → 证明走了 EntityManager 路径
+        }
+        verify(itemJpaRepository, never()).findAll(any(Specification.class), any(PageRequest.class));
+    }
+
+    /**
+     * findByConditionsSummary sort="invalidField" → BusinessException(400)
+     */
+    @Test
+    void findByConditionsSummary_shouldThrowBusinessException_whenInvalidField() {
+        BusinessException ex = assertThrows(
+                BusinessException.class,
+                () -> adapter.findByConditionsSummary(null, null, null, null,
+                        new SortField("invalidField", SortField.Direction.ASC), 0, 20)
+        );
+        assertEquals(400, ex.getCode());
+        assertTrue(ex.getMessage().contains("不支持的排序字段"));
+    }
+
+    /**
      * findByIds - 批量查询
      */
     @Test

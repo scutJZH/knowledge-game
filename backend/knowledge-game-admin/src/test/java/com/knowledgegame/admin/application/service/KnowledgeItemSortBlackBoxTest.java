@@ -1,7 +1,7 @@
 package com.knowledgegame.admin.application.service;
 
 import com.knowledgegame.admin.api.controller.KnowledgeItemController;
-import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemListResponse;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import org.junit.jupiter.api.Test;
@@ -61,7 +61,7 @@ class KnowledgeItemSortBlackBoxTest {
      * 让 AppService.list() 返回空分页，方便所有测试共用。
      */
     private void stubListReturnsEmptyPage() {
-        PageResult<KnowledgeItemResponse> page = PageResult.<KnowledgeItemResponse>builder()
+        PageResult<KnowledgeItemListResponse> page = PageResult.<KnowledgeItemListResponse>builder()
                 .content(List.of())
                 .totalElements(0L)
                 .pageNumber(0)

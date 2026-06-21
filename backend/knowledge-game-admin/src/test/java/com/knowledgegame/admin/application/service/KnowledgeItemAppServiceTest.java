@@ -4,6 +4,7 @@ import com.knowledgegame.admin.api.dto.request.BatchSortItem;
 import com.knowledgegame.admin.api.dto.request.BatchSortRequest;
 import com.knowledgegame.admin.api.dto.request.CreateKnowledgeItemRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeItemRequest;
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemListResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
 import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.components.feign.dto.FileInfoResponse;
@@ -14,6 +15,7 @@ import com.knowledgegame.core.domain.model.domainenum.KnowledgeItemStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
 import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
@@ -228,10 +230,10 @@ class KnowledgeItemAppServiceTest {
      */
     @Test
     void list_shouldPassNullSortField_whenSortNotProvided() {
-        KnowledgeItem item = buildItem(1L);
-        PageResult<KnowledgeItem> domainPage = PageResult.<KnowledgeItem>builder()
-                .content(List.of(item)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
-        when(itemRepository.findByConditions(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+        KnowledgeItemSummary summary = buildSummary(1L);
+        PageResult<KnowledgeItemSummary> domainPage = PageResult.<KnowledgeItemSummary>builder()
+                .content(List.of(summary)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+        when(itemRepository.findByConditionsSummary(any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(domainPage);
         when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
                 .thenReturn(Map.of(1L, List.of(10L)));
@@ -239,7 +241,7 @@ class KnowledgeItemAppServiceTest {
         appService.list(null, null, null, null, null, null, 0, 20);
 
         ArgumentCaptor<SortField> captor = ArgumentCaptor.forClass(SortField.class);
-        verify(itemRepository).findByConditions(any(), any(), any(), any(), captor.capture(), anyInt(), anyInt());
+        verify(itemRepository).findByConditionsSummary(any(), any(), any(), any(), captor.capture(), anyInt(), anyInt());
         assertNull(captor.getValue(), "sort 不传时期望 sortField 为 null");
     }
 
@@ -248,10 +250,10 @@ class KnowledgeItemAppServiceTest {
      */
     @Test
     void list_shouldPassSortField_whenSortProvided() {
-        KnowledgeItem item = buildItem(1L);
-        PageResult<KnowledgeItem> domainPage = PageResult.<KnowledgeItem>builder()
-                .content(List.of(item)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
-        when(itemRepository.findByConditions(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+        KnowledgeItemSummary summary = buildSummary(1L);
+        PageResult<KnowledgeItemSummary> domainPage = PageResult.<KnowledgeItemSummary>builder()
+                .content(List.of(summary)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+        when(itemRepository.findByConditionsSummary(any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(domainPage);
         when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
                 .thenReturn(Map.of(1L, List.of(10L)));
@@ -259,7 +261,7 @@ class KnowledgeItemAppServiceTest {
         appService.list(null, null, null, null, "title", "asc", 0, 20);
 
         ArgumentCaptor<SortField> captor = ArgumentCaptor.forClass(SortField.class);
-        verify(itemRepository).findByConditions(any(), any(), any(), any(), captor.capture(), anyInt(), anyInt());
+        verify(itemRepository).findByConditionsSummary(any(), any(), any(), any(), captor.capture(), anyInt(), anyInt());
         SortField captured = captor.getValue();
         assertNotNull(captured);
         assertEquals("title", captured.getField());
@@ -267,23 +269,26 @@ class KnowledgeItemAppServiceTest {
     }
 
     /**
-     * list - 分页查询
+     * list - 分页查询返回 KnowledgeItemListResponse
      */
     @Test
     void list_shouldReturnPage() {
-        KnowledgeItem item = buildItem(1L);
-        PageResult<KnowledgeItem> domainPage = PageResult.<KnowledgeItem>builder()
-                .content(List.of(item)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
-        when(itemRepository.findByConditions(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+        KnowledgeItemSummary summary = buildSummary(1L);
+        PageResult<KnowledgeItemSummary> domainPage = PageResult.<KnowledgeItemSummary>builder()
+                .content(List.of(summary)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
+        when(itemRepository.findByConditionsSummary(any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(domainPage);
         when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
                 .thenReturn(Map.of(1L, List.of(10L)));
 
-        PageResult<KnowledgeItemResponse> result = appService.list(
+        PageResult<KnowledgeItemListResponse> result = appService.list(
                 null, null, null, null, null, null, 0, 20);
 
         assertEquals(1, result.getTotalElements());
-        assertEquals(List.of(10L), result.getContent().get(0).getCategoryIds());
+        KnowledgeItemListResponse first = result.getContent().get(0);
+        assertEquals(1L, first.getId());
+        assertEquals("标题", first.getTitle());
+        assertEquals(List.of(10L), first.getCategoryIds());
     }
 
     /**
@@ -361,6 +366,13 @@ class KnowledgeItemAppServiceTest {
 
     private KnowledgeItem buildItem(Long id) {
         return KnowledgeItem.reconstruct(id, "标题", "内容", "<p>内容</p>",
+                null, List.of("Java"), 0,
+                KnowledgeItemStatus.ACTIVE,
+                LocalDateTime.now(), LocalDateTime.now());
+    }
+
+    private KnowledgeItemSummary buildSummary(Long id) {
+        return KnowledgeItemSummary.reconstruct(id, "标题",
                 null, List.of("Java"), 0,
                 KnowledgeItemStatus.ACTIVE,
                 LocalDateTime.now(), LocalDateTime.now());

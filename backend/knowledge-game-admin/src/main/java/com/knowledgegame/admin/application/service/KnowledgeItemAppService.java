@@ -5,6 +5,7 @@ import com.knowledgegame.admin.api.dto.request.BatchSortItem;
 import com.knowledgegame.admin.api.dto.request.BatchSortRequest;
 import com.knowledgegame.admin.api.dto.request.CreateKnowledgeItemRequest;
 import com.knowledgegame.admin.api.dto.request.UpdateKnowledgeItemRequest;
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemListResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
 import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.components.feign.client.FileServiceClient;
@@ -17,6 +18,7 @@ import com.knowledgegame.core.domain.model.domainenum.KnowledgeItemStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeCategory;
 import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
 import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
@@ -88,33 +90,33 @@ public class KnowledgeItemAppService {
     }
 
     /**
-     * 分页查询
+     * 分页查询（列表使用摘要投影，不含正文 content/contentHtml）
      */
-    public PageResult<KnowledgeItemResponse> list(String keyword, Long categoryId, String tag,
-                                                   String status, String sort, String order,
-                                                   int page, int size) {
+    public PageResult<KnowledgeItemListResponse> list(String keyword, Long categoryId, String tag,
+                                                       String status, String sort, String order,
+                                                       int page, int size) {
         KnowledgeItemStatus statusEnum = EnumUtils.valueOfNullable(KnowledgeItemStatus.class, status);
-        SortField sortField = SortField.parse(sort, order); // null → adapter 使用默认排序
+        SortField sortField = SortField.parse(sort, order);
 
-        PageResult<KnowledgeItem> domainPage = itemRepository.findByConditions(
+        PageResult<KnowledgeItemSummary> summaryPage = itemRepository.findByConditionsSummary(
                 keyword, categoryId, tag, statusEnum, sortField, page, size
         );
 
-        List<Long> pageItemIds = domainPage.getContent().stream()
-                .map(KnowledgeItem::getId).toList();
+        List<Long> pageItemIds = summaryPage.getContent().stream()
+                .map(KnowledgeItemSummary::getId).toList();
         Map<Long, List<Long>> categoryMap = pageItemIds.isEmpty()
                 ? Map.of()
                 : itemRepository.findActiveCategoryIdsByItemIds(pageItemIds);
 
-        return PageResult.<KnowledgeItemResponse>builder()
-                .content(domainPage.getContent().stream()
-                        .map(item -> KnowledgeItemAssembler.INSTANCE.toResponse(
-                                item, categoryMap.getOrDefault(item.getId(), List.of())))
+        return PageResult.<KnowledgeItemListResponse>builder()
+                .content(summaryPage.getContent().stream()
+                        .map(summary -> KnowledgeItemAssembler.INSTANCE.toListResponse(
+                                summary, categoryMap.getOrDefault(summary.getId(), List.of())))
                         .toList())
-                .totalElements(domainPage.getTotalElements())
-                .pageNumber(domainPage.getPageNumber())
-                .pageSize(domainPage.getPageSize())
-                .totalPages(domainPage.getTotalPages())
+                .totalElements(summaryPage.getTotalElements())
+                .pageNumber(summaryPage.getPageNumber())
+                .pageSize(summaryPage.getPageSize())
+                .totalPages(summaryPage.getTotalPages())
                 .build();
     }
 

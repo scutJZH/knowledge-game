@@ -3,9 +3,12 @@ package com.knowledgegame.core.infrastructure.db.converter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.knowledgegame.core.domain.model.domainenum.KnowledgeItemStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
 import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemPO;
+import jakarta.persistence.Tuple;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
@@ -13,6 +16,7 @@ import org.mapstruct.factory.Mappers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -45,6 +49,28 @@ public interface KnowledgeItemConverter {
                 po.getStatus(),
                 po.getCreatedAt(),
                 po.getUpdatedAt()
+        );
+    }
+
+    /**
+     * Tuple → KnowledgeItemSummary（列表投影，不含正文 content/contentHtml）
+     */
+    default KnowledgeItemSummary toSummaryDomain(Tuple tuple) {
+        if (tuple == null) {
+            return null;
+        }
+        return KnowledgeItemSummary.reconstruct(
+                tuple.get("id", Long.class),
+                tuple.get("title", String.class),
+                toFileRef(
+                        tuple.get("coverImageFileId", Long.class),
+                        tuple.get("coverImageUrl", String.class)
+                ),
+                parseTags(tuple.get("tags", String.class)),
+                tuple.get("sortOrder", Integer.class),
+                tuple.get("status", KnowledgeItemStatus.class),
+                tuple.get("createdAt", LocalDateTime.class),
+                tuple.get("updatedAt", LocalDateTime.class)
         );
     }
 

@@ -2,12 +2,26 @@ import type { PageResult } from './typing';
 // @ts-ignore — UmiJS 构建时生成类型
 import { request } from '@umijs/max';
 
-/** 知识条目响应 */
+/** 知识条目响应（详情/创建/更新） */
 export interface KnowledgeItemResponse {
   id: number;
   title: string;
   content: string;
   contentHtml: string;
+  coverImageFileId: number | null;
+  coverImageUrl: string | null;
+  tags: string[];
+  categoryIds: number[];
+  sortOrder: number;
+  status: 'ACTIVE' | 'INACTIVE';
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** 知识条目列表响应（不含正文 content/contentHtml） */
+export interface KnowledgeItemListResponse {
+  id: number;
+  title: string;
   coverImageFileId: number | null;
   coverImageUrl: string | null;
   tags: string[];
@@ -60,9 +74,9 @@ export interface BatchSortItem {
   sortOrder: number;
 }
 
-/** 分页查询知识条目列表 */
+/** 分页查询知识条目列表（不含正文） */
 export async function listKnowledgeItems(params: KnowledgeItemQuery) {
-  return request<PageResult<KnowledgeItemResponse>>('/api/admin/knowledge-items', {
+  return request<PageResult<KnowledgeItemListResponse>>('/api/admin/knowledge-items', {
     method: 'GET',
     params,
   });

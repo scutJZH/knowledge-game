@@ -1,7 +1,9 @@
 package com.knowledgegame.admin.api.assembler;
 
+import com.knowledgegame.admin.api.dto.response.KnowledgeItemListResponse;
 import com.knowledgegame.admin.api.dto.response.KnowledgeItemResponse;
 import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
+import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
@@ -39,6 +41,36 @@ public interface KnowledgeItemAssembler {
                 .title(response.getTitle())
                 .content(response.getContent())
                 .contentHtml(response.getContentHtml())
+                .coverImageFileId(response.getCoverImageFileId())
+                .coverImageUrl(response.getCoverImageUrl())
+                .tags(response.getTags())
+                .categoryIds(categoryIds)
+                .sortOrder(response.getSortOrder())
+                .status(response.getStatus())
+                .createdAt(response.getCreatedAt())
+                .updatedAt(response.getUpdatedAt())
+                .build();
+    }
+
+    /**
+     * KnowledgeItemSummary → ListResponse（列表接口，不含正文）
+     */
+    @Mapping(target = "coverImageFileId", expression = "java(summary.getCoverImage() != null ? summary.getCoverImage().fileId() : null)")
+    @Mapping(target = "coverImageUrl", expression = "java(summary.getCoverImage() != null ? summary.getCoverImage().url() : null)")
+    @Mapping(target = "status", expression = "java(summary.getStatus().name())")
+    @Mapping(target = "categoryIds", ignore = true)
+    @Mapping(target = "createdAt", expression = "java(toEpochMilli(summary.getCreatedAt()))")
+    @Mapping(target = "updatedAt", expression = "java(toEpochMilli(summary.getUpdatedAt()))")
+    KnowledgeItemListResponse toListResponse(KnowledgeItemSummary summary);
+
+    /**
+     * KnowledgeItemSummary → ListResponse（含分类 ID 列表）
+     */
+    default KnowledgeItemListResponse toListResponse(KnowledgeItemSummary summary, List<Long> categoryIds) {
+        KnowledgeItemListResponse response = toListResponse(summary);
+        return KnowledgeItemListResponse.builder()
+                .id(response.getId())
+                .title(response.getTitle())
                 .coverImageFileId(response.getCoverImageFileId())
                 .coverImageUrl(response.getCoverImageUrl())
                 .tags(response.getTags())

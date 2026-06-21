@@ -3,7 +3,10 @@ package com.knowledgegame.core.infrastructure.db.converter;
 import com.knowledgegame.core.domain.model.domainenum.KnowledgeItemStatus;
 import com.knowledgegame.core.domain.model.entity.KnowledgeItem;
 import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemPO;
+import jakarta.persistence.Tuple;
+import jakarta.persistence.TupleElement;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -12,6 +15,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * KnowledgeItemConverter 单元测试
@@ -182,6 +187,67 @@ class KnowledgeItemConverterTest {
         KnowledgeItem domain = KnowledgeItemConverter.INSTANCE.toDomain(po);
 
         assertNull(domain.getTags());
+    }
+
+    /**
+     * toSummaryDomain — Tuple → KnowledgeItemSummary 转换，不含 content/contentHtml
+     */
+    @Test
+    void toSummaryDomain_shouldConvertTuple() {
+        Tuple tuple = mock(Tuple.class);
+        when(tuple.get("id", Long.class)).thenReturn(1L);
+        when(tuple.get("title", String.class)).thenReturn("标题");
+        when(tuple.get("coverImageFileId", Long.class)).thenReturn(1L);
+        when(tuple.get("coverImageUrl", String.class)).thenReturn("https://example.com/cover.png");
+        when(tuple.get("tags", String.class)).thenReturn("[\"Java\",\"Spring\"]");
+        when(tuple.get("sortOrder", Integer.class)).thenReturn(5);
+        when(tuple.get("status", KnowledgeItemStatus.class)).thenReturn(KnowledgeItemStatus.ACTIVE);
+        LocalDateTime now = LocalDateTime.of(2026, 1, 1, 0, 0);
+        when(tuple.get("createdAt", LocalDateTime.class)).thenReturn(now);
+        when(tuple.get("updatedAt", LocalDateTime.class)).thenReturn(now);
+
+        KnowledgeItemSummary summary = KnowledgeItemConverter.INSTANCE.toSummaryDomain(tuple);
+
+        assertNotNull(summary);
+        assertEquals(1L, summary.getId());
+        assertEquals("标题", summary.getTitle());
+        assertEquals(1L, summary.getCoverImage().fileId());
+        assertEquals("https://example.com/cover.png", summary.getCoverImage().url());
+        assertEquals(List.of("Java", "Spring"), summary.getTags());
+        assertEquals(5, summary.getSortOrder());
+        assertEquals(KnowledgeItemStatus.ACTIVE, summary.getStatus());
+        assertEquals(now, summary.getCreatedAt());
+        assertEquals(now, summary.getUpdatedAt());
+    }
+
+    /**
+     * toSummaryDomain — null Tuple 返回 null
+     */
+    @Test
+    void toSummaryDomain_shouldReturnNull_whenNullTuple() {
+        assertNull(KnowledgeItemConverter.INSTANCE.toSummaryDomain(null));
+    }
+
+    /**
+     * toSummaryDomain — coverImage 双字段为 null 时返回 null FileRef
+     */
+    @Test
+    void toSummaryDomain_shouldReturnNullCoverImage_whenBothNull() {
+        Tuple tuple = mock(Tuple.class);
+        when(tuple.get("id", Long.class)).thenReturn(1L);
+        when(tuple.get("title", String.class)).thenReturn("标题");
+        when(tuple.get("coverImageFileId", Long.class)).thenReturn(null);
+        when(tuple.get("coverImageUrl", String.class)).thenReturn(null);
+        when(tuple.get("tags", String.class)).thenReturn(null);
+        when(tuple.get("sortOrder", Integer.class)).thenReturn(0);
+        when(tuple.get("status", KnowledgeItemStatus.class)).thenReturn(KnowledgeItemStatus.ACTIVE);
+        when(tuple.get("createdAt", LocalDateTime.class)).thenReturn(LocalDateTime.now());
+        when(tuple.get("updatedAt", LocalDateTime.class)).thenReturn(LocalDateTime.now());
+
+        KnowledgeItemSummary summary = KnowledgeItemConverter.INSTANCE.toSummaryDomain(tuple);
+
+        assertNull(summary.getCoverImage());
+        assertNull(summary.getTags());
     }
 
     private List<String> parseTags(String json) {
