@@ -105,6 +105,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-110 | 卡牌批量导入 | REQ-17 ✅ |
 | REQ-111 | 知识条目批量导入 | REQ-97 ✅ |
 | REQ-112 | Markdown 源码编辑 | REQ-97 ✅ |
+| REQ-114 | 知识条目列表性能优化 — 列表与详情分离 | REQ-97 ✅ |
 
 ## Phase 1：后端基础 + 认证
 
@@ -291,6 +292,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-81 | Token 黑名单 Redis 存储迁移 | idea | - | P3：从内存迁移到 Redis，支持多实例部署。REQ-06 预留接口 | REQ-06 ✅ |
 | REQ-89 | 知识点分类状态管理（停用/启用切换） | done | - | P0：管理后台支持将 INACTIVE 分类重新启用，编辑表单增加状态下拉，后端 update 接口增加 status 参数。UpdateKnowledgeCategoryRequest 新增 status 字段，AppService.update() 处理双向校验（停用→validateDelete，启用→validateActivate），前端 CategoryDetail 改为启用/停用切换按钮 | REQ-07 ✅ |
 | REQ-99 | 知识库 — 学习记录追踪 + 富媒体扩展 | idea | - | P0：`user_learning_record` 表（用户维度，浏览/停留时长/累计学习统计），富媒体扩展（视频/外链等）。可纳入成就/积分体系。前置：REQ-97✅/REQ-98 | REQ-97 ✅, REQ-98 |
+| REQ-114 | 知识条目列表性能优化 — 列表与详情分离 | idea | - | P2：列表接口 `GET /api/admin/knowledge-items` 返回 `content`/`contentHtml` 字段导致响应体过大，影响性能。拆分为轻量 `KnowledgeItemListResponse`（不含正文）和 `KnowledgeItemDetailResponse`（含正文），前端列表页不再接收正文数据，预览/编辑仍走详情接口 | REQ-97 ✅ |
 
 ## Phase 8：回收站与数据管理增强
 
