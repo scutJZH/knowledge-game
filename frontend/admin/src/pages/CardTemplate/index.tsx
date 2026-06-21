@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Button, message, Popconfirm, Space, Tag } from 'antd';
+import { Button, message, Popconfirm, Space, Tag, Upload } from 'antd';
+import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import {
   ModalForm,
@@ -12,12 +13,15 @@ import {
 
 import {
   createCardTemplate,
+  downloadImportTemplate,
   getCardTemplateById,
+  importCardTemplates,
   listCardTemplates,
   updateCardTemplate,
 } from '@/services/cardTemplate';
 import type {
   CardRarity,
+  CardTemplateImportResult,
   CardTemplateListResponse,
   CardTemplateResponse,
   CardTemplateStatus,
@@ -26,6 +30,7 @@ import type {
 } from '@/services/cardTemplate';
 import { listIpSeries } from '@/services/ipSeries';
 import ImageUploadField from '@/components/ImageUploadField';
+import ImportResultModal from './components/ImportResultModal';
 
 /**
  * 构造更新负载：按字段对比，未变更字段不发送（undefined 三态）。
@@ -100,6 +105,8 @@ const CardTemplate: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<CardTemplateResponse | null>(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importResult, setImportResult] = useState<CardTemplateImportResult | null>(null);
 
   const columns: ProColumns<CardTemplateListResponse>[] = [
     { title: 'ID', dataIndex: 'id', search: false, width: 80, sorter: true },
@@ -189,6 +196,48 @@ const CardTemplate: React.FC = () => {
       ),
     },
   ];
+
+  /** 下载导入模板 */
+  const handleDownloadTemplate = async () => {
+    try {
+      const blob = await downloadImportTemplate();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'card_template_import_template.xlsx';
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      // 错误已由 request 拦截器展示
+    }
+  };
+
+  /** 导入文件前校验 */
+  const handleBeforeUpload = (file: File) => {
+    const isXlsx = file.name.endsWith('.xlsx');
+    if (!isXlsx) {
+      message.error('仅支持 .xlsx 格式文件');
+      return false;
+    }
+    const isLt10M = file.size / 1024 / 1024 < 10;
+    if (!isLt10M) {
+      message.error('文件大小不能超过 10MB');
+      return false;
+    }
+    return true;
+  };
+
+  /** 执行导入 */
+  const handleImport = async (file: File) => {
+    try {
+      const result = await importCardTemplates(file);
+      setImportResult(result);
+      setImportModalOpen(true);
+      actionRef.current?.reload();
+    } catch {
+      // 错误已由 request 拦截器展示（如超 200 行等）
+    }
+  };
 
   /** 切换卡牌模板启用/停用状态 */
   const handleToggleStatus = async (id: number, status: CardTemplateStatus) => {
@@ -297,6 +346,26 @@ const CardTemplate: React.FC = () => {
           >
             新建
           </Button>,
+          <Button
+            key="download-template"
+            icon={<DownloadOutlined />}
+            onClick={handleDownloadTemplate}
+          >
+            下载模板
+          </Button>,
+          <Upload
+            key="import"
+            accept=".xlsx"
+            showUploadList={false}
+            beforeUpload={(file) => {
+              if (handleBeforeUpload(file)) {
+                handleImport(file);
+              }
+              return false;
+            }}
+          >
+            <Button icon={<UploadOutlined />}>批量导入</Button>
+          </Upload>,
         ]}
       />
 
@@ -374,6 +443,15 @@ const CardTemplate: React.FC = () => {
           </ProForm.Item>
         </ModalForm>
       )}
+
+      <ImportResultModal
+        open={importModalOpen}
+        result={importResult}
+        onClose={() => {
+          setImportModalOpen(false);
+          setImportResult(null);
+        }}
+      />
     </>
   );
 };

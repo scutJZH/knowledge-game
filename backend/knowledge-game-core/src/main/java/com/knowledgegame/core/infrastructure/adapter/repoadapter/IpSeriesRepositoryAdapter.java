@@ -127,6 +127,13 @@ public class IpSeriesRepositoryAdapter implements IpSeriesRepositoryPort {
     }
 
     @Override
+    public List<IpSeries> findAll() {
+        return ipSeriesJpaRepository.findAll().stream()
+                .map(IpSeriesConverter.INSTANCE::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return ipSeriesJpaRepository.existsById(id);
     }

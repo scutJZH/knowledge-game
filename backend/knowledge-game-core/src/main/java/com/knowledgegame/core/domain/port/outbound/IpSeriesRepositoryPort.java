@@ -48,4 +48,9 @@ public interface IpSeriesRepositoryPort {
      * 根据 ID 判断是否存在
      */
     boolean existsById(Long id);
+
+    /**
+     * 查询全部 IP 系列（用于批量导入时预加载 code→id 映射）
+     */
+    List<IpSeries> findAll();
 }
