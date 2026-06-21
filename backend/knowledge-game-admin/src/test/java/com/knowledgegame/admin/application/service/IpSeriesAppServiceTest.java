@@ -9,11 +9,14 @@ import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
+import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesRecycleBinStrategy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.openapitools.jackson.nullable.JsonNullable;
 
@@ -26,8 +29,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,6 +45,9 @@ class IpSeriesAppServiceTest {
 
     @Mock
     private FileServiceClient fileServiceClient;
+
+    @Mock
+    private IpSeriesRecycleBinStrategy ipSeriesRecycleBinStrategy;
 
     @InjectMocks
     private IpSeriesAppService ipSeriesAppService;
@@ -336,27 +344,30 @@ class IpSeriesAppServiceTest {
     }
 
     @Test
-    void deleteIpSeries_shouldDeactivate() {
+    void deleteIpSeries_shouldMoveToRecycleBin() {
         Long id = 1L;
-        IpSeries existing = buildIpSeries(id, "MARVEL", "漫威宇宙", "描述", IpSeriesStatus.ACTIVE);
-        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-        when(ipSeriesRepositoryPort.save(any(IpSeries.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(ipSeriesRepositoryPort.existsById(id)).thenReturn(true);
 
-        ipSeriesAppService.deleteIpSeries(id);
+        try (MockedStatic<SecurityUtils> securityUtilsMock = mockStatic(SecurityUtils.class)) {
+            securityUtilsMock.when(SecurityUtils::getCurrentUsername).thenReturn("admin");
 
-        verify(ipSeriesRepositoryPort).save(argThat(series ->
-                series.getStatus() == IpSeriesStatus.INACTIVE));
+            ipSeriesAppService.deleteIpSeries(id);
+        }
+
+        verify(ipSeriesRecycleBinStrategy).validateDeletable(id);
+        verify(ipSeriesRecycleBinStrategy).moveToRecycleBin(id, "admin");
     }
 
     @Test
-    void deleteIpSeries_shouldNotSave_whenNotFound() {
+    void deleteIpSeries_shouldNotMoveToRecycleBin_whenNotFound() {
         Long id = 999L;
-        when(ipSeriesRepositoryPort.findById(id)).thenReturn(Optional.empty());
+        when(ipSeriesRepositoryPort.existsById(id)).thenReturn(false);
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> ipSeriesAppService.deleteIpSeries(id));
         assertEquals("IP 系列不存在: " + id, ex.getMessage());
 
-        verify(ipSeriesRepositoryPort, never()).save(any());
+        verify(ipSeriesRecycleBinStrategy, never()).validateDeletable(anyLong());
+        verify(ipSeriesRecycleBinStrategy, never()).moveToRecycleBin(anyLong(), any());
     }
 }

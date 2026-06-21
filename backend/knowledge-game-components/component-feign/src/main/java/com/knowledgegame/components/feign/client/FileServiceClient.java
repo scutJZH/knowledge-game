@@ -4,6 +4,7 @@ import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.components.feign.dto.GenerateCredentialRequest;
 import com.knowledgegame.core.common.result.Result;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,4 +37,15 @@ public interface FileServiceClient {
      */
     @GetMapping("/api/file/internal/{fileId}")
     Result<FileInfoResponse> getFileInfo(@PathVariable("fileId") Long fileId);
+
+    /**
+     * 删除文件（M2M 接口）
+     * <p>
+     * 供 purge 策略在永久删除时清理关联文件，失败由调用方容错处理
+     *
+     * @param fileId 文件 ID
+     * @return 操作结果
+     */
+    @DeleteMapping("/api/file/internal/{fileId}")
+    Result<Void> deleteFile(@PathVariable("fileId") Long fileId);
 }
