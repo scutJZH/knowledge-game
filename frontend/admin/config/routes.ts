@@ -88,6 +88,11 @@ export default [
         name: '回收站',
         component: './RecycleBin',
       },
+      {
+        path: '/system/scheduled-task-logs',
+        name: '定时任务日志',
+        component: './ScheduledTaskLog',
+      },
     ],
   },
   {
