@@ -100,10 +100,10 @@ const ScheduledTaskLogPage: React.FC = () => {
           size: pageSize ?? 20,
         });
         // 从已加载数据中按 taskName 去重提取 filter 下拉选项
-        if (res.data?.content) {
+        if (res?.content) {
           const enumMap: Record<string, string> = {};
           const seen = new Set<string>();
-          res.data.content.forEach((item: ScheduledTaskLogItem) => {
+          res.content.forEach((item: ScheduledTaskLogItem) => {
             if (!seen.has(item.taskName)) {
               seen.add(item.taskName);
               enumMap[item.taskName] = item.taskDisplay;
@@ -112,9 +112,9 @@ const ScheduledTaskLogPage: React.FC = () => {
           setTaskNameEnum(enumMap);
         }
         return {
-          data: res.data?.content || [],
-          total: res.data?.totalElements || 0,
-          success: res.code === 200,
+          data: res?.content || [],
+          total: res?.totalElements || 0,
+          success: true,
         };
       }}
       rowKey="id"

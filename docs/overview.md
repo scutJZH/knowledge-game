@@ -63,6 +63,13 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | file_info | 文件信息表（图片元数据、metadata JSON 列、basePath 存储路径、软删除） | REQ-83、REQ-87、REQ-93 |
 | study_group | 学习群组表（无 FK 约束 + join_policy + invite_code + avatar FileRef 双字段） | REQ-48, REQ-49 |
 | group_member | 群组成员表（UNIQUE(group_id, user_id)，role VARCHAR 存枚举名，无 FK 约束） | REQ-48 |
+| recycle_bin | 回收站总览索引表（resource_type + original_id 联合唯一，restore_deadline 定时清理索引） | REQ-100 |
+| ip_series_deleted | IP 系列删除快照表（镜像 ip_series 字段 + original_id/deleted_by/deleted_at） | REQ-100, REQ-104 |
+| card_template_deleted | 卡牌模板删除快照表（镜像 card_template 字段 + ip_series_name 冗余 + original_id 索引） | REQ-100, REQ-105 |
+| question_deleted | 题目删除快照表（镜像 question 字段 + related_data JSON 存分类关联） | REQ-100 |
+| knowledge_category_deleted | 知识分类删除快照表（镜像 knowledge_category 字段 + related_data JSON） | REQ-100 |
+| knowledge_item_deleted | 知识条目删除快照表（镜像 knowledge_item 字段 + related_data JSON 存分类关联） | REQ-100 |
+| scheduled_task_log | 定时任务执行日志表（task_name/task_display/执行统计/failure_details JSON） | REQ-101 |
 
 ### 已设计（待实现）
 
@@ -158,12 +165,12 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/admin/ip-series | GET | 分页查询（name/code 模糊 + status 筛选 + sort/order 排序） | 已实现 |
 | /api/admin/ip-series/{id} | GET | 查询详情 | 已实现 |
 | /api/admin/ip-series/{id} | PUT | 更新 | 已实现 |
-| /api/admin/ip-series/{id} | DELETE | 软删除 | 已实现 |
+| /api/admin/ip-series/{id} | DELETE | 移入回收站（快照 ip_series_deleted + 物理删原表 + 总览表登记） | 已实现（REQ-104） |
 | /api/admin/card-templates | POST | 创建卡牌模板（含卡面图） | 已实现 |
 | /api/admin/card-templates | GET | 分页查询（name/code 模糊 + ipSeriesId/rarity/status 筛选 + sort/order 排序） | 已实现 |
 | /api/admin/card-templates/{id} | GET | 查询详情（含卡面图） | 已实现 |
 | /api/admin/card-templates/{id} | PUT | 更新基础信息 | 已实现 |
-| /api/admin/card-templates/{id} | DELETE | 软删除 | 已实现 |
+| /api/admin/card-templates/{id} | DELETE | 移入回收站（快照 card_template_deleted + 物理删原表 + 总览表登记） | 已实现（REQ-105） |
 | /api/admin/card-templates/batch-activate | PUT | 批量启用（含 IP 系列状态前置校验，上限 100 条） | 已实现 |
 | /api/admin/card-templates/batch-deactivate | PUT | 批量停用（上限 100 条） | 已实现 |
 | /api/admin/card-templates/import-template | GET | 下载卡牌导入模板（Excel） | 已实现 |
@@ -363,11 +370,15 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | StudyGroup 转让同步 | transferOwnership 同步更新 StudyGroup.updateOwner(Long) 使 ownerId 反映新群主 | 2026-06-20 REQ-50 |
 | 新增 ResultCode | CANNOT_CHANGE_OWNER_ROLE(400) —"不能通过此接口修改群主角色，请使用转让功能" | 2026-06-20 REQ-50 |
 | 新增 ResultCode（8 个） | GROUP_NOT_FOUND / GROUP_JOIN_POLICY_MISMATCH / ALREADY_GROUP_MEMBER / INVITE_CODE_INVALID / NOT_GROUP_MEMBER / OWNER_CANNOT_LEAVE / NOT_GROUP_OWNER / INVITE_CODE_GENERATION_FAILED | 2026-06-20 REQ-49 |
-| 回收站系统 | 主设计：[REQ-100](prd/req-100-recycle-bin.md)。DELETE 与 INACTIVE 解耦（前者物理删入回收站，后者停用）；1 张总览表 recycle_bin + 5 张 _deleted 详情表；策略模式（RecycleBinItemStrategy<T> + RecycleBinItemStrategyRegistry 自动发现）；恢复后强制 INACTIVE；强校验拒绝（被引用/有子节点）；永久删除三步物理清除（详情表→文件→总览表）。管理端 /system/recycle-bin（目录树 + ProTable 列表页，含恢复和永久删除操作） | 2026-06-19 REQ-100; 更新 2026-06-20 REQ-102 |
+| 回收站系统 | 主设计：[REQ-100](prd/req-100-recycle-bin.md)。DELETE 与 INACTIVE 解耦（前者物理删入回收站，后者停用）；1 张总览表 + 5 张 _deleted 详情表；策略模式（RecycleBinItemStrategy<T> + RecycleBinItemStrategyRegistry 自动发现）；恢复后强制 INACTIVE；强校验拒绝；永久删除三步物理清除。已对接资源：IP 系列（REQ-104）、卡牌模板（REQ-105）；未对接：题库/分类/知识条目（REQ-106~108）。定时清理 REQ-101 已完成 | 2026-06-19 REQ-100; 更新 2026-06-23 REQ-105 |
 | 回收站 ResourceType 枚举 | IP_SERIES/CARD_TEMPLATE/QUESTION/KNOWLEDGE_CATEGORY/KNOWLEDGE_ITEM，含 toBizTypes() 映射（用于永久删除时文件清理）和 displayName() 中文 | 2026-06-19 REQ-100 |
 | 新增 ResultCode | PARAM_ERROR(400) / NOT_IMPLEMENTED(501)，参数校验失败和留后端点专用 | 2026-06-19 REQ-100 |
 | 回收站 REST API | GET /api/admin/recycle-bin（列表分页/过滤/排序）、GET /api/admin/recycle-bin/supported-types（已接入资源类型）、POST /api/admin/recycle-bin/{id}/restore（单条恢复）、POST /api/admin/recycle-bin/batch-restore（批量恢复）、DELETE /api/admin/recycle-bin/{id}（单条永久删除）、POST /api/admin/recycle-bin/batch-purge（批量永久删除）。所有批量操作均使用方案 B（逐条独立事务），HTTP 总是 200 成败由响应体描述 | 2026-06-19 REQ-100; 更新 2026-06-20 REQ-102/103 |
 | 回收站详情表 | ip_series_deleted / card_template_deleted / question_deleted / knowledge_category_deleted / knowledge_item_deleted，镜像原表字段 + originalId/relatedData(JSON)/deletedBy/deletedAt | 2026-06-19 REQ-100 |
+| IP 系列回收站策略 | IpSeriesRecycleBinStrategy（validateDeletable 委托 IpSeriesDomainService → moveToRecycleBin 快照+物理删 → restore 校验 code/name 唯一性+强制 INACTIVE → purge 清理封面图）；admin RecycleBinConfig @Bean 注册 | 2026-06-21 REQ-104 |
+| 卡牌模板回收站策略 | CardTemplateRecycleBinStrategy（validateDeletable 查存在性 → moveToRecycleBin 快照+物理删+留存 ipSeriesName → restore 校验 IP 系列仍存在+同 IP 下 code 唯一性+强制 INACTIVE → purge 清理卡面图）；恢复时 ipSeriesName 来自快照冗余，错误消息展示 IP 名称而非仅 ID | 2026-06-22 REQ-105 |
+| 策略 Bean 注册方式 | admin 模块 RecycleBinConfig 显式 @Bean 注册，非 @Component（策略需 FileCleanupPort，仅 admin 有 FileCleanupAdapter 实现） | 2026-06-21 REQ-104; 2026-06-22 REQ-105 |
+| AppService 注入策略类型 | 声明为 RecycleBinItemStrategy<T> 领域接口类型，不声明为具体 infrastructure 实现类，遵守 DDD 分层依赖规则 | 2026-06-23 REQ-105 |
 | 回收站恢复框架 | AppService 构造器自注入 `self`（@Lazy），restore(Long) 无事务委托 → self.restoreInNewTransaction(RecycleBinItem)（@Transactional REQUIRES_NEW 独立新事务）；批量恢复方案 B：阶段 1 findAllById 预校验 + 阶段 2 逐条独立事务 try-catch（BusinessException 泄露消息 / RuntimeException 兜底）；HTTP 总是 200 由 successIds/failures 描述；恢复后强制 INACTIVE 契约由 Strategy 实现者遵守 | 2026-06-20 REQ-103 |
 | 回收站永久删除框架 | purge(Long) 无事务委托 → self.purgeInNewTransaction(RecycleBinItem)（@Transactional REQUIRES_NEW）；批量永久删除方案 B 同恢复模式（去重→预校验→逐条独立事务 try-catch）；purgeInNewTransaction 通过 strategyRegistry.get().purge() 委托 Strategy 执行三步物理清除；doBatchOperation 泛型辅助方法消除 batchRestore/batchPurge 70 行重复代码 | 2026-06-20 REQ-102 |
 | 前端 HTTP 客户端 | Axios 实例封装（baseURL /api，timeout 15s），请求拦截器注入 Bearer token，响应拦截器解包 Result.data + 401 并发刷新队列 | 2026-06-19 REQ-27 |

@@ -37,13 +37,10 @@ export interface ScheduledTaskLogQuery {
 
 /**
  * 查询定时任务执行日志分页列表
+ * @umijs/max 的 request 自动解包 Result<T>，直接返回 data 字段内容
  */
 export async function listTaskLogs(params: ScheduledTaskLogQuery) {
-  return request<{
-    code: number;
-    data: ScheduledTaskLogPage;
-    message: string;
-  }>('/api/admin/scheduled-task-logs', {
+  return request<ScheduledTaskLogPage>('/api/admin/scheduled-task-logs', {
     method: 'GET',
     params,
   });
