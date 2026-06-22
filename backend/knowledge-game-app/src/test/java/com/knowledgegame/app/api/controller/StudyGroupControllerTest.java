@@ -2,6 +2,7 @@ package com.knowledgegame.app.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.app.application.service.StudyGroupAppService;
 import com.knowledgegame.app.config.JacksonConfig;
@@ -18,9 +19,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -117,5 +121,48 @@ class StudyGroupControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value("邀请码生成失败，请重试"));
+    }
+
+    @Test
+    @DisplayName("查询我的群组列表应返回 200 + 正确 JSON 结构")
+    void listMyGroups_shouldReturn200WithList() throws Exception {
+        StudyGroupListResponse item = new StudyGroupListResponse();
+        item.setId(1L);
+        item.setName("测试群组");
+        item.setDescription("描述");
+        item.setAvatarFileId(10L);
+        item.setAvatarUrl("https://example.com/avatar.png");
+        item.setOwnerId(100L);
+        item.setJoinPolicy("OPEN");
+        item.setMyRole("OWNER");
+        item.setMemberCount(12);
+        item.setCreatedAt(1718800000000L);
+        item.setUpdatedAt(1718800000000L);
+        when(appService.listMyGroups()).thenReturn(List.of(item));
+
+        mockMvc.perform(get("/api/study-groups"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[0].name").value("测试群组"))
+                .andExpect(jsonPath("$.data[0].avatarFileId").value(10))
+                .andExpect(jsonPath("$.data[0].avatarUrl").value("https://example.com/avatar.png"))
+                .andExpect(jsonPath("$.data[0].joinPolicy").value("OPEN"))
+                .andExpect(jsonPath("$.data[0].myRole").value("OWNER"))
+                .andExpect(jsonPath("$.data[0].memberCount").value(12))
+                .andExpect(jsonPath("$.data[0].createdAt").value(1718800000000L))
+                .andExpect(jsonPath("$.data[0].updatedAt").value(1718800000000L));
+    }
+
+    @Test
+    @DisplayName("查询我的群组列表为空时应返回 200 + 空数组")
+    void listMyGroups_empty_returns200WithEmptyArray() throws Exception {
+        when(appService.listMyGroups()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/study-groups"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty());
     }
 }

@@ -9,6 +9,7 @@ const { Header, Content } = Layout;
 
 const menuItems = [
   { key: '/home', label: '首页' },
+  { key: '/groups', label: '群组' },
   { key: '/collection', label: '图鉴' },
   { key: '/card-bag', label: '卡包' },
   { key: '/profile', label: '我的' },

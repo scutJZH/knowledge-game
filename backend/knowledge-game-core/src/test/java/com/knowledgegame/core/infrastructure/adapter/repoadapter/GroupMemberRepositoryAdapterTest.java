@@ -17,6 +17,8 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -181,5 +183,59 @@ class GroupMemberRepositoryAdapterTest {
     void findById_shouldReturnEmptyWhenNotFound() {
         Optional<GroupMember> result = adapter.findById(99999L);
         assertFalse(result.isPresent());
+    }
+
+    @Test
+    @DisplayName("findByUserIdOrderByJoinedAtDesc 应按加入时间降序返回用户所有成员记录")
+    void findByUserIdOrderByJoinedAtDesc_shouldReturnMembersOrderedByJoinedAtDesc() {
+        LocalDateTime t1 = LocalDateTime.now().minusDays(3);
+        LocalDateTime t2 = LocalDateTime.now().minusDays(1);
+        LocalDateTime t3 = LocalDateTime.now();
+
+        entityManager.persistAndFlush(GroupMemberPO.builder()
+                .groupId(70L).userId(700L).role(GroupRole.OWNER).points(0).joinedAt(t1).build());
+        entityManager.persistAndFlush(GroupMemberPO.builder()
+                .groupId(80L).userId(700L).role(GroupRole.MEMBER).points(0).joinedAt(t3).build());
+        entityManager.persistAndFlush(GroupMemberPO.builder()
+                .groupId(90L).userId(700L).role(GroupRole.ADMIN).points(0).joinedAt(t2).build());
+        // 另一个用户的记录不应出现在结果中
+        entityManager.persistAndFlush(GroupMemberPO.builder()
+                .groupId(80L).userId(999L).role(GroupRole.MEMBER).points(0).joinedAt(t1).build());
+        entityManager.flush();
+        entityManager.clear();
+
+        List<GroupMember> result = adapter.findByUserIdOrderByJoinedAtDesc(700L);
+
+        assertEquals(3, result.size());
+        assertEquals(80L, result.get(0).getGroupId());  // t3 最新
+        assertEquals(90L, result.get(1).getGroupId());  // t2
+        assertEquals(70L, result.get(2).getGroupId());  // t1 最旧
+    }
+
+    @Test
+    @DisplayName("countByGroupIdIn 应正确统计各群组成员数")
+    void countByGroupIdIn_shouldReturnCounts() {
+        entityManager.persistAndFlush(GroupMemberPO.builder()
+                .groupId(100L).userId(1L).role(GroupRole.MEMBER).points(0).joinedAt(LocalDateTime.now()).build());
+        entityManager.persistAndFlush(GroupMemberPO.builder()
+                .groupId(100L).userId(2L).role(GroupRole.MEMBER).points(0).joinedAt(LocalDateTime.now()).build());
+        entityManager.persistAndFlush(GroupMemberPO.builder()
+                .groupId(110L).userId(3L).role(GroupRole.OWNER).points(0).joinedAt(LocalDateTime.now()).build());
+        entityManager.flush();
+        entityManager.clear();
+
+        Map<Long, Integer> counts = adapter.countByGroupIdIn(List.of(100L, 110L, 999L));
+
+        assertEquals(3, counts.size());
+        assertEquals(2, counts.get(100L));
+        assertEquals(1, counts.get(110L));
+        assertEquals(0, counts.get(999L));
+    }
+
+    @Test
+    @DisplayName("countByGroupIdIn 空列表应返回空 Map")
+    void countByGroupIdIn_emptyList_returnsEmptyMap() {
+        Map<Long, Integer> counts = adapter.countByGroupIdIn(List.of());
+        assertTrue(counts.isEmpty());
     }
 }

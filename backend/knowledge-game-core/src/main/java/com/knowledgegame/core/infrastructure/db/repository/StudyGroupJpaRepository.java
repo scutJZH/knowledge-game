@@ -4,6 +4,7 @@ import com.knowledgegame.core.infrastructure.db.entity.StudyGroupPO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -13,4 +14,6 @@ import java.util.Optional;
 public interface StudyGroupJpaRepository extends JpaRepository<StudyGroupPO, Long> {
 
     Optional<StudyGroupPO> findByInviteCode(String inviteCode);
+
+    List<StudyGroupPO> findByIdIn(List<Long> ids);
 }

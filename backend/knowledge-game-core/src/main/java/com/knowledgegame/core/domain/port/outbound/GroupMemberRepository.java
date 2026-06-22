@@ -2,6 +2,8 @@ package com.knowledgegame.core.domain.port.outbound;
 
 import com.knowledgegame.core.domain.model.entity.GroupMember;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -33,4 +35,14 @@ public interface GroupMemberRepository {
      * 根据 ID 查询成员记录
      */
     Optional<GroupMember> findById(Long id);
+
+    /**
+     * 查询用户所有成员记录，按加入时间降序
+     */
+    List<GroupMember> findByUserIdOrderByJoinedAtDesc(Long userId);
+
+    /**
+     * 批量查询群组成员数
+     */
+    Map<Long, Integer> countByGroupIdIn(List<Long> groupIds);
 }

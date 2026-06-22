@@ -7,6 +7,7 @@ import com.knowledgegame.core.infrastructure.db.entity.StudyGroupPO;
 import com.knowledgegame.core.infrastructure.db.repository.StudyGroupJpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -53,5 +54,15 @@ public class StudyGroupRepositoryAdapter implements StudyGroupRepository {
     @Override
     public void deleteById(Long id) {
         jpaRepository.deleteById(id);
+    }
+
+    @Override
+    public List<StudyGroup> findByIdIn(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByIdIn(ids).stream()
+                .map(StudyGroupConverter.INSTANCE::toDomain)
+                .toList();
     }
 }

@@ -2,6 +2,7 @@ package com.knowledgegame.core.domain.port.outbound;
 
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -33,4 +34,9 @@ public interface StudyGroupRepository {
      * 硬删除群组
      */
     void deleteById(Long id);
+
+    /**
+     * 批量根据 ID 列表查询
+     */
+    List<StudyGroup> findByIdIn(List<Long> ids);
 }

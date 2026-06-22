@@ -1,6 +1,7 @@
 package com.knowledgegame.app.application.service;
 
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.app.application.assembler.StudyGroupAssembler;
 import com.knowledgegame.auth.security.SecurityUtils;
@@ -20,8 +21,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 学习群组应用服务
@@ -104,5 +109,32 @@ public class StudyGroupAppService {
                 throw new BusinessException(ResultCode.INVITE_CODE_GENERATION_FAILED);
             }
         }
+    }
+
+    /**
+     * 查询当前用户已加入的群组列表
+     */
+    @Transactional(readOnly = true)
+    public List<StudyGroupListResponse> listMyGroups() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        List<GroupMember> members = groupMemberRepository.findByUserIdOrderByJoinedAtDesc(userId);
+        if (members.isEmpty()) {
+            return List.of();
+        }
+        List<Long> groupIds = members.stream().map(GroupMember::getGroupId).toList();
+        Map<Long, StudyGroup> groupMap = studyGroupRepository.findByIdIn(groupIds).stream()
+                .collect(Collectors.toMap(StudyGroup::getId, Function.identity()));
+        Map<Long, Integer> memberCounts = groupMemberRepository.countByGroupIdIn(groupIds);
+        List<StudyGroupListResponse> result = new ArrayList<>();
+        for (GroupMember member : members) {
+            StudyGroup group = groupMap.get(member.getGroupId());
+            if (group == null) {
+                continue;  // 群组已被硬删除但成员记录残留，跳过
+            }
+            int memberCount = memberCounts.getOrDefault(group.getId(), 0);
+            result.add(StudyGroupAssembler.INSTANCE.toListResponse(
+                    group, member.getRole().name(), memberCount));
+        }
+        return result;
     }
 }
