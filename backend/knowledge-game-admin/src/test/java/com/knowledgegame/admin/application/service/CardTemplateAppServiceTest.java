@@ -4,7 +4,6 @@ import com.knowledgegame.admin.api.dto.request.UpdateCardTemplateRequest;
 import com.knowledgegame.admin.api.dto.response.CardTemplateImportResult;
 import com.knowledgegame.admin.api.dto.response.CardTemplateListResponse;
 import com.knowledgegame.admin.api.dto.response.CardTemplateResponse;
-import com.knowledgegame.admin.api.dto.response.ImportFailDetail;
 import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.domain.model.domainenum.CardRarity;
@@ -59,7 +58,6 @@ class CardTemplateAppServiceTest {
     @Mock private CardTemplateDomainService cardTemplateDomainService;
     @Mock private CardTemplateRepositoryPort cardTemplateRepositoryPort;
     @Mock private IpSeriesRepositoryPort ipSeriesRepositoryPort;
-    @Mock private FileServiceClient fileServiceClient;
     @Mock private RecycleBinItemStrategy<CardTemplate> recycleBinStrategy;
 
     @InjectMocks
@@ -345,7 +343,7 @@ class CardTemplateAppServiceTest {
         assertEquals(1, result.getTotalCount());
         assertEquals(0, result.getSuccessCount());
         assertEquals(1, result.getFailCount());
-        assertTrue(result.getFailDetails().get(0).getReason().contains("稀有度格式错误"));
+        assertTrue(result.getFailDetails().getFirst().getReason().contains("稀有度格式错误"));
     }
 
     @Test
@@ -366,7 +364,7 @@ class CardTemplateAppServiceTest {
         CardTemplateImportResult result = cardTemplateAppService.importCardTemplates(file);
 
         assertEquals(1, result.getFailCount());
-        assertTrue(result.getFailDetails().get(0).getReason().contains("编码不能为空"));
+        assertTrue(result.getFailDetails().getFirst().getReason().contains("编码不能为空"));
     }
 
     @Test
@@ -384,7 +382,7 @@ class CardTemplateAppServiceTest {
         CardTemplateImportResult result = cardTemplateAppService.importCardTemplates(file);
 
         assertEquals(1, result.getFailCount());
-        assertTrue(result.getFailDetails().get(0).getReason().contains("IP系列编码不存在或已停用"));
+        assertTrue(result.getFailDetails().getFirst().getReason().contains("IP系列编码不存在或已停用"));
     }
 
     @Test
@@ -477,7 +475,7 @@ class CardTemplateAppServiceTest {
         CardTemplateImportResult result = cardTemplateAppService.importCardTemplates(file);
 
         assertEquals(1, result.getFailCount());
-        assertTrue(result.getFailDetails().get(0).getReason().contains("已存在"));
+        assertTrue(result.getFailDetails().getFirst().getReason().contains("已存在"));
     }
 
     // ========== 辅助方法 ==========

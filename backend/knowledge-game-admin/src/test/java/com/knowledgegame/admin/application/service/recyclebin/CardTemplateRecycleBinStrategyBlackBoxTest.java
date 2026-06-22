@@ -6,7 +6,6 @@ import com.knowledgegame.core.domain.model.domainenum.CardTemplateStatus;
 import com.knowledgegame.core.domain.model.domainenum.ResourceType;
 import com.knowledgegame.core.domain.model.entity.CardTemplate;
 import com.knowledgegame.core.domain.model.entity.RecycleBinItem;
-import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.FileCleanupPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
