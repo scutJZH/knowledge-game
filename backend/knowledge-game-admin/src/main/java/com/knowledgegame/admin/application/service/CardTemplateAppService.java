@@ -24,6 +24,7 @@ import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
 import com.knowledgegame.core.domain.service.IpSeriesDomainService;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -63,18 +64,21 @@ public class CardTemplateAppService {
     private final IpSeriesRepositoryPort ipSeriesRepositoryPort;
     private final IpSeriesDomainService ipSeriesDomainService;
     private final FileServiceClient fileServiceClient;
+    private final RecycleBinItemStrategy<CardTemplate> recycleBinStrategy;
 
 
     public CardTemplateAppService(CardTemplateDomainService cardTemplateDomainService,
                                   CardTemplateRepositoryPort cardTemplateRepositoryPort,
                                   IpSeriesRepositoryPort ipSeriesRepositoryPort,
                                   IpSeriesDomainService ipSeriesDomainService,
-                                  FileServiceClient fileServiceClient) {
+                                  FileServiceClient fileServiceClient,
+                                  RecycleBinItemStrategy<CardTemplate> recycleBinStrategy) {
         this.cardTemplateDomainService = cardTemplateDomainService;
         this.cardTemplateRepositoryPort = cardTemplateRepositoryPort;
         this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
         this.ipSeriesDomainService = ipSeriesDomainService;
         this.fileServiceClient = fileServiceClient;
+        this.recycleBinStrategy = recycleBinStrategy;
     }
 
     /**
@@ -162,15 +166,15 @@ public class CardTemplateAppService {
     }
 
     /**
-     * 软删除卡牌模板
+     * 删除卡牌模板（移入回收站）
      */
     @Transactional
     public void deleteCardTemplate(Long id) {
-        CardTemplate template = cardTemplateRepositoryPort.findById(id)
-                .orElseThrow(() -> new BusinessException("卡牌模板不存在: " + id));
-        // TODO: 检查是否有关联用户收集，有则不允许删除
-        template.deactivate();
-        cardTemplateRepositoryPort.save(template);
+        if (!cardTemplateRepositoryPort.existsById(id)) {
+            throw new BusinessException("卡牌模板不存在: " + id);
+        }
+        recycleBinStrategy.validateDeletable(id);
+        recycleBinStrategy.moveToRecycleBin(id, SecurityUtils.getCurrentUsername());
     }
 
     /**

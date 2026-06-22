@@ -121,7 +121,7 @@ export async function updateCardTemplate(
   });
 }
 
-/** 删除卡牌模板（软删除） */
+/** 删除卡牌模板（移入回收站） */
 export async function deleteCardTemplate(id: number): Promise<void> {
   return request<void>(`/api/admin/card-templates/${id}`, {
     method: 'DELETE',

@@ -94,7 +94,7 @@ public class CardTemplateController {
     }
 
     /**
-     * 软删除卡牌模板
+     * 删除卡牌模板（移入回收站）
      */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

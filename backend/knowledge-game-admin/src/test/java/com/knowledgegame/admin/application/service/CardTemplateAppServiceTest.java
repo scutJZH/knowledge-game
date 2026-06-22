@@ -17,7 +17,9 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -45,8 +47,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import org.mockito.MockedStatic;
 
 @ExtendWith(MockitoExtension.class)
 class CardTemplateAppServiceTest {
@@ -55,6 +60,7 @@ class CardTemplateAppServiceTest {
     @Mock private CardTemplateRepositoryPort cardTemplateRepositoryPort;
     @Mock private IpSeriesRepositoryPort ipSeriesRepositoryPort;
     @Mock private FileServiceClient fileServiceClient;
+    @Mock private RecycleBinItemStrategy<CardTemplate> recycleBinStrategy;
 
     @InjectMocks
     private CardTemplateAppService cardTemplateAppService;
@@ -262,16 +268,30 @@ class CardTemplateAppServiceTest {
     }
 
     @Test
-    @DisplayName("软删除卡牌模板")
-    void deleteCardTemplate_shouldDeactivate() {
+    @DisplayName("删除卡牌模板 — 移入回收站")
+    void deleteCardTemplate_shouldMoveToRecycleBin() {
         Long id = 1L;
-        CardTemplate existing = buildCardTemplate(id, "PIKACHU", "皮卡丘", CardRarity.SR, CardTemplateStatus.ACTIVE);
-        when(cardTemplateRepositoryPort.findById(id)).thenReturn(Optional.of(existing));
-        when(cardTemplateRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(cardTemplateRepositoryPort.existsById(id)).thenReturn(true);
 
-        cardTemplateAppService.deleteCardTemplate(id);
+        try (MockedStatic<SecurityUtils> mockedSecurity = mockStatic(SecurityUtils.class)) {
+            mockedSecurity.when(SecurityUtils::getCurrentUsername).thenReturn("admin");
 
-        verify(cardTemplateRepositoryPort).save(argThat(t -> t.getStatus() == CardTemplateStatus.INACTIVE));
+            cardTemplateAppService.deleteCardTemplate(id);
+        }
+
+        verify(recycleBinStrategy).validateDeletable(id);
+        verify(recycleBinStrategy).moveToRecycleBin(eq(id), any());
+    }
+
+    @Test
+    @DisplayName("删除卡牌模板 — 不存在抛异常")
+    void deleteCardTemplate_shouldThrow_whenNotFound() {
+        Long id = 999L;
+        when(cardTemplateRepositoryPort.existsById(id)).thenReturn(false);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> cardTemplateAppService.deleteCardTemplate(id));
+        assertEquals("卡牌模板不存在: " + id, exception.getMessage());
     }
 
     // ========== 批量导入测试 ==========

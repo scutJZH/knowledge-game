@@ -48,6 +48,9 @@ public class CardTemplateDeletedPO {
     @Column(name = "ip_series_id")
     private Long ipSeriesId;
 
+    @Column(name = "ip_series_name", length = 50)
+    private String ipSeriesName;
+
     @Column(nullable = false, length = 50)
     private String code;
 

@@ -13,6 +13,7 @@ import {
 
 import {
   createCardTemplate,
+  deleteCardTemplate,
   downloadImportTemplate,
   getCardTemplateById,
   importCardTemplates,
@@ -192,6 +193,12 @@ const CardTemplate: React.FC = () => {
               <a style={{ color: '#52c41a' }}>启用</a>
             </Popconfirm>
           )}
+          <Popconfirm
+            title="确定删除该卡牌模板吗？删除后将移入回收站。"
+            onConfirm={() => handleDelete(record.id)}
+          >
+            <a style={{ color: '#ff4d4f' }}>删除</a>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -247,6 +254,17 @@ const CardTemplate: React.FC = () => {
       actionRef.current?.reload();
     } catch {
       // 错误已由 request 拦截器展示
+    }
+  };
+
+  /** 删除（移入回收站） */
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteCardTemplate(id);
+      message.success('已移入回收站');
+      actionRef.current?.reload();
+    } catch {
+      // 错误已由全局拦截器展示
     }
   };
 
