@@ -280,7 +280,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
 | REQ-104 | IP 系列对接回收站 | done | [PRD](prd/req-104-ip-series-recycle-bin.md) | DELETE 改为移入回收站；实现 `IpSeriesRecycleBinStrategy` Bean | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-16 ✅ |
-| REQ-105 | 卡牌管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `CardTemplateRecycleBinStrategy` Bean | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-17 ✅ |
+| REQ-105 | 卡牌管理对接回收站 | done | [PRD](prd/req-105-card-template-recycle-bin.md) | DELETE 改为移入回收站；实现 `CardTemplateRecycleBinStrategy` Bean；恢复时校验 IP 系列仍存在 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-17 ✅ |
 | REQ-106 | 题库管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `QuestionRecycleBinStrategy` Bean，`question_deleted.related_data` JSON 快照 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-09 ✅ |
 | REQ-107 | 分类管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `KnowledgeCategoryRecycleBinStrategy` Bean，拒绝删除有子分类的父分类 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-07 ✅ |
 | REQ-108 | 知识条目管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `KnowledgeItemRecycleBinStrategy` Bean，`knowledge_item_deleted.related_data` JSON 快照 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-97 ✅ |
