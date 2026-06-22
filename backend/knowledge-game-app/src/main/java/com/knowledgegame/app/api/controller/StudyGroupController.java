@@ -1,15 +1,19 @@
 package com.knowledgegame.app.api.controller;
 
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.app.application.service.StudyGroupAppService;
 import com.knowledgegame.core.common.result.Result;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * 学习群组 Controller（用户端）
@@ -22,6 +26,14 @@ public class StudyGroupController {
 
     public StudyGroupController(StudyGroupAppService appService) {
         this.appService = appService;
+    }
+
+    /**
+     * 查询当前用户已加入的群组列表
+     */
+    @GetMapping
+    public Result<List<StudyGroupListResponse>> listMyGroups() {
+        return Result.success(appService.listMyGroups());
     }
 
     @PostMapping

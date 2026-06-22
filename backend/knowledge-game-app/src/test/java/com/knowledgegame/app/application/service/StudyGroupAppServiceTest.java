@@ -1,6 +1,7 @@
 package com.knowledgegame.app.application.service;
 
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.components.feign.dto.FileInfoResponse;
@@ -17,6 +18,7 @@ import com.knowledgegame.core.domain.port.outbound.GroupMemberRepository;
 import com.knowledgegame.core.domain.port.outbound.StudyGroupRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -309,6 +311,82 @@ class StudyGroupAppServiceTest {
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> appService.regenerateInviteCode(1L));
         assertEquals(ResultCode.INVITE_CODE_GENERATION_FAILED.getCode(), ex.getCode());
+    }
+
+    // ---- listMyGroups 测试 ----
+
+    @Test
+    @DisplayName("listMyGroups: 用户无任何群组时应返回空列表")
+    void listMyGroups_noMembership_returnsEmptyList() {
+        when(groupMemberRepository.findByUserIdOrderByJoinedAtDesc(100L))
+                .thenReturn(List.of());
+
+        List<StudyGroupListResponse> result = appService.listMyGroups();
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    @DisplayName("listMyGroups: 有群组时应返回正确列表（含 myRole + memberCount）")
+    void listMyGroups_withMemberships_returnsListWithRoleAndCount() {
+        GroupMember member1 = GroupMember.reconstruct(1L, 10L, 100L,
+                GroupRole.OWNER, 50, java.time.LocalDateTime.now().minusDays(1));
+        GroupMember member2 = GroupMember.reconstruct(2L, 20L, 100L,
+                GroupRole.MEMBER, 10, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByUserIdOrderByJoinedAtDesc(100L))
+                .thenReturn(List.of(member2, member1));
+
+        StudyGroup group10 = StudyGroup.reconstruct(10L, "群组A", "描述A", null,
+                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        StudyGroup group20 = StudyGroup.reconstruct(20L, "群组B", null,
+                FileRef.of(5L, "https://example.com/avatar.png"),
+                200L, JoinPolicy.INVITE_ONLY, InviteCode.of("DEF67890"),
+                java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(studyGroupRepository.findByIdIn(List.of(20L, 10L)))
+                .thenReturn(List.of(group10, group20));
+
+        when(groupMemberRepository.countByGroupIdIn(List.of(20L, 10L)))
+                .thenReturn(java.util.Map.of(10L, 12, 20L, 8));
+
+        List<StudyGroupListResponse> result = appService.listMyGroups();
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        // 成员按 joinedAt DESC 排序：member2(group20) 在前
+        assertEquals(20L, result.get(0).getId());
+        assertEquals("MEMBER", result.get(0).getMyRole());
+        assertEquals(8, result.get(0).getMemberCount());
+        assertEquals("INVITE_ONLY", result.get(0).getJoinPolicy());
+        assertEquals("https://example.com/avatar.png", result.get(0).getAvatarUrl());
+        assertNotNull(result.get(0).getCreatedAt());
+        assertNotNull(result.get(0).getUpdatedAt());
+
+        assertEquals(10L, result.get(1).getId());
+        assertEquals("OWNER", result.get(1).getMyRole());
+        assertEquals(12, result.get(1).getMemberCount());
+        assertEquals("OPEN", result.get(1).getJoinPolicy());
+        assertNull(result.get(1).getAvatarUrl());
+    }
+
+    @Test
+    @DisplayName("listMyGroups: 群组已被删除但成员记录残留时跳过")
+    void listMyGroups_staleMembership_skipped() {
+        GroupMember member = GroupMember.reconstruct(1L, 999L, 100L,
+                GroupRole.MEMBER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByUserIdOrderByJoinedAtDesc(100L))
+                .thenReturn(List.of(member));
+        // findByIdIn 不返回已删除的群组
+        when(studyGroupRepository.findByIdIn(List.of(999L)))
+                .thenReturn(List.of());
+        when(groupMemberRepository.countByGroupIdIn(List.of(999L)))
+                .thenReturn(java.util.Map.of());
+
+        List<StudyGroupListResponse> result = appService.listMyGroups();
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
     }
 
     private CreateStudyGroupRequest buildRequest(String name, String description, Long avatarFileId,

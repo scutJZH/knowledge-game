@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { lazy } from 'react';
 import MainLayout from '@/layouts/MainLayout';
 import AuthLayout from '@/layouts/AuthLayout';
 import AuthGuard from '@/components/AuthGuard';
@@ -7,6 +8,8 @@ import NotFound from '@/pages/NotFound';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
+
+const GroupList = lazy(() => import('@/pages/GroupList'));
 
 const router = createBrowserRouter([
   {
@@ -30,6 +33,10 @@ const router = createBrowserRouter([
           {
             path: '/home',
             element: <Home />,
+          },
+          {
+            path: '/groups',
+            element: <GroupList />,
           },
           {
             path: '*',

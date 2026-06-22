@@ -17,6 +17,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -210,5 +211,40 @@ class StudyGroupRepositoryAdapterTest {
         assertEquals(JoinPolicy.OPEN, po.getJoinPolicy());
         assertNotNull(po.getInviteCode());
         assertEquals(8, po.getInviteCode().length());
+    }
+
+    @Test
+    @DisplayName("findByIdIn 应批量返回群组")
+    void findByIdIn_shouldReturnMatchingGroups() {
+        StudyGroupPO po1 = StudyGroupPO.builder()
+                .name("群组A").ownerId(800L).joinPolicy(JoinPolicy.OPEN)
+                .inviteCode("VNVDE001").createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).build();
+        StudyGroupPO po2 = StudyGroupPO.builder()
+                .name("群组B").ownerId(800L).joinPolicy(JoinPolicy.INVITE_ONLY)
+                .inviteCode("VNVDE002").createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).build();
+        Long id1 = entityManager.persistAndGetId(po1, Long.class);
+        Long id2 = entityManager.persistAndGetId(po2, Long.class);
+        entityManager.flush();
+        entityManager.clear();
+
+        List<StudyGroup> result = adapter.findByIdIn(List.of(id1, id2, 99999L));
+
+        assertEquals(2, result.size());
+        assertEquals("群组A", result.get(0).getName());
+        assertEquals("群组B", result.get(1).getName());
+    }
+
+    @Test
+    @DisplayName("findByIdIn 空列表时应返回空 List")
+    void findByIdIn_emptyList_returnsEmptyList() {
+        List<StudyGroup> result = adapter.findByIdIn(List.of());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    @DisplayName("findByIdIn 全部 ID 不存在时应返回空 List")
+    void findByIdIn_allNonExisting_returnsEmptyList() {
+        List<StudyGroup> result = adapter.findByIdIn(List.of(99999L, 99998L));
+        assertTrue(result.isEmpty());
     }
 }
