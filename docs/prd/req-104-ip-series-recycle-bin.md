@@ -114,7 +114,7 @@ REQ-104 不触碰的框架部分（已由 REQ-100/102/103 交付）：
 | # | 决策项 | 结果 | 理由 |
 |---|--------|------|------|
 | 1 | 策略 Bean 位置 | core 模块 `infrastructure/adapter/repoadapter/` | 策略虽实现 `domain/service` 接口，但直接操作 JPA Repository，属于 infrastructure 层。放 `repoadapter` 包与其他 Adapter 聚集，便于统一管理基础设施适配器 |
-| 2 | Bean 注册方式 | `@Component` 注解 | 最简单；注册中心通过 `List<RecycleBinItemStrategy<?>>` 自动发现；无需修改 `KnowledgeGameCoreAutoConfiguration` |
+| 2 | Bean 注册方式 | admin 模块 `RecycleBinConfig` 显式 `@Bean` 注册 | 策略构造函数需要 `FileCleanupPort`，该端口仅 admin 模块有实现（`FileCleanupAdapter`）。若用 `@Component` 放 core 模块，core 无 `FileCleanupPort` Bean 时启动失败。注册中心通过 `List<RecycleBinItemStrategy<?>>` 自动发现 |
 | 3 | 持久化方式 | 读操作走 Port 接口，写/删操作走 JPA Repository | 读操作（`findById`/`findByCode`/`findByName`）Port 已提供，零新增即可用，且返回 Domain 对象省去手动转换；写/删操作（`deleteById`/`save`/`findByOriginalId`）Port 未提供且不应为策略单独膨胀 Port 接口，直接调 JPA Repository |
 | 4 | 删除前校验 | 委托 `IpSeriesDomainService.validateDeactivatable()` | 消除校验逻辑重复：当前该规则已在 DomainService 实现，策略不重复调 `CardTemplateJpaRepository.countActiveByIpSeriesId()`；统一错误消息；REQ-94 校验自然覆盖 DELETE 路径。注意：DomainService 当前消息为"无法停用"，策略层 catch 后重新包装为"无法删除" |
 | 5 | 恢复后状态 | 强制 INACTIVE | REQ-100 已固化的契约，避免恢复 ACTIVE 时关联数据不一致 |
@@ -136,7 +136,8 @@ IpSeriesRecycleBinStrategy 注入：
   ├── IpSeriesJpaRepository              （deleteById / save / findByCode / findByName）
   ├── IpSeriesDeletedJpaRepository       （save / findByOriginalId / deleteById）
   ├── RecycleBinItemJpaRepository        （save / deleteById）
-  └── FileServiceClient                  （deleteFile — purge 文件清理）
+  ├── FileCleanupPort                    （deleteFile — purge 文件清理，admin 提供 FileCleanupAdapter）
+  └── EntityManager                      （@PersistenceContext 注入，restore 时 native SQL INSERT）
 ```
 
 ### 策略方法伪代码
@@ -222,7 +223,7 @@ purge(recycleBinId):
 
 ### 配置变更
 
-无。策略 Bean 通过 `@Component` 注解自动注册，`RecycleBinItemStrategyRegistry` 通过 `List<RecycleBinItemStrategy<?>>` 自动发现。
+`admin` 模块 `RecycleBinConfig` 新增 `@Bean` 注册 `IpSeriesRecycleBinStrategy`（需注入 `FileCleanupPort`，由 admin 的 `FileCleanupAdapter` 提供实现）。`RecycleBinItemStrategyRegistry` 通过 `List<RecycleBinItemStrategy<?>>` 自动发现。
 
 ### 受影响功能
 
