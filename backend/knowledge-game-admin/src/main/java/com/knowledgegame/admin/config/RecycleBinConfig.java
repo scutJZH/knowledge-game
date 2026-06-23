@@ -3,14 +3,20 @@ package com.knowledgegame.admin.config;
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.FileCleanupPort;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
+import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
+import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
+import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.port.outbound.RecycleBinItemRepositoryPort;
 import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.CardTemplateRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesRecycleBinStrategy;
+import com.knowledgegame.core.infrastructure.adapter.repoadapter.KnowledgeCategoryRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.db.repository.CardTemplateDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.CardTemplateJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryDeletedJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.RecycleBinItemJpaRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -59,6 +65,27 @@ public class RecycleBinConfig {
                 cardTemplateDeletedJpaRepository,
                 recycleBinItemJpaRepository,
                 ipSeriesRepositoryPort,
+                fileCleanupPort);
+    }
+
+    @Bean
+    public KnowledgeCategoryRecycleBinStrategy knowledgeCategoryRecycleBinStrategy(
+            KnowledgeCategoryRepositoryPort categoryRepositoryPort,
+            QuestionRepository questionRepository,
+            KnowledgeItemRepository itemRepository,
+            RecycleBinItemRepositoryPort recycleBinItemRepositoryPort,
+            KnowledgeCategoryJpaRepository categoryJpaRepository,
+            KnowledgeCategoryDeletedJpaRepository deletedJpaRepository,
+            RecycleBinItemJpaRepository recycleBinItemJpaRepository,
+            FileCleanupPort fileCleanupPort) {
+        return new KnowledgeCategoryRecycleBinStrategy(
+                categoryRepositoryPort,
+                questionRepository,
+                itemRepository,
+                recycleBinItemRepositoryPort,
+                categoryJpaRepository,
+                deletedJpaRepository,
+                recycleBinItemJpaRepository,
                 fileCleanupPort);
     }
 }

@@ -116,7 +116,7 @@ public class KnowledgeCategoryController {
     }
 
     /**
-     * 软删除知识点分类
+     * 删除知识点分类（递归移入回收站）
      */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

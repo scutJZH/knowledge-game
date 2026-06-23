@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import { Card, Descriptions, Tag, Button, Empty, Image, Popconfirm, Space } from 'antd';
 import {
+  DeleteOutlined,
   EditOutlined,
   SwapOutlined,
 } from '@ant-design/icons';
@@ -12,6 +13,7 @@ interface CategoryDetailProps {
   onEdit: () => void;
   onMove: () => void;
   onToggleStatus: () => void;
+  onDelete?: (id: number) => void;
 }
 
 /** 在树中递归查找指定 id 节点的 ACTIVE 子节点数量，未找到返回 0 */
@@ -28,12 +30,27 @@ function countActiveChildren(nodes: CategoryTreeNode[], id: number): number {
   return 0;
 }
 
+/** 在树中递归查找指定 id 节点的全部子节点数量（含 ACTIVE + INACTIVE） */
+function countAllChildren(nodes: CategoryTreeNode[], id: number): number {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node.children?.length ?? 0;
+    }
+    if (node.children) {
+      const count = countAllChildren(node.children, id);
+      if (count > 0) return count;
+    }
+  }
+  return 0;
+}
+
 const CategoryDetailPanel: React.FC<CategoryDetailProps> = ({
   detail,
   treeData,
   onEdit,
   onMove,
   onToggleStatus,
+  onDelete,
 }) => {
   // 未选中分类时显示空状态
   if (!detail) {
@@ -46,6 +63,7 @@ const CategoryDetailPanel: React.FC<CategoryDetailProps> = ({
 
   // 预检是否有 ACTIVE 子分类（INACTIVE 子分类不阻止父级停用）
   const hasActiveChildren = countActiveChildren(treeData, detail.id) > 0;
+  const allChildrenCount = countAllChildren(treeData, detail.id);
 
   return (
     <Card
@@ -85,6 +103,24 @@ const CategoryDetailPanel: React.FC<CategoryDetailProps> = ({
             >
               <Button style={{ color: '#52c41a', borderColor: '#52c41a' }}>
                 启用
+              </Button>
+            </Popconfirm>
+          )}
+          {onDelete && (
+            <Popconfirm
+              title="确认删除"
+              description={
+                allChildrenCount > 0
+                  ? `该分类下有 ${allChildrenCount} 个子分类，将一并移入回收站，确定删除？`
+                  : `确定删除分类「${detail.name}」吗？删除后将移入回收站。`
+              }
+              onConfirm={() => onDelete(detail.id)}
+              okText="删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                删除
               </Button>
             </Popconfirm>
           )}

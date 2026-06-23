@@ -134,7 +134,7 @@ export async function move(id: number, newParentId: number | null): Promise<Cate
   });
 }
 
-/** 删除分类 */
+/** 删除分类（递归移入回收站，含子分类） */
 export async function deleteCategory(id: number): Promise<void> {
   return request(`/api/admin/knowledge-categories/${id}`, {
     method: 'DELETE',

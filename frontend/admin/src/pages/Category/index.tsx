@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Row, Col, message } from 'antd';
 import type { CategoryTreeNode, CategoryDetail } from '@/services/knowledge-category';
-import { getTree, getById, update } from '@/services/knowledge-category';
+import { deleteCategory, getTree, getById, update } from '@/services/knowledge-category';
 import CategoryTree from './components/CategoryTree';
 import CategoryDetailPanel from './components/CategoryDetail';
 import CategoryFormModal from './components/CategoryFormModal';
@@ -107,6 +107,19 @@ const Category: React.FC = () => {
     }
   }, [selectedId, detail, treeData, refreshTree]);
 
+  /** 删除（递归移入回收站） */
+  const handleDelete = useCallback(async (id: number) => {
+    try {
+      await deleteCategory(id);
+      message.success('已移入回收站');
+      setSelectedId(null);
+      setDetail(null);
+      refreshTree();
+    } catch {
+      // 错误已由全局拦截器处理
+    }
+  }, [refreshTree]);
+
   /** 表单弹窗成功回调 */
   const handleFormSuccess = useCallback(() => {
     setFormVisible(false);
@@ -151,6 +164,7 @@ const Category: React.FC = () => {
             onEdit={handleEdit}
             onMove={handleMove}
             onToggleStatus={handleToggleStatus}
+            onDelete={handleDelete}
           />
         </Col>
       </Row>

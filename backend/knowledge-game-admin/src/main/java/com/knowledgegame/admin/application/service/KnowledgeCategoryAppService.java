@@ -18,6 +18,7 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import org.openapitools.jackson.nullable.JsonNullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,14 +39,17 @@ public class KnowledgeCategoryAppService {
     private final KnowledgeCategoryRepositoryPort categoryRepositoryPort;
     private final KnowledgeCategoryDomainService categoryDomainService;
     private final FileServiceClient fileServiceClient;
+    private final RecycleBinItemStrategy<KnowledgeCategory> recycleBinStrategy;
 
 
     public KnowledgeCategoryAppService(KnowledgeCategoryRepositoryPort categoryRepositoryPort,
                                        KnowledgeCategoryDomainService categoryDomainService,
-                                       FileServiceClient fileServiceClient) {
+                                       FileServiceClient fileServiceClient,
+                                       RecycleBinItemStrategy<KnowledgeCategory> recycleBinStrategy) {
         this.categoryRepositoryPort = categoryRepositoryPort;
         this.categoryDomainService = categoryDomainService;
         this.fileServiceClient = fileServiceClient;
+        this.recycleBinStrategy = recycleBinStrategy;
     }
 
     /**
@@ -189,15 +193,15 @@ public class KnowledgeCategoryAppService {
     }
 
     /**
-     * 软删除
+     * 删除知识点分类（递归移入回收站）
      */
     @Transactional
     public void delete(Long id) {
-        KnowledgeCategory category = categoryRepositoryPort.findById(id)
-                .orElseThrow(() -> new BusinessException("知识点分类不存在: " + id));
-        categoryDomainService.validateDelete(id);
-        category.deactivate();
-        categoryRepositoryPort.save(category);
+        if (!categoryRepositoryPort.findById(id).isPresent()) {
+            throw new BusinessException("知识点分类不存在: " + id);
+        }
+        recycleBinStrategy.validateDeletable(id);
+        recycleBinStrategy.moveToRecycleBin(id, SecurityUtils.getCurrentUsername());
     }
 
     /**

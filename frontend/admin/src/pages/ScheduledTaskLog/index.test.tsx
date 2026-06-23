@@ -39,9 +39,9 @@ describe('ScheduledTaskLogPage', () => {
 
   it('should render ProTable with correct number of columns', () => {
     render(<ScheduledTaskLogPage />);
-    // 8 columns: taskDisplay, taskName(hidden), executedAt, durationMs, totalCount, successCount, failureCount, status
+    // 7 columns: taskName(taskDisplay), executedAt, durationMs, totalCount, successCount, failureCount, status
     expect(screen.getByTestId('pro-table')).toBeInTheDocument();
-    expect(screen.getByTestId('pro-table').textContent).toContain('8 columns');
+    expect(screen.getByTestId('pro-table').textContent).toContain('7 columns');
   });
 
   it('should format duration correctly', () => {

@@ -13,6 +13,7 @@ import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,8 +36,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.knowledgegame.auth.security.SecurityUtils;
+import org.mockito.MockedStatic;
 
 /**
  * KnowledgeCategoryAppService 单元测试
@@ -52,6 +57,9 @@ class KnowledgeCategoryAppServiceTest {
 
     @Mock
     private FileServiceClient fileServiceClient;
+
+    @Mock
+    private RecycleBinItemStrategy<KnowledgeCategory> recycleBinStrategy;
 
     @InjectMocks
     private KnowledgeCategoryAppService appService;
@@ -468,27 +476,26 @@ class KnowledgeCategoryAppServiceTest {
     }
 
     /**
-     * 软删除 - status 变为 INACTIVE
+     * 删除 - 委托策略移入回收站
      */
     @Test
-    void delete_shouldDeactivate() {
+    void delete_shouldDelegateToStrategy() {
         KnowledgeCategory existing = KnowledgeCategory.reconstruct(
                 1L, null, "编程", null, null, null, null, 0,
                 KnowledgeCategoryStatus.ACTIVE, now, now);
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
-        Mockito.doNothing().when(categoryDomainService).validateDelete(1L);
-        when(categoryRepositoryPort.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        appService.delete(1L);
+        try (MockedStatic<SecurityUtils> mockedSecurity = mockStatic(SecurityUtils.class)) {
+            mockedSecurity.when(SecurityUtils::getCurrentUsername).thenReturn("admin");
+            appService.delete(1L);
+        }
 
-        verify(categoryDomainService).validateDelete(1L);
-        verify(categoryRepositoryPort).save(argThat(cat ->
-                cat.getStatus() == KnowledgeCategoryStatus.INACTIVE
-        ));
+        verify(recycleBinStrategy).validateDeletable(1L);
+        verify(recycleBinStrategy).moveToRecycleBin(eq(1L), any());
     }
 
     /**
-     * 软删除 - 不存在抛异常
+     * 删除 - 不存在抛异常
      */
     @Test
     void delete_shouldThrow_whenNotFound() {
@@ -498,19 +505,19 @@ class KnowledgeCategoryAppServiceTest {
     }
 
     /**
-     * 软删除 - 有子分类时抛异常
+     * 删除 - 校验失败抛异常（策略内部校验）
      */
     @Test
-    void delete_shouldThrow_whenHasChildren() {
+    void delete_shouldThrow_whenValidationFails() {
         KnowledgeCategory existing = KnowledgeCategory.reconstruct(
                 1L, null, "编程", null, null, null, null, 0,
                 KnowledgeCategoryStatus.ACTIVE, now, now);
         when(categoryRepositoryPort.findById(1L)).thenReturn(Optional.of(existing));
-        Mockito.doThrow(new BusinessException("该分类下存在 2 个子分类（含已停用），无法删除"))
-                .when(categoryDomainService).validateDelete(1L);
+        Mockito.doThrow(new BusinessException("知识点分类关联 2 道 ACTIVE 题目，无法删除"))
+                .when(recycleBinStrategy).validateDeletable(1L);
 
         BusinessException ex = assertThrows(BusinessException.class, () -> appService.delete(1L));
-        assertEquals("该分类下存在 2 个子分类（含已停用），无法删除", ex.getMessage());
+        assertEquals("知识点分类关联 2 道 ACTIVE 题目，无法删除", ex.getMessage());
     }
 
     /**
