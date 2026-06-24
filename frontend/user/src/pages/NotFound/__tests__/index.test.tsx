@@ -35,6 +35,6 @@ describe('NotFound', () => {
     );
 
     await userEvent.click(screen.getByText('返回首页'));
-    expect(mockNavigate).toHaveBeenCalledWith('/home');
+    expect(mockNavigate).toHaveBeenCalledWith('/groups');
   });
 });

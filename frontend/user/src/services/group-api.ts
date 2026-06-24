@@ -17,9 +17,9 @@ export function joinByInvite(inviteCode: string) {
 }
 
 /** 获取上传凭证 */
-export function getUploadCredential(bizType: string, count: number = 1) {
-  return apiClient.get<never, { credentials: Array<{ uploadUrl: string; fileId: number }> }>(
+export function getUploadCredential(bizType: string) {
+  return apiClient.get<never, { token: string; uploadUrl: string }>(
     '/upload-credential',
-    { params: { bizType, count } },
+    { params: { bizType, count: 1 } },
   );
 }

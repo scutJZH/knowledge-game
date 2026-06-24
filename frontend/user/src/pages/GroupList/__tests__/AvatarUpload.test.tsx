@@ -19,8 +19,11 @@ describe('AvatarUpload', () => {
 
   it('上传成功 → onChange 被调用', async () => {
     const onChange = vi.fn();
-    mockCredential.mockResolvedValue([{ uploadUrl: 'https://upload.test/file', fileId: 99 }]);
-    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
+    mockCredential.mockResolvedValue({ token: 't', uploadUrl: 'https://upload.test/file' });
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { fileId: 99 } }),
+    });
     globalThis.URL.createObjectURL = vi.fn(() => 'blob://preview');
 
     render(<AvatarUpload onChange={onChange} />);

@@ -28,7 +28,7 @@ function Register() {
         const rawRedirect = searchParams.get('redirect');
         const target = rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
           ? rawRedirect
-          : '/home';
+          : '/groups';
         navigate(target, { replace: true });
       } catch {
         Modal.error({

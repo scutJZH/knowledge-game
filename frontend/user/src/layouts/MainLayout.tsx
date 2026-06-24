@@ -20,7 +20,7 @@ function MainLayout() {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
 
-  const selectedKey = menuItems.find((item) => item.key === location.pathname)?.key || '/home';
+  const selectedKey = menuItems.find((item) => location.pathname.startsWith(item.key))?.key || '/home';
 
   async function handleLogout() {
     try {

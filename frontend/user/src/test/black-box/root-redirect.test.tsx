@@ -31,9 +31,9 @@ function FullRouteTree({ initialEntries }: { initialEntries: string[] }) {
   return (
     <MemoryRouter initialEntries={initialEntries}>
       <Routes>
-        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="/" element={<Navigate to="/groups" replace />} />
         <Route element={<MainLayout />}>
-          <Route path="/home" element={<Home />} />
+          <Route path="/groups" element={<Home />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
@@ -42,7 +42,7 @@ function FullRouteTree({ initialEntries }: { initialEntries: string[] }) {
 }
 
 describe('Root redirect', () => {
-  it('redirects / to /home when starting from root', () => {
+  it('redirects / to /groups when starting from root', () => {
     render(<FullRouteTree initialEntries={['/']} />);
 
     // After the Navigate redirect, the Home page content should be visible
@@ -51,8 +51,8 @@ describe('Root redirect', () => {
     expect(screen.getByText('REQ-26 脚手架已就位，等待后续需求填充业务页面')).toBeInTheDocument();
   });
 
-  it('renders /home directly without redirect loop', () => {
-    render(<FullRouteTree initialEntries={['/home']} />);
+  it('renders /groups directly without redirect loop', () => {
+    render(<FullRouteTree initialEntries={['/groups']} />);
 
     expect(screen.getByText('Knowledge Game')).toBeInTheDocument();
   });

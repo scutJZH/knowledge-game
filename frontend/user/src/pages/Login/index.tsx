@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { Navigate, useSearchParams, Link } from 'react-router-dom';
 import { Form, Input, Button, Alert, Checkbox, Typography, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { loginApi } from '@/services/auth-api';
@@ -9,12 +9,16 @@ import { ApiError } from '@/types/api';
 const { Title } = Typography;
 
 function Login() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(true);
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
   const authLogin = useAuthStore((s) => s.login);
+
+  if (redirectTo) {
+    return <Navigate to={redirectTo} replace />;
+  }
 
   async function handleSubmit(values: { username: string; password: string }) {
     setSubmitting(true);
@@ -25,8 +29,8 @@ function Login() {
       const rawRedirect = searchParams.get('redirect');
       const target = rawRedirect && rawRedirect.startsWith('/') && !rawRedirect.startsWith('//')
         ? rawRedirect
-        : '/home';
-      navigate(target, { replace: true });
+        : '/groups';
+      setRedirectTo(target);
     } catch (e) {
       if (e instanceof ApiError) {
         if (e.code === 400 && e.message === '用户名或密码错误') {

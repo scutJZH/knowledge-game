@@ -15,6 +15,7 @@ vi.mock('@/store/auth-store', () => {
 vi.mock('react-router-dom', () => ({
   Outlet: () => <div>outlet-content</div>,
   Navigate: ({ to }: { to: string }) => <div data-testid="navigate">to={to}</div>,
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 describe('AuthLayout', () => {
@@ -24,12 +25,12 @@ describe('AuthLayout', () => {
     expect(screen.getByText('outlet-content')).toBeInTheDocument();
   });
 
-  it('已登录时跳转 /home', () => {
+  it('已登录时跳转 /groups', () => {
     mockAccessToken = 'mock-token';
     render(<AuthLayout />);
     const nav = screen.getByTestId('navigate');
     expect(nav).toBeInTheDocument();
-    expect(nav.textContent).toBe('to=/home');
+    expect(nav.textContent).toBe('to=/groups');
   });
 
   it('渲染品牌区含 Logo 和 Slogan', () => {

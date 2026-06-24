@@ -46,6 +46,13 @@ function GroupList() {
     );
   }
 
+  const modals = (
+    <>
+      <CreateGroupModal open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={fetchGroups} />
+      <JoinGroupModal open={joinOpen} onClose={() => setJoinOpen(false)} onSuccess={fetchGroups} />
+    </>
+  );
+
   const bottomButtons = (
     <div className="group-actions">
       <button className="btn-create" onClick={() => setCreateOpen(true)}>+ 创建群组</button>
@@ -55,14 +62,17 @@ function GroupList() {
 
   if (groups.length === 0) {
     return (
-      <div className="group-empty">
-        <div className="empty-icon">🏠</div>
-        <div className="empty-title">还没有加入群组</div>
-        <div className="empty-desc">
-          群组是知识游戏的起点<br />创建或加入一个群组开始吧
+      <>
+        <div className="group-empty">
+          <div className="empty-icon">🏠</div>
+          <div className="empty-title">还没有加入群组</div>
+          <div className="empty-desc">
+            群组是知识游戏的起点<br />创建或加入一个群组开始吧
+          </div>
+          {bottomButtons}
         </div>
-        {bottomButtons}
-      </div>
+        {modals}
+      </>
     );
   }
 
@@ -76,16 +86,7 @@ function GroupList() {
         <GroupCard key={g.id} group={g} onClick={() => handleCardClick(g.id)} />
       ))}
       {bottomButtons}
-      <CreateGroupModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSuccess={fetchGroups}
-      />
-      <JoinGroupModal
-        open={joinOpen}
-        onClose={() => setJoinOpen(false)}
-        onSuccess={fetchGroups}
-      />
+      {modals}
     </div>
   );
 }

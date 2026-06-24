@@ -52,7 +52,6 @@ function CreateGroupModal({ open, onClose, onSuccess }: CreateGroupModalProps) {
       okText="创建"
       cancelText="取消"
       destroyOnClose
-      getContainer={false}
     >
       <Form form={form} layout="vertical" initialValues={{ joinPolicy: 'OPEN' }}>
         <Form.Item

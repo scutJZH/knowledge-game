@@ -77,7 +77,7 @@ describe('Register', () => {
   });
 
   // 用例 3：注册成功-自动登录
-  it('注册成功后自动登录并跳转 /home', async () => {
+  it('注册成功后自动登录并跳转 /groups', async () => {
     const mockUser = { id: 1, username: 'test', nickname: 'T', role: 'USER', avatarFileId: null, avatarUrl: null };
     vi.mocked(registerApi).mockResolvedValue(mockUser);
     vi.mocked(loginApi).mockResolvedValue({ accessToken: 'at', refreshToken: 'rt', expiresIn: 1800, user: mockUser });
@@ -90,7 +90,7 @@ describe('Register', () => {
     await user.click(screen.getByRole('button', { name: /注册|注 册/ }));
     await waitFor(() => {
       expect(mockLoginFn).toHaveBeenCalledWith('at', 'rt', 1800, mockUser);
-      expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/groups', { replace: true });
       expect(mockMessageSuccess).toHaveBeenCalled();
     });
   });

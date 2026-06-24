@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Spin, message } from 'antd';
 import { getUploadCredential } from '@/services/group-api';
+import { useAuthStore } from '@/store/auth-store';
 
 interface AvatarUploadProps {
   value?: number;
@@ -11,8 +12,8 @@ function AvatarUpload({ value, onChange }: AvatarUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const userId = useAuthStore((s) => s.user?.id);
 
-  // 根据 fileId 加载已有头像 URL（编辑场景）
   useEffect(() => {
     if (value != null && previewUrl == null) {
       setPreviewUrl(`/api/file/${value}?action=download`);
@@ -25,13 +26,22 @@ function AvatarUpload({ value, onChange }: AvatarUploadProps) {
 
     setUploading(true);
     try {
-      const cred = await getUploadCredential('STUDY_GROUP_AVATAR', 1);
-      const { uploadUrl, fileId: newFileId } = cred[0];
+      const cred = await getUploadCredential('STUDY_GROUP_AVATAR');
       const formData = new FormData();
       formData.append('file', file);
-      await fetch(uploadUrl, { method: 'POST', body: formData });
+      const res = await fetch(cred.uploadUrl, {
+        method: 'POST',
+        headers: {
+          'X-Upload-Token': cred.token,
+          'X-User-Id': String(userId ?? ''),
+        },
+        body: formData,
+      });
+      const json = await res.json();
+      const fileId = json.data?.fileId;
+      if (fileId == null) throw new Error('no fileId');
       setPreviewUrl(URL.createObjectURL(file));
-      onChange?.(newFileId);
+      onChange?.(fileId);
     } catch {
       message.error('上传失败，请重试');
     } finally {

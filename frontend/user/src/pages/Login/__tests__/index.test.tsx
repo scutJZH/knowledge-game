@@ -25,6 +25,7 @@ vi.mock('@/store/auth-store', () => {
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useSearchParams: () => [mockSearchParams, vi.fn()],
+  Navigate: ({ to }: { to: string }) => <div data-testid="navigate" data-to={to} />,
   Link: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
 }));
 
@@ -77,8 +78,8 @@ describe('Login', () => {
     });
   });
 
-  // 用例 4：登录成功-默认 redirect 到 /home
-  it('登录成功后调 authStore.login 并跳转 /home', async () => {
+  // 用例 4：登录成功-默认 redirect 到 /groups
+  it('登录成功后调 authStore.login 并跳转 /groups', async () => {
     const mockUser = { id: 1, username: 'test', nickname: 'T', role: 'USER', avatarFileId: null, avatarUrl: null };
     vi.mocked(loginApi).mockResolvedValue({ accessToken: 'at', refreshToken: 'rt', expiresIn: 1800, user: mockUser });
     const user = userEvent.setup();
@@ -88,7 +89,7 @@ describe('Login', () => {
     await user.click(screen.getByRole('button', { name: /登录|登 录/ }));
     await waitFor(() => {
       expect(mockLoginFn).toHaveBeenCalledWith('at', 'rt', 1800, mockUser, true);
-      expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+      expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/groups');
     });
   });
 
@@ -103,12 +104,12 @@ describe('Login', () => {
     await user.type(screen.getByPlaceholderText('6-50 字符'), 'password');
     await user.click(screen.getByRole('button', { name: /登录|登 录/ }));
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/card-bag', { replace: true });
+      expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/card-bag');
     });
   });
 
-  // 用例 6：redirect 以 // 开头回退 /home
-  it('redirect=//evil.com 时回退到 /home', async () => {
+  // 用例 6：redirect 以 // 开头回退 /groups
+  it('redirect=//evil.com 时回退到 /groups', async () => {
     mockSearchParams = new URLSearchParams('redirect=//evil.com');
     const mockUser = { id: 1, username: 'test', nickname: 'T', role: 'USER', avatarFileId: null, avatarUrl: null };
     vi.mocked(loginApi).mockResolvedValue({ accessToken: 'at', refreshToken: 'rt', expiresIn: 1800, user: mockUser });
@@ -118,12 +119,12 @@ describe('Login', () => {
     await user.type(screen.getByPlaceholderText('6-50 字符'), 'password');
     await user.click(screen.getByRole('button', { name: /登录|登 录/ }));
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+      expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/groups');
     });
   });
 
-  // 用例 7：redirect 不以 / 开头回退 /home
-  it('redirect=evil.com 时回退到 /home', async () => {
+  // 用例 7：redirect 不以 / 开头回退 /groups
+  it('redirect=evil.com 时回退到 /groups', async () => {
     mockSearchParams = new URLSearchParams('redirect=evil.com');
     const mockUser = { id: 1, username: 'test', nickname: 'T', role: 'USER', avatarFileId: null, avatarUrl: null };
     vi.mocked(loginApi).mockResolvedValue({ accessToken: 'at', refreshToken: 'rt', expiresIn: 1800, user: mockUser });
@@ -133,7 +134,7 @@ describe('Login', () => {
     await user.type(screen.getByPlaceholderText('6-50 字符'), 'password');
     await user.click(screen.getByRole('button', { name: /登录|登 录/ }));
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+      expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/groups');
     });
   });
 

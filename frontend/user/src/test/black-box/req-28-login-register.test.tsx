@@ -54,6 +54,7 @@ vi.mock('@/store/auth-store', () => {
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
   useSearchParams: () => [mockSearchParams, vi.fn()],
+  Navigate: ({ to }: { to: string }) => <div data-testid="navigate" data-to={to} />,
   Link: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
 }));
 
@@ -105,7 +106,7 @@ describe('REQ-28 Black-Box: Login & Register Boundary Tests', () => {
       await user.click(screen.getByRole('button', { name: /登录|登 录/ }));
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/groups');
       });
       expect(screen.queryByText('密码长度 6-50 字符')).not.toBeInTheDocument();
     });
@@ -120,7 +121,7 @@ describe('REQ-28 Black-Box: Login & Register Boundary Tests', () => {
       await user.click(screen.getByRole('button', { name: /登录|登 录/ }));
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/groups');
       });
       expect(screen.queryByText('密码长度 6-50 字符')).not.toBeInTheDocument();
     });
@@ -136,7 +137,7 @@ describe('REQ-28 Black-Box: Login & Register Boundary Tests', () => {
       await user.click(screen.getByRole('button', { name: /登录|登 录/ }));
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/首页?q=你好 world', { replace: true });
+        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/首页?q=你好 world');
       });
     });
 
@@ -169,7 +170,7 @@ describe('REQ-28 Black-Box: Login & Register Boundary Tests', () => {
 
       // Phase 3: verify success AND old Alert is gone
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+        expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/groups');
       });
       expect(screen.queryByText('用户名或密码错误')).not.toBeInTheDocument();
     });
@@ -210,7 +211,7 @@ describe('REQ-28 Black-Box: Login & Register Boundary Tests', () => {
       await user.click(screen.getByRole('button', { name: /注册|注 册/ }));
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+        expect(mockNavigate).toHaveBeenCalledWith('/groups', { replace: true });
       });
       expect(screen.queryByText('用户名长度需 2-50 字符')).not.toBeInTheDocument();
     });
@@ -228,7 +229,7 @@ describe('REQ-28 Black-Box: Login & Register Boundary Tests', () => {
       await user.click(screen.getByRole('button', { name: /注册|注 册/ }));
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+        expect(mockNavigate).toHaveBeenCalledWith('/groups', { replace: true });
       });
       expect(screen.queryByText('用户名长度需 2-50 字符')).not.toBeInTheDocument();
     });
@@ -271,7 +272,7 @@ describe('REQ-28 Black-Box: Login & Register Boundary Tests', () => {
 
       // Phase 3: verify success AND old Alert is gone
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+        expect(mockNavigate).toHaveBeenCalledWith('/groups', { replace: true });
       });
       expect(screen.queryByText('服务端异常')).not.toBeInTheDocument();
     });
@@ -307,7 +308,7 @@ describe('REQ-28 Black-Box: Login & Register Boundary Tests', () => {
       resolveRegister(mockUser);
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/home', { replace: true });
+        expect(mockNavigate).toHaveBeenCalledWith('/groups', { replace: true });
       });
     });
 

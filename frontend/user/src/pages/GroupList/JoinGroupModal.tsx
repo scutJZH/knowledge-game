@@ -50,7 +50,6 @@ function JoinGroupModal({ open, onClose, onSuccess }: JoinGroupModalProps) {
       cancelText="取消"
       okButtonProps={{ disabled: code.length !== 8 }}
       destroyOnClose
-      getContainer={false}
     >
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 13, color: '#999', marginBottom: 12 }}>输入群主分享的邀请码</div>
