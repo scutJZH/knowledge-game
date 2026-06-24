@@ -114,11 +114,19 @@ const Category: React.FC = () => {
       message.success('已移入回收站');
       setSelectedId(null);
       setDetail(null);
-      refreshTree();
+      // 不调 refreshTree()：其闭包内 selectedId 仍是删除前的值，
+      // 会触发 loadDetail(已删除ID) 导致 "知识点分类不存在" 错误
+      setLoading(true);
+      try {
+        const data = await getTree();
+        setTreeData(data);
+      } finally {
+        setLoading(false);
+      }
     } catch {
       // 错误已由全局拦截器处理
     }
-  }, [refreshTree]);
+  }, []);
 
   /** 表单弹窗成功回调 */
   const handleFormSuccess = useCallback(() => {

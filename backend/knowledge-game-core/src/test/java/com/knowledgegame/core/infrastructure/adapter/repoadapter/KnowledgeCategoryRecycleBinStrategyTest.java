@@ -107,6 +107,42 @@ class KnowledgeCategoryRecycleBinStrategyTest {
     // ============================================================
 
     @Test
+    @DisplayName("完整删除链路：validateDeletable → moveToRecycleBin（模拟 AppService 调用）")
+    void fullDeleteFlow_validateThenMove_shouldSucceed() {
+        KnowledgeCategoryPO cat = persistCategory(null, "完整链路测试");
+        Long originalId = cat.getId();
+
+        // 模拟 AppService.delete() 的调用顺序
+        assertThatCode(() -> strategy.validateDeletable(originalId)).doesNotThrowAnyException();
+        strategy.moveToRecycleBin(originalId, "admin");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(categoryJpaRepository.findById(originalId)).isEmpty();
+        assertThat(deletedJpaRepository.findByOriginalId(originalId)).isPresent();
+        assertThat(recycleBinItemJpaRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("完整删除链路：父+子 validateDeletable → moveToRecycleBin")
+    void fullDeleteFlow_tree_validateThenMove_shouldSucceed() {
+        KnowledgeCategoryPO parent = persistCategory(null, "父");
+        persistCategory(parent.getId(), "子1");
+        persistCategory(parent.getId(), "子2");
+
+        assertThatCode(() -> strategy.validateDeletable(parent.getId())).doesNotThrowAnyException();
+        strategy.moveToRecycleBin(parent.getId(), "admin");
+
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(categoryJpaRepository.count()).isEqualTo(0);
+        assertThat(deletedJpaRepository.count()).isEqualTo(3);
+        assertThat(recycleBinItemJpaRepository.count()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("moveToRecycleBin — 叶子节点 → 删除1行 + 1条快照 + 1条总览记录")
     void moveToRecycleBin_leaf_shouldMoveToRecycleBin() {
         KnowledgeCategoryPO cat = persistCategory(null, "测试分类");

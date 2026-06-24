@@ -183,7 +183,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/admin/knowledge-categories/{id} | PUT | 更新分类信息 | 已实现 |
 | /api/admin/knowledge-categories/{id}/move | PUT | 移动分类到新父级（自动设置 sortOrder + 同级名称唯一性校验） | 已实现 |
 | /api/admin/knowledge-categories/batch-sort | PUT | 批量更新同级节点 sortOrder（最多 50 个，校验同父级） | 已实现 |
-| /api/admin/knowledge-categories/{id} | DELETE | 软删除（有 ACTIVE 子分类或关联 ACTIVE 题目时拒绝） | 已实现 |
+| /api/admin/knowledge-categories/{id} | DELETE | 移入回收站（含子分类递归，校验子树无关联题目/条目） | 已实现 |
 | /api/admin/upload-credential | GET | 获取上传凭证（bizType + count） | 已实现（需 JWT + ADMIN，Feign → file 服务） |
 | /api/admin/questions | POST | 创建题目（选择题/判断题/填空题） | 已实现 |
 | /api/admin/questions | GET | 分页查询（keyword/type/difficulty/categoryId/tag/status 筛选 + sort/order 排序） | 已实现 |
