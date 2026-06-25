@@ -1,9 +1,11 @@
 package com.knowledgegame.app.api.controller;
 
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.GroupIpLibraryResponse;
 import com.knowledgegame.app.api.dto.StudyGroupDetailResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
+import com.knowledgegame.app.api.dto.UpdateGroupIpLibraryRequest;
 import com.knowledgegame.app.api.dto.UpdateStudyGroupRequest;
 import com.knowledgegame.app.application.service.StudyGroupAppService;
 import com.knowledgegame.core.common.result.Result;
@@ -68,5 +70,17 @@ public class StudyGroupController {
     public Result<Void> disband(@PathVariable("id") Long groupId) {
         appService.disband(groupId);
         return Result.success(null);
+    }
+
+    @GetMapping("/{id}/ip-library")
+    public Result<List<GroupIpLibraryResponse>> listIpLibrary(@PathVariable("id") Long groupId) {
+        return Result.success(appService.listIpLibrary(groupId));
+    }
+
+    @PutMapping("/{id}/ip-library")
+    public Result<List<GroupIpLibraryResponse>> updateIpLibrary(
+            @PathVariable("id") Long groupId,
+            @Valid @RequestBody UpdateGroupIpLibraryRequest request) {
+        return Result.success(appService.updateIpLibrary(groupId, request));
     }
 }

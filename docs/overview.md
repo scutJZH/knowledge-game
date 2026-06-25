@@ -61,7 +61,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | knowledge_item | 知识条目表（标题/Markdown 正文/HTML 渲染/封面图/标签/排序） | REQ-97 |
 | knowledge_item_category_relation | 知识条目-分类多对多关联表 | REQ-97 |
 | file_info | 文件信息表（图片元数据、metadata JSON 列、basePath 存储路径、软删除） | REQ-83、REQ-87、REQ-93 |
-| study_group | 学习群组表（无 FK 约束 + join_policy + invite_code + avatar FileRef 双字段） | REQ-48, REQ-49 |
+| study_group | 学习群组表（无 FK 约束 + join_policy + invite_code + avatar FileRef 双字段 + status ACTIVE/INACTIVE） | REQ-48, REQ-49, REQ-61 |
 | group_member | 群组成员表（UNIQUE(group_id, user_id)，role VARCHAR 存枚举名，无 FK 约束） | REQ-48 |
 | recycle_bin | 回收站总览索引表（resource_type + original_id 联合唯一，restore_deadline 定时清理索引） | REQ-100 |
 | ip_series_deleted | IP 系列删除快照表（镜像 ip_series 字段 + original_id/deleted_by/deleted_at） | REQ-100, REQ-104 |
@@ -153,6 +153,13 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/study-groups/{id}/members/me | GET | 查询当前成员身份 | 已实现（需 JWT，REQ-49） |
 | /api/study-groups/{id}/members/{userId} | PUT | 更新成员角色（仅 OWNER，ADMIN/MEMBER 互转） | 已实现（需 JWT，REQ-50） |
 | /api/study-groups/{id}/transfer-ownership | POST | 转让群主（仅 OWNER，原 OWNER 变 ADMIN） | 已实现（需 JWT，REQ-50） |
+| /api/study-groups | GET | 我的群组列表（含 myRole + memberCount） | 已实现（需 JWT，REQ-60） |
+| /api/study-groups/{id} | GET | 群组详情（OWNER/ADMIN 含 inviteCode） | 已实现（需 JWT，REQ-61） |
+| /api/study-groups/{id} | PUT | 编辑群组信息（仅 OWNER） | 已实现（需 JWT，REQ-61） |
+| /api/study-groups/{id} | DELETE | 解散群组（仅 OWNER） | 已实现（需 JWT，REQ-61） |
+| /api/study-groups/{id}/members | GET | 成员列表（按积分降序，含昵称头像） | 已实现（需 JWT，REQ-61） |
+| /api/study-groups/{id}/members/{userId} | DELETE | 踢出成员（OWNER/ADMIN，不可踢 OWNER） | 已实现（需 JWT，REQ-61） |
+| /api/questions | GET | 题目列表（按分类分页，仅 ACTIVE） | 已实现（需 JWT，REQ-61） |
 
 ### 管理端 `/api/admin/**`（admin 模块，端口 8081）
 
@@ -246,6 +253,8 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | 登录 | /login | 分屏品牌化布局，表单校验/错误提示/redirect跳转/记住我 | REQ-28 已实现 |
 | 注册 | /register | 分屏品牌化布局，确认密码/自动登录/redirect跳转/错误兜底 | REQ-28 已实现 |
 | 忘记密码 | /forgot-password | 占位页面，功能待后续实现 | REQ-28 已实现 |
+| 群组列表 | /groups | 我的群组卡片列表 + 创建/加入 Modal | REQ-60 已实现 |
+| 群组详情 | /groups/:id | 信息卡片 + 成员/知识库/设置三 Tab | REQ-61 已实现 |
 
 ### 认证基础组件（REQ-27）
 
@@ -385,3 +394,12 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | 前端认证状态管理 | Zustand + persist 中间件（localStorage key: auth-storage），accessToken/refreshToken/expiresIn/user | 2026-06-19 REQ-27 |
 | 前端路由守卫 | 全量拦截 + 白名单（/login /register），AuthGuard 包裹需认证路由，未登录重定向 /login?redirect=... | 2026-06-19 REQ-27 |
 | 前端测试策略 | Vitest + axios-mock-adapter（axios 级别 mock，拦截器链完整执行）+ jsdom + @testing-library/react；jsdom AbortSignal 跨 realm 问题用 MemoryRouter + Routes 替代 createMemoryRouter | 2026-06-19 REQ-27 |
+| 群组列表页面 | 单页聚合（列表 + 创建/加入），卡片式布局，无分页（< 20 群组），头像用首字渐变方块 | 2026-06-25 REQ-60 |
+| 群组详情页面 | 顶部信息卡片 + 底部三 Tab（成员/知识库/设置）；设置 Tab 全员可见（含退出群组），OWNER 独有编辑/转让/解散；成员列表按积分降序+前三奖牌+更多下拉操作；邀请码 OWNER+ADMIN 可见可重新生成 | 2026-06-25 REQ-61 |
+| 群组转让方式 | 成员行「更多」下拉 + 设置 Tab Select 搜索昵称双入口 | 2026-06-25 REQ-61 |
+| 群组退出 | 设置 Tab 独立卡片，二次确认提示积分清零；OWNER 不显示退出按钮（需先转让） | 2026-06-25 REQ-61 |
+| StudyGroupStatus 枚举 | ACTIVE / INACTIVE，新建默认 ACTIVE，对接回收站 restore 后强制 INACTIVE | 2026-06-25 REQ-61 |
+| 用户端题目查询 | GET /api/questions，复用 core QuestionRepository，默认过滤 status=ACTIVE，分页返回 | 2026-06-25 REQ-61 |
+| GroupMember 按钮命名修正 | 路径变量 userId → AppService 使用 findByGroupIdAndUserId 而非 findById（修复主键/用户ID混用 bug） | 2026-06-26 REQ-61 |
+| Controller 测试策略 | 用户端 Controller 可用 @WebMvcTest（app 模块无 Nacos 自动配置干扰），管理端需用 Mockito（@ExtendWith(MockitoExtension.class) + @InjectMocks） | 2026-06-25 REQ-61 |
+| 测试架构策略 | Task 计划中 @WebMvcTest → 对接实际模块可行性（app 可用，admin 不可用），禁止计划与实现测试框架不一致 | 2026-06-25 沉淀规则 |

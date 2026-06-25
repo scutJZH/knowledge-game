@@ -1,8 +1,10 @@
 package com.knowledgegame.app.application.service;
 
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.GroupIpLibraryResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
+import com.knowledgegame.app.api.dto.UpdateGroupIpLibraryRequest;
 import com.knowledgegame.components.feign.client.FileServiceClient;
 import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
@@ -15,10 +17,15 @@ import com.knowledgegame.core.domain.model.entity.GroupMember;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.InviteCode;
+import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
+import com.knowledgegame.core.domain.model.entity.IpSeries;
+import com.knowledgegame.core.domain.port.outbound.GroupIpLibraryRepository;
 import com.knowledgegame.core.domain.port.outbound.GroupMemberRepository;
+import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.StudyGroupRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -56,13 +63,20 @@ class StudyGroupAppServiceTest {
     @Mock
     private FileServiceClient fileServiceClient;
 
+    @Mock
+    private GroupIpLibraryRepository groupIpLibraryRepository;
+
+    @Mock
+    private IpSeriesRepositoryPort ipSeriesRepositoryPort;
+
     private StudyGroupAppService appService;
 
     private MockedStatic<com.knowledgegame.auth.security.SecurityUtils> securityUtilsMock;
 
     @BeforeEach
     void setUp() {
-        appService = new StudyGroupAppService(studyGroupRepository, groupMemberRepository, fileServiceClient);
+        appService = new StudyGroupAppService(studyGroupRepository, groupMemberRepository, fileServiceClient,
+                groupIpLibraryRepository, ipSeriesRepositoryPort);
         securityUtilsMock = mockStatic(com.knowledgegame.auth.security.SecurityUtils.class);
         securityUtilsMock.when(com.knowledgegame.auth.security.SecurityUtils::getCurrentUserId).thenReturn(100L);
     }
@@ -388,6 +402,230 @@ class StudyGroupAppServiceTest {
 
         assertNotNull(result);
         assertEquals(0, result.size());
+    }
+
+    // ---- listIpLibrary 测试 ----
+
+    @Test
+    @DisplayName("listIpLibrary: 群组不存在应抛 GROUP_NOT_FOUND")
+    void listIpLibrary_groupNotFound_throwsGroupNotFound() {
+        when(studyGroupRepository.existsById(1L)).thenReturn(false);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.listIpLibrary(1L));
+        assertEquals(ResultCode.GROUP_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("listIpLibrary: 非成员应抛 NOT_GROUP_MEMBER")
+    void listIpLibrary_nonMember_throwsNotGroupMember() {
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(false);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.listIpLibrary(1L));
+        assertEquals(ResultCode.NOT_GROUP_MEMBER.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("listIpLibrary: 空列表返回空")
+    void listIpLibrary_empty_returnsEmptyList() {
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+        when(groupIpLibraryRepository.findByGroupId(1L)).thenReturn(List.of());
+
+        List<GroupIpLibraryResponse> result = appService.listIpLibrary(1L);
+
+        assertNotNull(result);
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    @DisplayName("listIpLibrary: 正常返回含 IP 名称")
+    void listIpLibrary_normal_returnsWithIpNames() {
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
+
+        com.knowledgegame.core.domain.model.entity.GroupIpLibrary item =
+                com.knowledgegame.core.domain.model.entity.GroupIpLibrary.reconstruct(
+                        1L, 1L, 10L, java.time.LocalDateTime.of(2025, 6, 1, 12, 0, 0));
+        when(groupIpLibraryRepository.findByGroupId(1L)).thenReturn(List.of(item));
+
+        IpSeries ip = IpSeries.reconstruct(10L, "PKM", "宝可梦", "desc", null,
+                IpSeriesStatus.ACTIVE, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findAllByIdIn(List.of(10L))).thenReturn(List.of(ip));
+
+        List<GroupIpLibraryResponse> result = appService.listIpLibrary(1L);
+
+        assertEquals(1, result.size());
+        assertEquals(1L, result.get(0).getId());
+        assertEquals(10L, result.get(0).getIpSeriesId());
+        assertEquals("宝可梦", result.get(0).getIpSeriesName());
+        assertEquals("PKM", result.get(0).getIpSeriesCode());
+        assertNotNull(result.get(0).getAddedAt());
+    }
+
+    // ---- updateIpLibrary 测试 ----
+
+    @Test
+    @DisplayName("updateIpLibrary: 群组不存在应抛 GROUP_NOT_FOUND")
+    void updateIpLibrary_groupNotFound_throwsGroupNotFound() {
+        UpdateGroupIpLibraryRequest request = buildIpLibraryRequest(List.of(10L));
+        when(studyGroupRepository.existsById(1L)).thenReturn(false);
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.updateIpLibrary(1L, request));
+        assertEquals(ResultCode.GROUP_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("updateIpLibrary: 非成员应抛 NOT_GROUP_MEMBER")
+    void updateIpLibrary_nonMember_throwsNotGroupMember() {
+        UpdateGroupIpLibraryRequest request = buildIpLibraryRequest(List.of(10L));
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.updateIpLibrary(1L, request));
+        assertEquals(ResultCode.NOT_GROUP_MEMBER.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("updateIpLibrary: MEMBER 应抛 NOT_GROUP_ADMIN")
+    void updateIpLibrary_member_throwsNotGroupAdmin() {
+        UpdateGroupIpLibraryRequest request = buildIpLibraryRequest(List.of(10L));
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        GroupMember member = GroupMember.reconstruct(1L, 1L, 100L,
+                GroupRole.MEMBER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(member));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.updateIpLibrary(1L, request));
+        assertEquals(ResultCode.NOT_GROUP_ADMIN.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("updateIpLibrary: ADMIN 操作成功")
+    void updateIpLibrary_admin_success() {
+        UpdateGroupIpLibraryRequest request = buildIpLibraryRequest(List.of(10L));
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        GroupMember admin = GroupMember.reconstruct(1L, 1L, 100L,
+                GroupRole.ADMIN, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(admin));
+
+        // 当前无关联 → 需新增
+        when(groupIpLibraryRepository.findByGroupId(1L))
+                .thenReturn(List.of())   // 第一次：diff 计算
+                .thenReturn(List.of(     // 第二次：响应组装（saveAll 后）
+                        com.knowledgegame.core.domain.model.entity.GroupIpLibrary.reconstruct(
+                                1L, 1L, 10L, java.time.LocalDateTime.now())));
+
+        IpSeries ip = IpSeries.reconstruct(10L, "PKM", "宝可梦", "desc", null,
+                IpSeriesStatus.ACTIVE, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findAllByIdIn(List.of(10L)))
+                .thenReturn(List.of(ip))   // IP 校验
+                .thenReturn(List.of(ip));  // 响应填充
+
+        when(groupIpLibraryRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        List<GroupIpLibraryResponse> result = appService.updateIpLibrary(1L, request);
+
+        assertEquals(1, result.size());
+        assertEquals(10L, result.get(0).getIpSeriesId());
+        assertEquals("宝可梦", result.get(0).getIpSeriesName());
+
+        verify(groupIpLibraryRepository).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("updateIpLibrary: IP 不存在应抛 IP_SERIES_NOT_FOUND")
+    void updateIpLibrary_ipNotFound_throwsIpSeriesNotFound() {
+        UpdateGroupIpLibraryRequest request = buildIpLibraryRequest(List.of(10L, 20L));
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        GroupMember owner = GroupMember.reconstruct(1L, 1L, 100L,
+                GroupRole.OWNER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(owner));
+
+        // 只返回 1 个，10 存在 20 不存在
+        IpSeries ip10 = IpSeries.reconstruct(10L, "PKM", "P", null, null,
+                IpSeriesStatus.ACTIVE, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findAllByIdIn(List.of(10L, 20L))).thenReturn(List.of(ip10));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.updateIpLibrary(1L, request));
+        assertEquals(ResultCode.IP_SERIES_NOT_FOUND.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("updateIpLibrary: IP INACTIVE 应抛 IP_SERIES_NOT_ACTIVE")
+    void updateIpLibrary_ipInactive_throwsIpSeriesNotActive() {
+        UpdateGroupIpLibraryRequest request = buildIpLibraryRequest(List.of(10L));
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        GroupMember owner = GroupMember.reconstruct(1L, 1L, 100L,
+                GroupRole.OWNER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(owner));
+
+        IpSeries ip = IpSeries.reconstruct(10L, "PKM", "P", null, null,
+                IpSeriesStatus.INACTIVE, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findAllByIdIn(List.of(10L))).thenReturn(List.of(ip));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> appService.updateIpLibrary(1L, request));
+        assertEquals(ResultCode.IP_SERIES_NOT_ACTIVE.getCode(), ex.getCode());
+    }
+
+    @Test
+    @DisplayName("updateIpLibrary: 空数组清空全部关联")
+    void updateIpLibrary_emptyArray_clearsAll() {
+        UpdateGroupIpLibraryRequest request = buildIpLibraryRequest(List.of());
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        GroupMember owner = GroupMember.reconstruct(1L, 1L, 100L,
+                GroupRole.OWNER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(owner));
+
+        com.knowledgegame.core.domain.model.entity.GroupIpLibrary existing =
+                com.knowledgegame.core.domain.model.entity.GroupIpLibrary.reconstruct(
+                        1L, 1L, 10L, java.time.LocalDateTime.now());
+        when(groupIpLibraryRepository.findByGroupId(1L))
+                .thenReturn(List.of(existing))  // 当前有 1 条
+                .thenReturn(List.of());          // 清空后空
+
+        List<GroupIpLibraryResponse> result = appService.updateIpLibrary(1L, request);
+
+        assertEquals(0, result.size());
+        verify(groupIpLibraryRepository).deleteByGroupIdAndIpSeriesIdIn(1L, List.of(10L));
+    }
+
+    @Test
+    @DisplayName("updateIpLibrary: 幂等 — requestIds 与 currentIds 相同时无操作")
+    void updateIpLibrary_idempotent_noChange() {
+        UpdateGroupIpLibraryRequest request = buildIpLibraryRequest(List.of(10L));
+        when(studyGroupRepository.existsById(1L)).thenReturn(true);
+        GroupMember owner = GroupMember.reconstruct(1L, 1L, 100L,
+                GroupRole.OWNER, 0, java.time.LocalDateTime.now());
+        when(groupMemberRepository.findByGroupIdAndUserId(1L, 100L)).thenReturn(Optional.of(owner));
+
+        com.knowledgegame.core.domain.model.entity.GroupIpLibrary existing =
+                com.knowledgegame.core.domain.model.entity.GroupIpLibrary.reconstruct(
+                        1L, 1L, 10L, java.time.LocalDateTime.now());
+        when(groupIpLibraryRepository.findByGroupId(1L)).thenReturn(List.of(existing));
+
+        IpSeries ip = IpSeries.reconstruct(10L, "PKM", "P", null, null,
+                IpSeriesStatus.ACTIVE, java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
+        when(ipSeriesRepositoryPort.findAllByIdIn(List.of(10L)))
+                .thenReturn(List.of(ip));
+
+        List<GroupIpLibraryResponse> result = appService.updateIpLibrary(1L, request);
+
+        assertEquals(1, result.size());
+        // 不应调用 saveAll（无新增）或 delete（无删除）
+        verify(groupIpLibraryRepository, times(0)).saveAll(any());
+    }
+
+    private UpdateGroupIpLibraryRequest buildIpLibraryRequest(List<Long> ipSeriesIds) {
+        UpdateGroupIpLibraryRequest request = new UpdateGroupIpLibraryRequest();
+        request.setIpSeriesIds(ipSeriesIds);
+        return request;
     }
 
     private CreateStudyGroupRequest buildRequest(String name, String description, Long avatarFileId,
