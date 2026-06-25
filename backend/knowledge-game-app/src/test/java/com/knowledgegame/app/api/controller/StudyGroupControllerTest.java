@@ -2,8 +2,10 @@ package com.knowledgegame.app.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.GroupIpLibraryResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
+import com.knowledgegame.app.api.dto.UpdateGroupIpLibraryRequest;
 import com.knowledgegame.app.application.service.StudyGroupAppService;
 import com.knowledgegame.app.config.JacksonConfig;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
@@ -24,8 +26,10 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -164,5 +168,153 @@ class StudyGroupControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    // ---- IP Library 测试 ----
+
+    @Test
+    @DisplayName("GET ip-library 成功应返回 200 + 含 IP 名称/封面图")
+    void listIpLibrary_shouldReturn200WithIpInfo() throws Exception {
+        GroupIpLibraryResponse item = new GroupIpLibraryResponse();
+        item.setId(1L);
+        item.setGroupId(1L);
+        item.setIpSeriesId(10L);
+        item.setIpSeriesName("宝可梦");
+        item.setIpSeriesCode("PKM");
+        item.setCoverImageFileId(100L);
+        item.setCoverImageUrl("https://example.com/cover.png");
+        item.setAddedAt(1718800000000L);
+        when(appService.listIpLibrary(1L)).thenReturn(List.of(item));
+
+        mockMvc.perform(get("/api/study-groups/1/ip-library"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[0].ipSeriesId").value(10))
+                .andExpect(jsonPath("$.data[0].ipSeriesName").value("宝可梦"))
+                .andExpect(jsonPath("$.data[0].ipSeriesCode").value("PKM"))
+                .andExpect(jsonPath("$.data[0].coverImageFileId").value(100))
+                .andExpect(jsonPath("$.data[0].coverImageUrl").value("https://example.com/cover.png"))
+                .andExpect(jsonPath("$.data[0].addedAt").value(1718800000000L));
+    }
+
+    @Test
+    @DisplayName("GET ip-library 空列表应返回 200 + 空数组")
+    void listIpLibrary_empty_returns200WithEmptyArray() throws Exception {
+        when(appService.listIpLibrary(1L)).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/study-groups/1/ip-library"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    @DisplayName("GET ip-library 非成员应返回 NOT_GROUP_MEMBER")
+    void listIpLibrary_nonMember_returnsNotGroupMember() throws Exception {
+        when(appService.listIpLibrary(1L))
+                .thenThrow(new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        mockMvc.perform(get("/api/study-groups/1/ip-library"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").value("非群组成员"));
+    }
+
+    @Test
+    @DisplayName("GET ip-library 群组不存在应返回 GROUP_NOT_FOUND")
+    void listIpLibrary_groupNotFound_returnsGroupNotFound() throws Exception {
+        when(appService.listIpLibrary(1L))
+                .thenThrow(new BusinessException(ResultCode.GROUP_NOT_FOUND));
+
+        mockMvc.perform(get("/api/study-groups/1/ip-library"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(404))
+                .andExpect(jsonPath("$.message").value("群组不存在"));
+    }
+
+    @Test
+    @DisplayName("PUT ip-library 成功应返回 200 + 更新后列表")
+    void updateIpLibrary_shouldReturn200() throws Exception {
+        GroupIpLibraryResponse item = new GroupIpLibraryResponse();
+        item.setId(1L);
+        item.setGroupId(1L);
+        item.setIpSeriesId(10L);
+        item.setIpSeriesName("宝可梦");
+        when(appService.updateIpLibrary(eq(1L), any())).thenReturn(List.of(item));
+
+        UpdateGroupIpLibraryRequest request = new UpdateGroupIpLibraryRequest();
+        request.setIpSeriesIds(List.of(10L));
+
+        mockMvc.perform(put("/api/study-groups/1/ip-library")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data[0].ipSeriesId").value(10));
+    }
+
+    @Test
+    @DisplayName("PUT ip-library ipSeriesIds 为 null 应返回 200 + code=400")
+    void updateIpLibrary_nullIpSeriesIds_returns200WithFail() throws Exception {
+        UpdateGroupIpLibraryRequest request = new UpdateGroupIpLibraryRequest();
+
+        mockMvc.perform(put("/api/study-groups/1/ip-library")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
+    @Test
+    @DisplayName("PUT ip-library 非 ADMIN 应返回 NOT_GROUP_ADMIN")
+    void updateIpLibrary_nonAdmin_returnsNotGroupAdmin() throws Exception {
+        when(appService.updateIpLibrary(eq(1L), any()))
+                .thenThrow(new BusinessException(ResultCode.NOT_GROUP_ADMIN));
+
+        UpdateGroupIpLibraryRequest request = new UpdateGroupIpLibraryRequest();
+        request.setIpSeriesIds(List.of(10L));
+
+        mockMvc.perform(put("/api/study-groups/1/ip-library")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(403))
+                .andExpect(jsonPath("$.message").value("仅群主或管理员可操作"));
+    }
+
+    @Test
+    @DisplayName("PUT ip-library IP 不存在应返回 IP_SERIES_NOT_FOUND")
+    void updateIpLibrary_ipNotFound_returnsIpSeriesNotFound() throws Exception {
+        when(appService.updateIpLibrary(eq(1L), any()))
+                .thenThrow(new BusinessException(ResultCode.IP_SERIES_NOT_FOUND));
+
+        UpdateGroupIpLibraryRequest request = new UpdateGroupIpLibraryRequest();
+        request.setIpSeriesIds(List.of(999L));
+
+        mockMvc.perform(put("/api/study-groups/1/ip-library")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("IP系列不存在"));
+    }
+
+    @Test
+    @DisplayName("PUT ip-library IP INACTIVE 应返回 IP_SERIES_NOT_ACTIVE")
+    void updateIpLibrary_ipInactive_returnsIpSeriesNotActive() throws Exception {
+        when(appService.updateIpLibrary(eq(1L), any()))
+                .thenThrow(new BusinessException(ResultCode.IP_SERIES_NOT_ACTIVE));
+
+        UpdateGroupIpLibraryRequest request = new UpdateGroupIpLibraryRequest();
+        request.setIpSeriesIds(List.of(10L));
+
+        mockMvc.perform(put("/api/study-groups/1/ip-library")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("IP系列未启用"));
     }
 }

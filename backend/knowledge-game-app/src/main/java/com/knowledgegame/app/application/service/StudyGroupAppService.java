@@ -1,8 +1,11 @@
 package com.knowledgegame.app.application.service;
 
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.GroupIpLibraryResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
+import com.knowledgegame.app.api.dto.UpdateGroupIpLibraryRequest;
+import com.knowledgegame.app.application.assembler.GroupIpLibraryAssembler;
 import com.knowledgegame.app.application.assembler.StudyGroupAssembler;
 import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.components.feign.client.FileServiceClient;
@@ -10,21 +13,28 @@ import com.knowledgegame.components.feign.dto.FileInfoResponse;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.common.result.ResultCode;
-import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
 import com.knowledgegame.core.domain.model.domainenum.GroupRole;
+import com.knowledgegame.core.domain.model.domainenum.IpSeriesStatus;
+import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.entity.GroupIpLibrary;
 import com.knowledgegame.core.domain.model.entity.GroupMember;
+import com.knowledgegame.core.domain.model.entity.IpSeries;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.FileRef;
+import com.knowledgegame.core.domain.port.outbound.GroupIpLibraryRepository;
 import com.knowledgegame.core.domain.port.outbound.GroupMemberRepository;
+import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.StudyGroupRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -37,13 +47,19 @@ public class StudyGroupAppService {
     private final StudyGroupRepository studyGroupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final FileServiceClient fileServiceClient;
+    private final GroupIpLibraryRepository groupIpLibraryRepository;
+    private final IpSeriesRepositoryPort ipSeriesRepositoryPort;
 
     public StudyGroupAppService(StudyGroupRepository studyGroupRepository,
                                 GroupMemberRepository groupMemberRepository,
-                                FileServiceClient fileServiceClient) {
+                                FileServiceClient fileServiceClient,
+                                GroupIpLibraryRepository groupIpLibraryRepository,
+                                IpSeriesRepositoryPort ipSeriesRepositoryPort) {
         this.studyGroupRepository = studyGroupRepository;
         this.groupMemberRepository = groupMemberRepository;
         this.fileServiceClient = fileServiceClient;
+        this.groupIpLibraryRepository = groupIpLibraryRepository;
+        this.ipSeriesRepositoryPort = ipSeriesRepositoryPort;
     }
 
     @Transactional
@@ -136,5 +152,83 @@ public class StudyGroupAppService {
                     group, member.getRole().name(), memberCount));
         }
         return result;
+    }
+
+    /**
+     * 查询群组已关联的 IP 列表（任意成员）
+     */
+    @Transactional(readOnly = true)
+    public List<GroupIpLibraryResponse> listIpLibrary(Long groupId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (!studyGroupRepository.existsById(groupId)) {
+            throw new BusinessException(ResultCode.GROUP_NOT_FOUND);
+        }
+        if (!groupMemberRepository.existsByGroupIdAndUserId(groupId, userId)) {
+            throw new BusinessException(ResultCode.NOT_GROUP_MEMBER);
+        }
+        List<GroupIpLibrary> items = groupIpLibraryRepository.findByGroupId(groupId);
+        if (items.isEmpty()) return List.of();
+        List<Long> ipIds = items.stream().map(GroupIpLibrary::getIpSeriesId).toList();
+        Map<Long, IpSeries> ipMap = ipSeriesRepositoryPort.findAllByIdIn(ipIds).stream()
+                .collect(Collectors.toMap(IpSeries::getId, Function.identity()));
+        return items.stream()
+                .map(item -> GroupIpLibraryAssembler.INSTANCE.toResponse(item, ipMap.get(item.getIpSeriesId())))
+                .toList();
+    }
+
+    /**
+     * 批量设置 IP 库关联（OWNER/ADMIN）
+     */
+    @Transactional
+    public List<GroupIpLibraryResponse> updateIpLibrary(Long groupId, UpdateGroupIpLibraryRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        if (!studyGroupRepository.existsById(groupId)) {
+            throw new BusinessException(ResultCode.GROUP_NOT_FOUND);
+        }
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+        if (member.getRole() != GroupRole.OWNER && member.getRole() != GroupRole.ADMIN) {
+            throw new BusinessException(ResultCode.NOT_GROUP_ADMIN);
+        }
+
+        List<Long> requestIds = request.getIpSeriesIds().stream().distinct().toList();
+
+        if (!requestIds.isEmpty()) {
+            List<IpSeries> ipList = ipSeriesRepositoryPort.findAllByIdIn(requestIds);
+            if (ipList.size() != requestIds.size()) {
+                throw new BusinessException(ResultCode.IP_SERIES_NOT_FOUND);
+            }
+            boolean hasInactive = ipList.stream().anyMatch(ip -> ip.getStatus() != IpSeriesStatus.ACTIVE);
+            if (hasInactive) {
+                throw new BusinessException(ResultCode.IP_SERIES_NOT_ACTIVE);
+            }
+        }
+
+        List<GroupIpLibrary> existing = groupIpLibraryRepository.findByGroupId(groupId);
+        Set<Long> currentIds = existing.stream().map(GroupIpLibrary::getIpSeriesId).collect(Collectors.toSet());
+        Set<Long> requestIdSet = new HashSet<>(requestIds);
+
+        List<Long> toRemove = currentIds.stream().filter(id -> !requestIdSet.contains(id)).toList();
+        List<Long> toAdd = requestIds.stream().filter(id -> !currentIds.contains(id)).toList();
+
+        if (!toRemove.isEmpty()) {
+            groupIpLibraryRepository.deleteByGroupIdAndIpSeriesIdIn(groupId, toRemove);
+        }
+        if (!toAdd.isEmpty()) {
+            List<GroupIpLibrary> newItems = toAdd.stream()
+                    .map(ipId -> GroupIpLibrary.create(groupId, ipId))
+                    .toList();
+            groupIpLibraryRepository.saveAll(newItems);
+        }
+
+        List<GroupIpLibrary> updated = groupIpLibraryRepository.findByGroupId(groupId);
+        if (updated.isEmpty()) return List.of();
+        List<Long> ipIds = updated.stream().map(GroupIpLibrary::getIpSeriesId).toList();
+        Map<Long, IpSeries> ipMap = ipSeriesRepositoryPort.findAllByIdIn(ipIds).stream()
+                .collect(Collectors.toMap(IpSeries::getId, Function.identity()));
+        return updated.stream()
+                .map(item -> GroupIpLibraryAssembler.INSTANCE.toResponse(item, ipMap.get(item.getIpSeriesId())))
+                .toList();
     }
 }
