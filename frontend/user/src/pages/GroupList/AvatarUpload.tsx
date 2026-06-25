@@ -6,19 +6,22 @@ import { useAuthStore } from '@/store/auth-store';
 interface AvatarUploadProps {
   value?: number;
   onChange?: (fileId: number) => void;
+  currentUrl?: string | null;
 }
 
-function AvatarUpload({ value, onChange }: AvatarUploadProps) {
+function AvatarUpload({ value, onChange, currentUrl }: AvatarUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const userId = useAuthStore((s) => s.user?.id);
 
   useEffect(() => {
-    if (value != null && previewUrl == null) {
+    if (currentUrl) {
+      setPreviewUrl(currentUrl);
+    } else if (value != null && previewUrl == null) {
       setPreviewUrl(`/api/file/${value}?action=download`);
     }
-  }, [value]);
+  }, [value, currentUrl]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

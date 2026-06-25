@@ -138,12 +138,8 @@ public class GroupMemberAppService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         enforceOwner(groupId, currentUserId);
 
-        GroupMember target = groupMemberRepository.findById(targetUserId)
+        GroupMember target = groupMemberRepository.findByGroupIdAndUserId(groupId, targetUserId)
                 .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
-
-        if (!target.getGroupId().equals(groupId)) {
-            throw new BusinessException(ResultCode.NOT_GROUP_MEMBER);
-        }
 
         if (target.getRole() == GroupRole.OWNER) {
             throw new BusinessException(ResultCode.CANNOT_CHANGE_OWNER_ROLE);
@@ -167,12 +163,8 @@ public class GroupMemberAppService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         GroupMember owner = enforceOwner(groupId, currentUserId);
 
-        GroupMember target = groupMemberRepository.findById(toUserId)
+        GroupMember target = groupMemberRepository.findByGroupIdAndUserId(groupId, toUserId)
                 .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
-
-        if (!target.getGroupId().equals(groupId)) {
-            throw new BusinessException(ResultCode.NOT_GROUP_MEMBER);
-        }
 
         StudyGroup group = studyGroupRepository.findById(groupId)
                 .orElseThrow(() -> new BusinessException(ResultCode.GROUP_NOT_FOUND));

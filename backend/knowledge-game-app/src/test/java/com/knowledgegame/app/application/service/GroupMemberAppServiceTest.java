@@ -358,7 +358,7 @@ class GroupMemberAppServiceTest {
             GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
                     GroupRole.MEMBER, 0, LocalDateTime.now());
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
-            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 200L)).thenReturn(Optional.of(target));
 
             appService.updateRole(10L, 200L, "ADMIN");
 
@@ -375,7 +375,7 @@ class GroupMemberAppServiceTest {
             GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
                     GroupRole.ADMIN, 0, LocalDateTime.now());
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
-            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 200L)).thenReturn(Optional.of(target));
 
             appService.updateRole(10L, 200L, "MEMBER");
 
@@ -392,7 +392,7 @@ class GroupMemberAppServiceTest {
             GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
                     GroupRole.ADMIN, 0, LocalDateTime.now());
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
-            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 200L)).thenReturn(Optional.of(target));
 
             appService.updateRole(10L, 200L, "ADMIN");
 
@@ -417,7 +417,6 @@ class GroupMemberAppServiceTest {
             GroupMember caller = GroupMember.reconstruct(1L, 10L, 100L,
                     GroupRole.OWNER, 0, LocalDateTime.now());
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
-            when(groupMemberRepository.findById(999L)).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> appService.updateRole(10L, 999L, "ADMIN"));
@@ -432,7 +431,6 @@ class GroupMemberAppServiceTest {
             GroupMember target = GroupMember.reconstruct(2L, 20L, 200L,
                     GroupRole.MEMBER, 0, LocalDateTime.now());
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
-            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> appService.updateRole(10L, 200L, "ADMIN"));
@@ -447,7 +445,7 @@ class GroupMemberAppServiceTest {
             GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
                     GroupRole.OWNER, 0, LocalDateTime.now());
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(caller));
-            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 200L)).thenReturn(Optional.of(target));
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> appService.updateRole(10L, 200L, "ADMIN"));
@@ -471,7 +469,7 @@ class GroupMemberAppServiceTest {
                     LocalDateTime.now(), LocalDateTime.now());
 
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(owner));
-            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
+            when(groupMemberRepository.findByGroupIdAndUserId(10L, 200L)).thenReturn(Optional.of(target));
             when(studyGroupRepository.findById(10L)).thenReturn(Optional.of(group));
 
             appService.transferOwnership(10L, 200L);
@@ -505,7 +503,6 @@ class GroupMemberAppServiceTest {
             GroupMember owner = GroupMember.reconstruct(1L, 10L, 100L,
                     GroupRole.OWNER, 0, LocalDateTime.now());
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(owner));
-            when(groupMemberRepository.findById(999L)).thenReturn(Optional.empty());
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> appService.transferOwnership(10L, 999L));
@@ -520,7 +517,6 @@ class GroupMemberAppServiceTest {
             GroupMember target = GroupMember.reconstruct(2L, 20L, 200L,
                     GroupRole.MEMBER, 0, LocalDateTime.now());
             when(groupMemberRepository.findByGroupIdAndUserId(10L, 100L)).thenReturn(Optional.of(owner));
-            when(groupMemberRepository.findById(200L)).thenReturn(Optional.of(target));
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> appService.transferOwnership(10L, 200L));

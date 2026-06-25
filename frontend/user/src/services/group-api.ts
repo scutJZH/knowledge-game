@@ -54,6 +54,11 @@ export function transferOwnership(groupId: number, toUserId: number) {
   return apiClient.post<never, void>(`/study-groups/${groupId}/transfer-ownership`, { toUserId });
 }
 
+/** 退出群组 */
+export function leaveGroup(groupId: number) {
+  return apiClient.delete<never, void>(`/study-groups/${groupId}/members/me`);
+}
+
 /** 踢出成员 */
 export function kickMember(groupId: number, userId: number) {
   return apiClient.delete<never, void>(`/study-groups/${groupId}/members/${userId}`);
