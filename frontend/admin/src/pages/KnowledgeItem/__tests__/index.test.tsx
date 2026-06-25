@@ -22,6 +22,8 @@ jest.mock('@/services/knowledge-item', () => ({
 jest.mock('@/services/knowledge-category', () => ({
   getTree: jest.fn().mockResolvedValue([]),
   convertToTreeDataActiveOnly: jest.fn(() => []),
+  convertToTreeData: jest.fn(() => []),
+  buildCategoryPathMap: jest.fn(() => new Map()),
 }));
 
 jest.mock('@/components/VditorEditor', () => ({

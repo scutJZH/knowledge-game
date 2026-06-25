@@ -15,6 +15,7 @@ import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionCategoryRelationPO;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionDeletedPO;
 import com.knowledgegame.core.infrastructure.db.entity.RecycleBinItemPO;
+import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionCategoryRelationJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionJpaRepository;
@@ -46,6 +47,7 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
     private final QuestionDeletedJpaRepository questionDeletedJpaRepository;
     private final QuestionCategoryRelationJpaRepository relationJpaRepository;
     private final RecycleBinItemJpaRepository recycleBinItemJpaRepository;
+    private final KnowledgeCategoryJpaRepository categoryJpaRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -59,13 +61,15 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
                                        QuestionJpaRepository questionJpaRepository,
                                        QuestionDeletedJpaRepository questionDeletedJpaRepository,
                                        QuestionCategoryRelationJpaRepository relationJpaRepository,
-                                       RecycleBinItemJpaRepository recycleBinItemJpaRepository) {
+                                       RecycleBinItemJpaRepository recycleBinItemJpaRepository,
+                                       KnowledgeCategoryJpaRepository categoryJpaRepository) {
         this.questionRepository = questionRepository;
         this.recycleBinItemRepositoryPort = recycleBinItemRepositoryPort;
         this.questionJpaRepository = questionJpaRepository;
         this.questionDeletedJpaRepository = questionDeletedJpaRepository;
         this.relationJpaRepository = relationJpaRepository;
         this.recycleBinItemJpaRepository = recycleBinItemJpaRepository;
+        this.categoryJpaRepository = categoryJpaRepository;
     }
 
     @Override
@@ -134,6 +138,14 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
         QuestionDeletedPO deletedPO = questionDeletedJpaRepository.findByOriginalId(originalId)
                 .orElseThrow(() -> new BusinessException("题目快照不存在: " + originalId));
 
+        List<Long> categoryIds = parseCategoryIds(deletedPO.getRelatedData());
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            long existingCount = categoryJpaRepository.countByIdIn(categoryIds);
+            if (existingCount != categoryIds.size()) {
+                throw new BusinessException("题目关联的分类已被删除，无法恢复");
+            }
+        }
+
         entityManager.createNativeQuery(
                 "INSERT INTO question (id, type, content, options, answer, explanation, "
                         + "difficulty, tags, status, created_at, updated_at) "
@@ -151,7 +163,6 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
                 .setParameter(11, LocalDateTime.now())
                 .executeUpdate();
 
-        List<Long> categoryIds = parseCategoryIds(deletedPO.getRelatedData());
         if (categoryIds != null && !categoryIds.isEmpty()) {
             questionRepository.saveCategoryRelations(originalId, categoryIds);
         }

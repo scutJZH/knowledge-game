@@ -111,9 +111,16 @@ public class QuestionAppService {
                 sortField, page, size
         );
 
+        List<Long> questionIds = domainPage.getContent().stream()
+                .map(Question::getId).toList();
+        Map<Long, List<Long>> categoryMap = questionIds.isEmpty()
+                ? Map.of()
+                : questionRepository.findCategoryIdsByQuestionIds(questionIds);
+
         return PageResult.<QuestionResponse>builder()
                 .content(domainPage.getContent().stream()
-                        .map(QuestionAssembler.INSTANCE::toResponse).toList())
+                        .map(q -> toResponseWithCategories(q, categoryMap.getOrDefault(q.getId(), List.of())))
+                        .toList())
                 .totalElements(domainPage.getTotalElements())
                 .pageNumber(domainPage.getPageNumber())
                 .pageSize(domainPage.getPageSize())
@@ -287,6 +294,14 @@ public class QuestionAppService {
     private QuestionResponse toResponseWithCategories(Question question) {
         QuestionResponse response = QuestionAssembler.INSTANCE.toResponse(question);
         List<Long> categoryIds = questionRepository.findActiveCategoryIdsByQuestionId(question.getId());
+        return toResponseWithCategories(response, categoryIds);
+    }
+
+    /**
+     * 从已组装的 Response + 预加载的 categoryIds 重建（列表批量场景，避免 N+1 查询）
+     */
+    private static QuestionResponse toResponseWithCategories(QuestionResponse response,
+                                                              List<Long> categoryIds) {
         return QuestionResponse.builder()
                 .id(response.getId())
                 .type(response.getType())
@@ -301,6 +316,15 @@ public class QuestionAppService {
                 .createdAt(response.getCreatedAt())
                 .updatedAt(response.getUpdatedAt())
                 .build();
+    }
+
+    /**
+     * 领域模型 + 预加载分类 ID 转响应 DTO（列表批量场景）
+     */
+    private static QuestionResponse toResponseWithCategories(Question question,
+                                                              List<Long> categoryIds) {
+        QuestionResponse response = QuestionAssembler.INSTANCE.toResponse(question);
+        return toResponseWithCategories(response, categoryIds);
     }
 
     /**

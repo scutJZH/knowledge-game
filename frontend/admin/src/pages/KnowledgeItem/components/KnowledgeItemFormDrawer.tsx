@@ -5,8 +5,8 @@ import {
   ProFormText,
   ProFormTreeSelect,
 } from '@ant-design/pro-components';
-import { Form, message, TreeSelect } from 'antd';
-import { useEffect, useState } from 'react';
+import { Form, message, Tag, TreeSelect } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 import ImageUploadField from '@/components/ImageUploadField';
 import VditorEditor from '@/components/VditorEditor';
 import {
@@ -17,6 +17,7 @@ import {
 } from '@/services/knowledge-item';
 import {
   getTree,
+  buildCategoryPathMap,
   convertToTreeDataActiveOnly,
   type CategoryTreeNode,
 } from '@/services/knowledge-category';
@@ -40,10 +41,15 @@ const KnowledgeItemFormDrawer: React.FC<KnowledgeItemFormDrawerProps> = ({
   const [categoryTree, setCategoryTree] = useState<CategoryTreeNode[]>([]);
   const [editId, setEditId] = useState<number | null>(null);
 
+  const idToPathMap = useMemo(
+    () => buildCategoryPathMap(categoryTree),
+    [categoryTree],
+  );
+
   useEffect(() => {
     getTree()
       .then((data) => setCategoryTree(data || []))
-      .catch(() => {}); // 错误已由全局拦截器展示
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -140,8 +146,12 @@ const KnowledgeItemFormDrawer: React.FC<KnowledgeItemFormDrawerProps> = ({
           treeData: convertToTreeDataActiveOnly(categoryTree),
           multiple: true,
           treeCheckable: true,
-          showCheckedStrategy: TreeSelect.SHOW_ALL,
+          showCheckedStrategy: TreeSelect.SHOW_CHILD,
           placeholder: '请选择分类',
+          tagRender: (props: any) => {
+            const path = idToPathMap.get(props.value) || props.label;
+            return <Tag closable={props.closable} onClose={props.onClose}>{path}</Tag>;
+          },
         }}
       />
       <ProFormSelect

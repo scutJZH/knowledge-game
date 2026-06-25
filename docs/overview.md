@@ -189,7 +189,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/admin/questions | GET | 分页查询（keyword/type/difficulty/categoryId/tag/status 筛选 + sort/order 排序） | 已实现 |
 | /api/admin/questions/{id} | GET | 查询题目详情 | 已实现 |
 | /api/admin/questions/{id} | PUT | 更新题目 | 已实现 |
-| /api/admin/questions/{id} | DELETE | 软删除 | 已实现 |
+| /api/admin/questions/{id} | DELETE | 移入回收站（快照分类关联到 related_data JSON） | 已实现 |
 | /api/admin/questions/{id}/categories | GET | 查询题目关联的分类 ID（过滤 INACTIVE） | 已实现 |
 | /api/admin/questions/{id}/categories | PUT | 更新分类关联（全量替换，校验分类存在且 ACTIVE） | 已实现 |
 | /api/admin/questions/batch-activate | PUT | 批量启用 | 已实现 |

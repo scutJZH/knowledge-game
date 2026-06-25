@@ -50,4 +50,9 @@ public interface KnowledgeCategoryJpaRepository extends JpaRepository<KnowledgeC
      */
     @Query("SELECT MAX(c.sortOrder) FROM KnowledgeCategoryPO c WHERE c.parentId IS NULL")
     Integer findMaxSortOrderForRoot();
+
+    /**
+     * 统计 ID 列表中存在的分类数量（用于恢复时校验关联分类未被删除）
+     */
+    long countByIdIn(List<Long> ids);
 }

@@ -165,6 +165,13 @@ export async function batchDeactivate(ids: number[]): Promise<void> {
   });
 }
 
+/** 删除题目（移入回收站） */
+export async function deleteQuestion(id: number): Promise<void> {
+  return request<void>(`/api/admin/questions/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 /** 下载导入模板（返回 Blob） */
 export async function downloadImportTemplate(): Promise<Blob> {
   return request('/api/admin/questions/import-template', {

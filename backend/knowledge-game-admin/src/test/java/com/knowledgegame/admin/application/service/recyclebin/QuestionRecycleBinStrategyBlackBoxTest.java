@@ -11,6 +11,7 @@ import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.port.outbound.RecycleBinItemRepositoryPort;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.QuestionRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionDeletedPO;
+import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionCategoryRelationJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionJpaRepository;
@@ -49,6 +50,7 @@ class QuestionRecycleBinStrategyBlackBoxTest {
     @Mock private QuestionJpaRepository questionJpaRepository;
     @Mock private QuestionDeletedJpaRepository questionDeletedJpaRepository;
     @Mock private QuestionCategoryRelationJpaRepository relationJpaRepository;
+    @Mock private KnowledgeCategoryJpaRepository categoryJpaRepository;
     @Mock private RecycleBinItemJpaRepository recycleBinItemJpaRepository;
     @Mock private EntityManager entityManager;
     @Mock private Query query;
@@ -111,7 +113,7 @@ class QuestionRecycleBinStrategyBlackBoxTest {
     // ============================================================
 
     @Test
-    @DisplayName("restore — 有分类关联 → 调 saveCategoryRelations")
+    @DisplayName("restore — 有分类关联 → 校验通过后调 saveCategoryRelations")
     void restore_withCategories_shouldCallSaveCategoryRelations() {
         RecycleBinItem binItem = mockBinItem(3L, 300L, "有分类");
         QuestionDeletedPO deletedPO = buildDeletedPOWithRelatedData(300L,
@@ -119,6 +121,7 @@ class QuestionRecycleBinStrategyBlackBoxTest {
 
         lenient().when(recycleBinItemRepositoryPort.findById(3L)).thenReturn(Optional.of(binItem));
         lenient().when(questionDeletedJpaRepository.findByOriginalId(300L)).thenReturn(Optional.of(deletedPO));
+        lenient().when(categoryJpaRepository.countByIdIn(List.of(1L, 2L, 3L))).thenReturn(3L);
 
         strategy.restore(3L);
 

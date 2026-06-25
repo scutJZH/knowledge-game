@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, message, Modal, Popconfirm, Space, Tag, Tooltip, TreeSelect, Upload } from 'antd';
-import { UploadOutlined } from '@ant-design/icons';
+import { DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 
@@ -11,30 +11,16 @@ import {
   QUESTION_STATUS_OPTIONS,
   batchActivate,
   batchDeactivate,
+  deleteQuestion,
   downloadImportTemplate,
   getQuestionById,
   importQuestions,
   listQuestions,
 } from '@/services/questionBank';
-import { getTree, convertToTreeData } from '@/services/knowledge-category';
+import { getTree, convertToTreeData, buildCategoryPathMap } from '@/services/knowledge-category';
 import type { CategoryTreeNode } from '@/services/knowledge-category';
 import QuestionFormDrawer from './components/QuestionFormDrawer';
 import ImportResultModal from './components/ImportResultModal';
-
-/** 将分类树扁平化为 id → name 的 Map */
-function flattenTree(nodes: CategoryTreeNode[]): Map<number, string> {
-  const map = new Map<number, string>();
-  const walk = (list: CategoryTreeNode[]) => {
-    for (const node of list) {
-      map.set(node.id, node.name);
-      if (node.children && node.children.length > 0) {
-        walk(node.children);
-      }
-    }
-  };
-  walk(nodes);
-  return map;
-}
 
 /** 题库管理页 */
 const QuestionBank: React.FC = () => {
@@ -43,7 +29,7 @@ const QuestionBank: React.FC = () => {
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
   const [editingQuestion, setEditingQuestion] = useState<QuestionResponse | undefined>();
   const [categoryTree, setCategoryTree] = useState<CategoryTreeNode[]>([]);
-  const idToNameMapRef = useRef<Map<number, string>>(new Map());
+  const idToPathMapRef = useRef<Map<number, string>>(new Map());
   const treeLoadedRef = useRef(false);
 
   /** 导入相关状态 */
@@ -60,7 +46,7 @@ const QuestionBank: React.FC = () => {
     getTree()
       .then((tree) => {
         setCategoryTree(tree);
-        idToNameMapRef.current = flattenTree(tree);
+        idToPathMapRef.current = buildCategoryPathMap(tree);
       })
       .catch(() => {
         // 错误已由 request 拦截器展示，分类相关 UI 降级显示 id
@@ -132,14 +118,19 @@ const QuestionBank: React.FC = () => {
         render: (_, record) => {
           const ids = record.categoryIds || [];
           if (ids.length === 0) return <span style={{ color: '#ccc' }}>-</span>;
-          const map = idToNameMapRef.current;
+          const map = idToPathMapRef.current;
           const shown = ids.slice(0, 2);
           const rest = ids.length - 2;
           return (
             <Space size={4} wrap>
-              {shown.map((id) => (
-                <Tag key={id}>{map.get(id) || `#${id}`}</Tag>
-              ))}
+              {shown.map((id) => {
+                const path = map.get(id) || `#${id}`;
+                return (
+                  <Tooltip key={id} title={path}>
+                    <Tag>{path}</Tag>
+                  </Tooltip>
+                );
+              })}
               {rest > 0 && <Tag>+{rest}</Tag>}
             </Space>
           );
@@ -176,7 +167,7 @@ const QuestionBank: React.FC = () => {
         key: 'action',
         search: false,
         fixed: 'right',
-        width: 140,
+        width: 180,
         render: (_, record) => (
           <Space>
             <a onClick={() => handleEdit(record.id)}>编辑</a>
@@ -195,10 +186,27 @@ const QuestionBank: React.FC = () => {
                 <a style={{ color: '#52c41a' }}>启用</a>
               </Popconfirm>
             )}
+            <Popconfirm
+              title="确定删除该题目吗？删除后将移入回收站。"
+              onConfirm={() => handleDelete(record.id)}
+            >
+              <a style={{ color: '#ff4d4f' }}><DeleteOutlined /> 删除</a>
+            </Popconfirm>
           </Space>
         ),
       },
   ];
+
+  /** 删除题目（移入回收站） */
+  const handleDelete = async (id: number) => {
+    try {
+      await deleteQuestion(id);
+      message.success('已移入回收站');
+      actionRef.current?.reload();
+    } catch {
+      // 错误已由 request 拦截器展示
+    }
+  };
 
   /** 打开编辑抽屉：拉取详情 → 打开 */
   const handleEdit = async (id: number) => {

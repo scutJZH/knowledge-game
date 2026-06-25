@@ -303,7 +303,7 @@ class QuestionRecycleBinStrategyTest {
 
     private Long setupDeletedAndRecycleBin(Long originalId, String content,
                                             LocalDateTime createdAt) {
-        return setupDeletedAndRecycleBinWithCategories(originalId, content, createdAt, List.of(originalId));
+        return setupDeletedAndRecycleBinWithCategories(originalId, content, createdAt, List.of());
     }
 
     private Long setupDeletedAndRecycleBinWithCategories(Long originalId, String content,

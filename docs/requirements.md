@@ -179,7 +179,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-51 | 群组 — 关联 IP 库 API | idea | - | 群组管理员将系统 IP 库添加到群组。知识库全局共享，不需要群组授权 | REQ-48 ✅, REQ-16 ✅ |
+| REQ-51 | 群组 — 关联 IP 库 API | done | [req-51-group-ip-library.md](prd/req-51-group-ip-library.md) | 群组管理员将系统 IP 库添加到群组。知识库全局共享，不需要群组授权 | REQ-48 ✅, REQ-16 ✅ |
 | REQ-52 | 群组 — 积分管理 API | idea | - | 查看群组积分、管理员修改成员积分 | REQ-48 ✅, REQ-15 |
 | REQ-53 | 群组 — 全局统计查询 API | idea | - | 跨群组的卡片收集汇总统计 | REQ-48 ✅ |
 | REQ-54 | 群组管理端 — 基础框架 | idea | - | 群组创建人/管理员进入群组管理端（用户 App 内的群组后台，非系统管理后台） | REQ-48 ✅ |
@@ -236,8 +236,8 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-37 | 卡牌详情页面（升星/兑换/分解） | idea | - | 增加实体奖励兑换入口 | REQ-26 ✅, REQ-22, REQ-23, REQ-57 |
 | REQ-38 | 保底进度页面 | idea | - | 群组维度 | REQ-26 ✅, REQ-25 |
 | REQ-39 | 个人中心页面 | idea | - | | REQ-26 ✅ |
-| REQ-60 | 群组列表 + 创建/加入页面 | designed | [req-60-group-list-create-join.md](prd/req-60-group-list-create-join.md) | 含 REQ-49 手工测试用例 | REQ-26 ✅, REQ-48 ✅, REQ-49 ✅ |
-| REQ-61 | 群组详情 + 管理页面 | idea | - | 含 REQ-49 重新生成邀请码 + REQ-50 管理员设置与转让手工验收 | REQ-26 ✅, REQ-48 ✅ |
+| REQ-60 | 群组列表 + 创建/加入页面 | done | [req-60-group-list-create-join.md](prd/req-60-group-list-create-join.md) | 含 REQ-49 手工测试用例 | REQ-26 ✅, REQ-48 ✅, REQ-49 ✅ |
+| REQ-61 | 群组详情 + 管理页面 | designed | [req-61-group-detail-management.md](prd/req-61-group-detail-management.md) | 含 REQ-49 重新生成邀请码 + REQ-50 管理员设置与转让手工验收 | REQ-26 ✅, REQ-48 ✅ |
 | REQ-62 | 群组管理端 — IP 库关联页 | idea | - | 知识库全局共享，不需要群组授权 | REQ-26 ✅, REQ-51 |
 | REQ-63 | 群组管理端 — 成员与积分管理页 | idea | - | 成员列表查询 + 踢人 API + 积分修改。踢人仅 OWNER/ADMIN 可操作，不能踢 OWNER | REQ-26 ✅, REQ-49 ✅, REQ-52, REQ-50 ✅ |
 | REQ-64 | 群组管理端 — 奖励兑换与订单页 | idea | - | | REQ-26 ✅, REQ-58, REQ-59 |
@@ -281,7 +281,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 |------|---------|------|-----|------|---------|
 | REQ-104 | IP 系列对接回收站 | done | [PRD](prd/req-104-ip-series-recycle-bin.md) | DELETE 改为移入回收站；实现 `IpSeriesRecycleBinStrategy` Bean | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-16 ✅ |
 | REQ-105 | 卡牌管理对接回收站 | done | [PRD](prd/req-105-card-template-recycle-bin.md) | DELETE 改为移入回收站；实现 `CardTemplateRecycleBinStrategy` Bean；恢复时校验 IP 系列仍存在 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-17 ✅ |
-| REQ-106 | 题库管理对接回收站 | confirmed | [PRD](prd/req-106-question-recycle-bin.md) | DELETE 改为移入回收站；实现 `QuestionRecycleBinStrategy` Bean，`question_deleted.related_data` JSON 快照 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-09 ✅ |
+| REQ-106 | 题库管理对接回收站 | done | [PRD](prd/req-106-question-recycle-bin.md) | DELETE 改为移入回收站；实现 `QuestionRecycleBinStrategy` Bean，恢复时校验关联分类仍存在 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-09 ✅ |
 | REQ-107 | 分类管理对接回收站 | done | [PRD](prd/req-107-knowledge-category-recycle-bin.md) | DELETE 改为递归移入回收站；实现 `KnowledgeCategoryRecycleBinStrategy` Bean；删除前校验子树全部节点无关联题目/条目 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-07 ✅ |
 | REQ-108 | 知识条目管理对接回收站 | idea | - | DELETE 改为移入回收站；实现 `KnowledgeItemRecycleBinStrategy` Bean，`knowledge_item_deleted.related_data` JSON 快照 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-97 ✅ |
 

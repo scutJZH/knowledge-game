@@ -23,23 +23,12 @@ import {
 import {
   getTree,
   convertToTreeDataActiveOnly,
+  buildCategoryPathMap,
   type CategoryTreeNode,
 } from '@/services/knowledge-category';
 import KnowledgeItemFormDrawer from './components/KnowledgeItemFormDrawer';
 import ImportResultModal from './components/ImportResultModal';
 import { PlusOutlined, EditOutlined, EyeOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
-
-const flattenTree = (nodes: CategoryTreeNode[]): Map<number, string> => {
-  const map = new Map<number, string>();
-  const walk = (list: CategoryTreeNode[]) => {
-    list.forEach((n) => {
-      map.set(n.id, n.name);
-      if (n.children) walk(n.children);
-    });
-  };
-  walk(nodes);
-  return map;
-};
 
 const KnowledgeItemPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -47,7 +36,7 @@ const KnowledgeItemPage: React.FC = () => {
   const [drawerMode, setDrawerMode] = useState<'create' | 'edit'>('create');
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [categoryTree, setCategoryTree] = useState<CategoryTreeNode[]>([]);
-  const [categoryNameMap, setCategoryNameMap] = useState<Map<number, string>>(new Map());
+  const idToPathMapRef = useRef<Map<number, string>>(new Map());
   const [dataSource, setDataSource] = useState<KnowledgeItemListResponse[]>([]);
   const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -61,7 +50,7 @@ const KnowledgeItemPage: React.FC = () => {
       .then((data) => {
         const treeData = data || [];
         setCategoryTree(treeData);
-        setCategoryNameMap(flattenTree(treeData));
+        idToPathMapRef.current = buildCategoryPathMap(treeData);
       })
       .catch(() => {}); // 分类树加载失败，静默处理（错误已由全局拦截器展示）
   }, []);
@@ -160,13 +149,20 @@ const KnowledgeItemPage: React.FC = () => {
       sorter: true,
       render: (_, record) => {
         const ids = record.categoryIds || [];
-        const showIds = ids.slice(0, 2);
+        if (ids.length === 0) return <span style={{ color: '#ccc' }}>-</span>;
+        const map = idToPathMapRef.current;
+        const shown = ids.slice(0, 2);
         const rest = ids.length - 2;
         return (
           <Space size={4} wrap>
-            {showIds.map((cid) => (
-              <Tag key={cid} color="blue">{categoryNameMap.get(cid) || `#${cid}`}</Tag>
-            ))}
+            {shown.map((id) => {
+              const path = map.get(id) || `#${id}`;
+              return (
+                <Tooltip key={id} title={path}>
+                  <Tag>{path}</Tag>
+                </Tooltip>
+              );
+            })}
             {rest > 0 && <Tag>+{rest}</Tag>}
           </Space>
         );

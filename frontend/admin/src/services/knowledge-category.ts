@@ -100,6 +100,24 @@ export function convertToTreeDataActiveOnly(nodes: CategoryTreeNode[]): TreeData
     }));
 }
 
+/**
+ * 将分类树转为 id → 全路径 "一级 / 二级 / 三级" 的 Map，供 TreeSelect tagRender 使用
+ */
+export function buildCategoryPathMap(nodes: CategoryTreeNode[]): Map<number, string> {
+  const map = new Map<number, string>();
+  const walk = (list: CategoryTreeNode[], ancestors: string[]) => {
+    for (const node of list) {
+      const path = [...ancestors, node.name].join(' / ');
+      map.set(node.id, path);
+      if (node.children && node.children.length > 0) {
+        walk(node.children, [...ancestors, node.name]);
+      }
+    }
+  };
+  walk(nodes, []);
+  return map;
+}
+
 /** 获取分类树 */
 export async function getTree(): Promise<CategoryTreeNode[]> {
   return request('/api/admin/knowledge-categories/tree');

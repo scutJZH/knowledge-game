@@ -17,6 +17,7 @@ import com.knowledgegame.core.infrastructure.db.repository.CardTemplateJpaReposi
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryDeletedJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionCategoryRelationJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionDeletedJpaRepository;
@@ -100,13 +101,15 @@ public class RecycleBinConfig {
             QuestionJpaRepository questionJpaRepository,
             QuestionDeletedJpaRepository questionDeletedJpaRepository,
             QuestionCategoryRelationJpaRepository relationJpaRepository,
-            RecycleBinItemJpaRepository recycleBinItemJpaRepository) {
+            RecycleBinItemJpaRepository recycleBinItemJpaRepository,
+            KnowledgeCategoryJpaRepository categoryJpaRepository) {
         return new QuestionRecycleBinStrategy(
                 questionRepository,
                 recycleBinItemRepositoryPort,
                 questionJpaRepository,
                 questionDeletedJpaRepository,
                 relationJpaRepository,
-                recycleBinItemJpaRepository);
+                recycleBinItemJpaRepository,
+                categoryJpaRepository);
     }
 }

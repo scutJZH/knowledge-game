@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Button,
   Checkbox,
@@ -14,7 +14,7 @@ import {
 } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import type { CategoryTreeNode } from '@/services/knowledge-category';
-import { convertToTreeDataActiveOnly } from '@/services/knowledge-category';
+import { buildCategoryPathMap, convertToTreeDataActiveOnly } from '@/services/knowledge-category';
 import type { QuestionResponse, CreateQuestionRequest, UpdateQuestionRequest } from '@/services/questionBank';
 import {
   DIFFICULTY_OPTIONS,
@@ -162,6 +162,11 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
 
   const isEdit = mode === 'edit';
   const drawerTitle = isEdit ? '编辑题目' : '新建题目';
+
+  const idToPathMap = useMemo(
+    () => buildCategoryPathMap(categoryTree),
+    [categoryTree],
+  );
 
   /** 重置表单：打开/切换模式时 */
   useEffect(() => {
@@ -646,6 +651,10 @@ const QuestionFormDrawer: React.FC<QuestionFormDrawerProps> = ({
             treeData={convertToTreeDataActiveOnly(categoryTree)}
             allowClear
             treeDefaultExpandAll
+            tagRender={(props) => {
+              const path = idToPathMap.get(props.value) || props.label;
+              return <Tag closable={props.closable} onClose={props.onClose}>{path}</Tag>;
+            }}
           />
         </Form.Item>
       </Form>
