@@ -11,12 +11,16 @@ import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.CardTemplateRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.KnowledgeCategoryRecycleBinStrategy;
+import com.knowledgegame.core.infrastructure.adapter.repoadapter.QuestionRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.db.repository.CardTemplateDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.CardTemplateJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.QuestionCategoryRelationJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.QuestionDeletedJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.QuestionJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.RecycleBinItemJpaRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -87,5 +91,22 @@ public class RecycleBinConfig {
                 deletedJpaRepository,
                 recycleBinItemJpaRepository,
                 fileCleanupPort);
+    }
+
+    @Bean
+    public QuestionRecycleBinStrategy questionRecycleBinStrategy(
+            QuestionRepository questionRepository,
+            RecycleBinItemRepositoryPort recycleBinItemRepositoryPort,
+            QuestionJpaRepository questionJpaRepository,
+            QuestionDeletedJpaRepository questionDeletedJpaRepository,
+            QuestionCategoryRelationJpaRepository relationJpaRepository,
+            RecycleBinItemJpaRepository recycleBinItemJpaRepository) {
+        return new QuestionRecycleBinStrategy(
+                questionRepository,
+                recycleBinItemRepositoryPort,
+                questionJpaRepository,
+                questionDeletedJpaRepository,
+                relationJpaRepository,
+                recycleBinItemJpaRepository);
     }
 }

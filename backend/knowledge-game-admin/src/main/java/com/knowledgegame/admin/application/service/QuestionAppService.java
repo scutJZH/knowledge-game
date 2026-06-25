@@ -6,6 +6,7 @@ import com.knowledgegame.admin.api.dto.request.UpdateQuestionRequest;
 import com.knowledgegame.admin.api.dto.response.ImportFailDetail;
 import com.knowledgegame.admin.api.dto.response.QuestionImportResult;
 import com.knowledgegame.admin.api.dto.response.QuestionResponse;
+import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.common.util.EnumUtils;
 import com.knowledgegame.core.domain.model.domainenum.Difficulty;
@@ -20,6 +21,7 @@ import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.service.QuestionDomainService;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -50,13 +52,16 @@ public class QuestionAppService {
     private final QuestionRepository questionRepository;
     private final QuestionDomainService questionDomainService;
     private final KnowledgeCategoryRepositoryPort categoryRepositoryPort;
+    private final RecycleBinItemStrategy<Question> recycleBinStrategy;
 
     public QuestionAppService(QuestionRepository questionRepository,
                                QuestionDomainService questionDomainService,
-                               KnowledgeCategoryRepositoryPort categoryRepositoryPort) {
+                               KnowledgeCategoryRepositoryPort categoryRepositoryPort,
+                               RecycleBinItemStrategy<Question> recycleBinStrategy) {
         this.questionRepository = questionRepository;
         this.questionDomainService = questionDomainService;
         this.categoryRepositoryPort = categoryRepositoryPort;
+        this.recycleBinStrategy = recycleBinStrategy;
     }
 
     /**
@@ -173,14 +178,12 @@ public class QuestionAppService {
     }
 
     /**
-     * 删除题目（软删除）
+     * 删除题目（移入回收站）
      */
     @Transactional
     public void delete(Long id) {
-        Question question = questionRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("题目不存在: " + id));
-        question.deactivate();
-        questionRepository.save(question);
+        recycleBinStrategy.validateDeletable(id);
+        recycleBinStrategy.moveToRecycleBin(id, SecurityUtils.getCurrentUsername());
     }
 
     /**

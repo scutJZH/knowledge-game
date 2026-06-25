@@ -16,10 +16,15 @@ import com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.service.QuestionDomainService;
+import com.knowledgegame.auth.security.SecurityUtils;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
@@ -55,10 +60,28 @@ class QuestionAppServiceTest {
     @Mock
     private KnowledgeCategoryRepositoryPort categoryRepositoryPort;
 
+    @Mock
+    private RecycleBinItemStrategy<Question> recycleBinStrategy;
+
     @InjectMocks
     private QuestionAppService appService;
 
+    private MockedStatic<SecurityUtils> securityUtilsMock;
+
     private LocalDateTime now = LocalDateTime.of(2026, 1, 1, 0, 0);
+
+    @BeforeEach
+    void setUp() {
+        securityUtilsMock = org.mockito.Mockito.mockStatic(SecurityUtils.class);
+        securityUtilsMock.when(SecurityUtils::getCurrentUsername).thenReturn("admin");
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (securityUtilsMock != null) {
+            securityUtilsMock.close();
+        }
+    }
 
     /**
      * 创建题目 - 正常创建
@@ -256,29 +279,23 @@ class QuestionAppServiceTest {
     }
 
     /**
-     * 软删除 - status 变为 INACTIVE
+     * 删除 - 委托策略 validateDeletable + moveToRecycleBin
      */
     @Test
-    void delete_shouldDeactivate() {
-        Question existing = Question.reconstruct(1L, QuestionType.SINGLE_CHOICE, "题目",
-                List.of(QuestionOption.of("A", "A"), QuestionOption.of("B", "B")),
-                "A", Difficulty.EASY, null, null, QuestionStatus.ACTIVE, now, now);
-        when(questionRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(questionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
+    void delete_shouldDelegateToStrategy() {
         appService.delete(1L);
 
-        verify(questionRepository).save(argThat(q ->
-                q.getStatus() == QuestionStatus.INACTIVE
-        ));
+        verify(recycleBinStrategy).validateDeletable(1L);
+        verify(recycleBinStrategy).moveToRecycleBin(eq(1L), any());
     }
 
     /**
-     * 软删除 - 不存在抛异常
+     * 删除 - 不存在抛异常
      */
     @Test
     void delete_shouldThrow_whenNotFound() {
-        when(questionRepository.findById(999L)).thenReturn(Optional.empty());
+        doThrow(new BusinessException("题目不存在: 999"))
+                .when(recycleBinStrategy).validateDeletable(999L);
 
         assertThrows(BusinessException.class, () -> appService.delete(999L));
     }

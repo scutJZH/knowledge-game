@@ -89,7 +89,7 @@ public class QuestionController {
     }
 
     /**
-     * 删除题目（软删除）
+     * 删除题目（移入回收站）
      */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
