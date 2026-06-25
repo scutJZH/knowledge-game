@@ -1,12 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import GroupInfoCard from '../GroupInfoCard';
 import type { StudyGroupDetailResponse } from '@/types/group';
 
-const mockRegen = vi.hoisted(() => vi.fn());
-vi.mock('@/services/group-api', () => ({
-  regenerateInviteCode: mockRegen,
-}));
+vi.mock('@/services/group-api', () => ({}));
 
 const BASE_GROUP: StudyGroupDetailResponse = {
   id: 1, name: '测试群组', description: '描述',
@@ -19,24 +17,23 @@ const BASE_GROUP: StudyGroupDetailResponse = {
 describe('GroupInfoCard', () => {
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it('OWNER 可见邀请码 + 重新生成按钮', () => {
-    render(<GroupInfoCard group={BASE_GROUP} onRefreshed={vi.fn()} />);
-    expect(screen.getByText('ABC12345')).toBeInTheDocument();
-    expect(screen.getByText('重新生成')).toBeInTheDocument();
-  });
-
-  it('MEMBER 不可见邀请码', () => {
-    render(<GroupInfoCard group={{ ...BASE_GROUP, myRole: 'MEMBER', inviteCode: null }} onRefreshed={vi.fn()} />);
-    expect(screen.queryByText('ABC12345')).not.toBeInTheDocument();
+  it('显示群组名称', () => {
+    render(<MemoryRouter><GroupInfoCard group={BASE_GROUP} /></MemoryRouter>);
+    expect(screen.getByText('测试群组')).toBeInTheDocument();
   });
 
   it('显示角色标签', () => {
-    render(<GroupInfoCard group={BASE_GROUP} onRefreshed={vi.fn()} />);
+    render(<MemoryRouter><GroupInfoCard group={BASE_GROUP} /></MemoryRouter>);
     expect(screen.getByText('群主')).toBeInTheDocument();
   });
 
+  it('显示成员数', () => {
+    render(<MemoryRouter><GroupInfoCard group={BASE_GROUP} /></MemoryRouter>);
+    expect(screen.getByText('5 名成员')).toBeInTheDocument();
+  });
+
   it('显示开始游戏按钮', () => {
-    render(<GroupInfoCard group={BASE_GROUP} onRefreshed={vi.fn()} />);
+    render(<MemoryRouter><GroupInfoCard group={BASE_GROUP} /></MemoryRouter>);
     expect(screen.getByText('开始游戏')).toBeInTheDocument();
   });
 });

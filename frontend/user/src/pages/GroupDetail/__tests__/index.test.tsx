@@ -60,10 +60,10 @@ describe('GroupDetail 页面', () => {
     expect(screen.getByRole('tab', { name: '设置' })).toBeInTheDocument();
   });
 
-  it('MEMBER 视角不显示设置 Tab', { timeout: 10000 }, async () => {
+  it('MEMBER 视角显示三个 Tab（含设置）', { timeout: 10000 }, async () => {
     mockGetDetail.mockResolvedValue({ ...BASE_GROUP, myRole: 'MEMBER' as const, inviteCode: null });
     renderPage();
     await waitFor(() => { expect(screen.getByRole('tab', { name: '成员' })).toBeInTheDocument(); }, { timeout: 5000 });
-    expect(screen.queryByRole('tab', { name: '设置' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '设置' })).toBeInTheDocument();
   });
 });

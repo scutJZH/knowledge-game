@@ -39,7 +39,7 @@ export default function EditGroupModal({ open, group, onClose, onUpdated }: Prop
           <Input maxLength={50} />
         </Form.Item>
         <Form.Item name="avatarFileId" label="头像">
-          <AvatarUpload />
+          <AvatarUpload currentUrl={group.avatarUrl} />
         </Form.Item>
         <Form.Item name="description" label="描述" rules={[{ max: 500 }]}>
           <Input.TextArea maxLength={500} rows={3} />

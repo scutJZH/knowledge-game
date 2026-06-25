@@ -7,9 +7,10 @@ import MemberListItem from './MemberListItem';
 interface Props {
   groupId: number;
   myRole: string;
+  onGroupChanged: () => void;
 }
 
-export default function MemberTab({ groupId, myRole }: Props) {
+export default function MemberTab({ groupId, myRole, onGroupChanged }: Props) {
   const [members, setMembers] = useState<GroupMemberListResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +40,7 @@ export default function MemberTab({ groupId, myRole }: Props) {
           medal={medalMap[idx]}
           myRole={myRole}
           onActionDone={fetch}
+          onGroupChanged={onGroupChanged}
         />
       ))}
     </div>

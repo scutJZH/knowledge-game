@@ -15,11 +15,11 @@ export default function GroupDetail() {
   const [group, setGroup] = useState<StudyGroupDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('members');
+  const [memberRefreshKey, setMemberRefreshKey] = useState(0);
 
   const fetchGroup = useCallback(() => {
     if (!id) return;
-    setLoading(true);
-    setError(null);
     getGroupDetail(Number(id))
       .then((data) => setGroup(data as unknown as StudyGroupDetailResponse))
       .catch((e: { response?: { data?: { message?: string } }; message?: string }) =>
@@ -28,6 +28,18 @@ export default function GroupDetail() {
   }, [id]);
 
   useEffect(() => { fetchGroup(); }, [fetchGroup]);
+
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    if (key === 'members') {
+      setMemberRefreshKey(k => k + 1);
+    }
+  };
+
+  const handleGroupChanged = () => {
+    fetchGroup();
+    setMemberRefreshKey(k => k + 1);
+  };
 
   if (loading) return <Spin style={{ display: 'block', margin: '80px auto' }} />;
 
@@ -45,22 +57,15 @@ export default function GroupDetail() {
   }
 
   const tabItems = [
-    { key: 'members', label: '成员', children: <MemberTab groupId={group.id} myRole={group.myRole} /> },
+    { key: 'members', label: '成员', children: <MemberTab key={memberRefreshKey} groupId={group.id} myRole={group.myRole} onGroupChanged={handleGroupChanged} /> },
     { key: 'knowledge', label: '知识库', children: <KnowledgeTab /> },
+    { key: 'settings', label: '设置', children: <SettingsTab group={group} myRole={group.myRole} onUpdated={fetchGroup} /> },
   ];
-
-  if (group.myRole === 'OWNER' || group.myRole === 'ADMIN') {
-    tabItems.push({
-      key: 'settings',
-      label: '设置',
-      children: <SettingsTab group={group} myRole={group.myRole} onUpdated={fetchGroup} />,
-    });
-  }
 
   return (
     <div className="group-detail">
-      <GroupInfoCard group={group} onRefreshed={fetchGroup} />
-      <Tabs defaultActiveKey="members" items={tabItems} />
+      <GroupInfoCard group={group} />
+      <Tabs activeKey={activeTab} onChange={handleTabChange} items={tabItems} />
     </div>
   );
 }

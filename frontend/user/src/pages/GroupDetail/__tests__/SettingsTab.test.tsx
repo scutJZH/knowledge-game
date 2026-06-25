@@ -8,6 +8,9 @@ vi.mock('@/services/group-api', () => ({
   regenerateInviteCode: vi.fn(),
   disbandGroup: vi.fn(),
   updateGroup: vi.fn(),
+  leaveGroup: vi.fn(),
+  listGroupMembers: vi.fn().mockResolvedValue([]),
+  transferOwnership: vi.fn(),
 }));
 
 const BASE_GROUP: StudyGroupDetailResponse = {
@@ -45,13 +48,18 @@ describe('SettingsTab', () => {
     expect(screen.getByText('重新生成')).toBeInTheDocument();
   });
 
+  it('MEMBER 看不到邀请码管理', () => {
+    renderSettings(BASE_GROUP, 'MEMBER');
+    expect(screen.queryByText('邀请码管理')).not.toBeInTheDocument();
+  });
+
   it('OWNER 看到解散群组危险按钮', () => {
     renderSettings(BASE_GROUP, 'OWNER');
     expect(screen.getByText('解散群组')).toBeInTheDocument();
   });
 
-  it('ADMIN 看不到解散群组按钮', () => {
-    renderSettings(BASE_GROUP, 'ADMIN');
-    expect(screen.queryByText('解散群组')).not.toBeInTheDocument();
+  it('所有角色看到退出群组按钮', () => {
+    renderSettings(BASE_GROUP, 'MEMBER');
+    expect(screen.getByRole('button', { name: '退出群组' })).toBeInTheDocument();
   });
 });

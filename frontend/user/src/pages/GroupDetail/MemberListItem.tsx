@@ -15,9 +15,10 @@ interface Props {
   medal: string | undefined;
   myRole: string;
   onActionDone: () => void;
+  onGroupChanged: () => void;
 }
 
-export default function MemberListItem({ member, groupId, rank, medal, myRole, onActionDone }: Props) {
+export default function MemberListItem({ member, groupId, rank, medal, myRole, onActionDone, onGroupChanged }: Props) {
   const [detailOpen, setDetailOpen] = useState(false);
   const currentUserId = useAuthStore.getState().user?.id;
   const isMe = currentUserId === member.userId;
@@ -65,6 +66,7 @@ export default function MemberListItem({ member, groupId, rank, medal, myRole, o
           await transferOwnership(groupId, member.userId);
           message.success('已转让');
           onActionDone();
+          onGroupChanged();
         } catch { message.error('操作失败'); }
       },
     });
