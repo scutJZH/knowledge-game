@@ -1,6 +1,7 @@
 package com.knowledgegame.core.infrastructure.db.entity;
 
 import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.StudyGroupStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -47,6 +48,10 @@ public class StudyGroupPO {
 
     @Column(name = "owner_id", nullable = false)
     private Long ownerId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private StudyGroupStatus status;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "join_policy", nullable = false, length = 20, columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'OPEN'")

@@ -4,6 +4,7 @@ import AuthLayout from '@/layouts/AuthLayout';
 import AuthGuard from '@/components/AuthGuard';
 import Home from '@/pages/Home';
 import GroupList from '@/pages/GroupList';
+import GroupDetail from '@/pages/GroupDetail';
 import NotFound from '@/pages/NotFound';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
@@ -35,6 +36,10 @@ const router = createBrowserRouter([
           {
             path: '/groups',
             element: <GroupList />,
+          },
+          {
+            path: '/groups/:id',
+            element: <GroupDetail />,
           },
           {
             path: '*',

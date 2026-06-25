@@ -19,4 +19,9 @@ public interface UserRepositoryPort {
     void deleteById(Long id);
 
     List<User> findAll();
+
+    /**
+     * 批量根据 ID 列表查询用户
+     */
+    List<User> findByIdIn(List<Long> ids);
 }

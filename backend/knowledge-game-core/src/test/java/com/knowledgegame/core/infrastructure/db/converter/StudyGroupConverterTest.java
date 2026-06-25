@@ -1,6 +1,7 @@
 package com.knowledgegame.core.infrastructure.db.converter;
 
 import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.StudyGroupStatus;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.InviteCode;
@@ -84,7 +85,7 @@ class StudyGroupConverterTest {
         void shouldMapFileRefToDualFields() {
             StudyGroup domain = StudyGroup.reconstruct(1L, "测试群组", "描述",
                     FileRef.of(10L, "/static/avatar.jpg"),
-                    100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                    100L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                     LocalDateTime.now(), LocalDateTime.now());
 
             StudyGroupPO po = StudyGroupConverter.INSTANCE.toPO(domain);
@@ -97,7 +98,7 @@ class StudyGroupConverterTest {
         @DisplayName("null FileRef 应映射为双 null PO 字段")
         void shouldMapNullFileRefToNullFields() {
             StudyGroup domain = StudyGroup.reconstruct(1L, "测试群组", "描述",
-                    null, 100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                    null, 100L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                     LocalDateTime.now(), LocalDateTime.now());
 
             StudyGroupPO po = StudyGroupConverter.INSTANCE.toPO(domain);
@@ -110,7 +111,7 @@ class StudyGroupConverterTest {
         @DisplayName("joinPolicy 枚举应正确映射到 PO")
         void toPO_mapsJoinPolicy() {
             StudyGroup domain = StudyGroup.reconstruct(1L, "测试群组", null,
-                    null, 100L, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
+                    null, 100L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
                     LocalDateTime.now(), LocalDateTime.now());
 
             StudyGroupPO po = StudyGroupConverter.INSTANCE.toPO(domain);
@@ -122,7 +123,7 @@ class StudyGroupConverterTest {
         @DisplayName("inviteCode 值对象应映射为 PO 字符串")
         void toPO_mapsInviteCodeToString() {
             StudyGroup domain = StudyGroup.reconstruct(1L, "测试群组", null,
-                    null, 100L, JoinPolicy.OPEN, InviteCode.of("XYZ67890"),
+                    null, 100L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("XYZ67890"),
                     LocalDateTime.now(), LocalDateTime.now());
 
             StudyGroupPO po = StudyGroupConverter.INSTANCE.toPO(domain);
@@ -142,7 +143,7 @@ class StudyGroupConverterTest {
                     JoinPolicy.OPEN, "VKDCDE13");
             StudyGroup domain = StudyGroup.reconstruct(1L, "新名称", "新描述",
                     FileRef.of(99L, "/static/new.jpg"),
-                    100L, JoinPolicy.INVITE_ONLY, InviteCode.of("NWKCDE12"),
+                    100L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("NWKCDE12"),
                     null, null);
 
             StudyGroupConverter.INSTANCE.updatePO(po, domain);
@@ -157,7 +158,7 @@ class StudyGroupConverterTest {
             StudyGroupPO po = buildPO(1L, 1L, "/static/old.jpg",
                     JoinPolicy.OPEN, "VKDCDE13");
             StudyGroup domain = StudyGroup.reconstruct(1L, "新名称", null,
-                    null, 100L, JoinPolicy.INVITE_ONLY, InviteCode.of("NWKCDE12"),
+                    null, 100L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("NWKCDE12"),
                     null, null);
 
             StudyGroupConverter.INSTANCE.updatePO(po, domain);

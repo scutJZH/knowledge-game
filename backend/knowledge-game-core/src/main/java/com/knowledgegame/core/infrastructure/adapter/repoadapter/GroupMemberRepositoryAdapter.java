@@ -72,7 +72,6 @@ public class GroupMemberRepositoryAdapter implements GroupMemberRepository {
         if (groupIds.isEmpty()) {
             return Map.of();
         }
-        // 先对所有 ID 初始化为 0，再合并查询结果
         Map<Long, Integer> result = groupIds.stream()
                 .collect(Collectors.toMap(id -> id, id -> 0));
         jpaRepository.countByGroupIdIn(groupIds).forEach(row -> {
@@ -81,5 +80,12 @@ public class GroupMemberRepositoryAdapter implements GroupMemberRepository {
             result.put(groupId, count);
         });
         return result;
+    }
+
+    @Override
+    public List<GroupMember> findByGroupIdOrderByPointsDesc(Long groupId) {
+        return jpaRepository.findByGroupIdOrderByPointsDesc(groupId).stream()
+                .map(GroupMemberConverter.INSTANCE::toDomain)
+                .toList();
     }
 }

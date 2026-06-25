@@ -1,5 +1,6 @@
 package com.knowledgegame.app.application.assembler;
 
+import com.knowledgegame.app.api.dto.StudyGroupDetailResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
@@ -39,6 +40,23 @@ public interface StudyGroupAssembler {
         response.setAvatarUrl(urlOf(group.getAvatar()));
         response.setOwnerId(group.getOwnerId());
         response.setJoinPolicy(group.getJoinPolicy() != null ? group.getJoinPolicy().name() : null);
+        response.setMyRole(myRole);
+        response.setMemberCount(memberCount);
+        response.setCreatedAt(toEpochMilli(group.getCreatedAt()));
+        response.setUpdatedAt(toEpochMilli(group.getUpdatedAt()));
+        return response;
+    }
+
+    default StudyGroupDetailResponse toDetailResponse(StudyGroup group, String myRole, String inviteCode, int memberCount) {
+        StudyGroupDetailResponse response = new StudyGroupDetailResponse();
+        response.setId(group.getId());
+        response.setName(group.getName());
+        response.setDescription(group.getDescription());
+        response.setAvatarFileId(fileIdOf(group.getAvatar()));
+        response.setAvatarUrl(urlOf(group.getAvatar()));
+        response.setOwnerId(group.getOwnerId());
+        response.setJoinPolicy(group.getJoinPolicy() != null ? group.getJoinPolicy().name() : null);
+        response.setInviteCode(inviteCode);
         response.setMyRole(myRole);
         response.setMemberCount(memberCount);
         response.setCreatedAt(toEpochMilli(group.getCreatedAt()));

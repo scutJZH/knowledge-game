@@ -5,11 +5,13 @@ import com.knowledgegame.core.common.exception.BusinessException;
 import com.knowledgegame.core.common.result.ResultCode;
 import com.knowledgegame.core.domain.model.domainenum.GroupRole;
 import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.StudyGroupStatus;
 import com.knowledgegame.core.domain.model.entity.GroupMember;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.InviteCode;
 import com.knowledgegame.core.domain.port.outbound.GroupMemberRepository;
 import com.knowledgegame.core.domain.port.outbound.StudyGroupRepository;
+import com.knowledgegame.core.domain.port.outbound.UserRepositoryPort;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,13 +46,16 @@ class GroupMemberAppServiceTest {
     @Mock
     private GroupMemberRepository groupMemberRepository;
 
+    @Mock
+    private UserRepositoryPort userRepositoryPort;
+
     private GroupMemberAppService appService;
 
     private MockedStatic<com.knowledgegame.auth.security.SecurityUtils> securityUtilsMock;
 
     @BeforeEach
     void setUp() {
-        appService = new GroupMemberAppService(studyGroupRepository, groupMemberRepository);
+        appService = new GroupMemberAppService(studyGroupRepository, groupMemberRepository, userRepositoryPort);
         securityUtilsMock = mockStatic(com.knowledgegame.auth.security.SecurityUtils.class);
         securityUtilsMock.when(com.knowledgegame.auth.security.SecurityUtils::getCurrentUserId).thenReturn(100L);
     }
@@ -78,7 +83,7 @@ class GroupMemberAppServiceTest {
         @DisplayName("INVITE_ONLY 群组应抛 GROUP_JOIN_POLICY_MISMATCH")
         void joinDirectly_inviteOnlyGroup_throwsJoinPolicyMismatch() {
             StudyGroup group = StudyGroup.reconstruct(1L, "私密群组", null, null,
-                    200L, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
+                    200L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
                     java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
             when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
 
@@ -91,7 +96,7 @@ class GroupMemberAppServiceTest {
         @DisplayName("已是成员应抛 ALREADY_GROUP_MEMBER")
         void joinDirectly_alreadyMember_throwsAlreadyGroupMember() {
             StudyGroup group = StudyGroup.reconstruct(1L, "开放群组", null, null,
-                    200L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                    200L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                     java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
             when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
             when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
@@ -105,7 +110,7 @@ class GroupMemberAppServiceTest {
         @DisplayName("OPEN 群组新用户应保存 role=MEMBER 的成员记录")
         void joinDirectly_openGroupNewUser_savesMemberWithMemberRole() {
             StudyGroup group = StudyGroup.reconstruct(1L, "开放群组", null, null,
-                    200L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                    200L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                     java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
             when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
             when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(false);
@@ -136,7 +141,7 @@ class GroupMemberAppServiceTest {
         @DisplayName("save 抛 DataIntegrityViolationException 应转 ALREADY_GROUP_MEMBER")
         void joinDirectly_concurrentSaveThrowsDIVI_throwsAlreadyGroupMember() {
             StudyGroup group = StudyGroup.reconstruct(1L, "开放群组", null, null,
-                    200L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                    200L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                     java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
             when(studyGroupRepository.findById(1L)).thenReturn(Optional.of(group));
             when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(false);
@@ -172,7 +177,7 @@ class GroupMemberAppServiceTest {
         @DisplayName("已是成员再凭邀请码加入应抛 ALREADY_GROUP_MEMBER")
         void joinByInvite_alreadyMember_throwsAlreadyGroupMember() {
             StudyGroup group = StudyGroup.reconstruct(1L, "群组", null, null,
-                    200L, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
+                    200L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
                     java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
             when(studyGroupRepository.findByInviteCode("ABC12345")).thenReturn(Optional.of(group));
             when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(true);
@@ -186,7 +191,7 @@ class GroupMemberAppServiceTest {
         @DisplayName("合法邀请码新用户应保存 member 记录（groupId 来自查询结果）")
         void joinByInvite_validCodeNewUser_savesMember() {
             StudyGroup group = StudyGroup.reconstruct(2L, "邀请码群组", null, null,
-                    200L, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
+                    200L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
                     java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
             when(studyGroupRepository.findByInviteCode("ABC12345")).thenReturn(Optional.of(group));
             when(groupMemberRepository.existsByGroupIdAndUserId(2L, 100L)).thenReturn(false);
@@ -211,7 +216,7 @@ class GroupMemberAppServiceTest {
         @DisplayName("save 抛 DIVI 应转 ALREADY_GROUP_MEMBER")
         void joinByInvite_concurrentSaveThrowsDIVI_throwsAlreadyGroupMember() {
             StudyGroup group = StudyGroup.reconstruct(1L, "群组", null, null,
-                    200L, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
+                    200L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
                     java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
             when(studyGroupRepository.findByInviteCode("ABC12345")).thenReturn(Optional.of(group));
             when(groupMemberRepository.existsByGroupIdAndUserId(1L, 100L)).thenReturn(false);
@@ -461,7 +466,7 @@ class GroupMemberAppServiceTest {
                     GroupRole.OWNER, 0, LocalDateTime.now());
             GroupMember target = GroupMember.reconstruct(2L, 10L, 200L,
                     GroupRole.MEMBER, 0, LocalDateTime.now());
-            StudyGroup group = StudyGroup.reconstruct(10L, "群组", null, null, 100L,
+            StudyGroup group = StudyGroup.reconstruct(10L, "群组", null, null, 100L, StudyGroupStatus.ACTIVE,
                     JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                     LocalDateTime.now(), LocalDateTime.now());
 
