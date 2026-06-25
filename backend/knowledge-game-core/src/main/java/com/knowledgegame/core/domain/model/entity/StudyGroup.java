@@ -1,6 +1,7 @@
 package com.knowledgegame.core.domain.model.entity;
 
 import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.StudyGroupStatus;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.InviteCode;
 import lombok.Getter;
@@ -18,6 +19,7 @@ public class StudyGroup {
     private String description;
     private FileRef avatar;
     private Long ownerId;
+    private StudyGroupStatus status;
     private JoinPolicy joinPolicy;
     private InviteCode inviteCode;
     private LocalDateTime createdAt;
@@ -36,6 +38,7 @@ public class StudyGroup {
         group.ownerId = ownerId;
         group.joinPolicy = joinPolicy;
         group.inviteCode = InviteCode.generate();
+        group.status = StudyGroupStatus.ACTIVE;
         group.createdAt = LocalDateTime.now();
         group.updatedAt = LocalDateTime.now();
         return group;
@@ -46,6 +49,7 @@ public class StudyGroup {
      */
     public static StudyGroup reconstruct(Long id, String name, String description,
                                          FileRef avatar, Long ownerId,
+                                         StudyGroupStatus status,
                                          JoinPolicy joinPolicy, InviteCode inviteCode,
                                          LocalDateTime createdAt, LocalDateTime updatedAt) {
         StudyGroup group = new StudyGroup();
@@ -54,6 +58,7 @@ public class StudyGroup {
         group.description = description;
         group.avatar = avatar;
         group.ownerId = ownerId;
+        group.status = status;
         group.joinPolicy = joinPolicy;
         group.inviteCode = inviteCode;
         group.createdAt = createdAt;
@@ -96,5 +101,42 @@ public class StudyGroup {
      */
     public String getInviteCodeValue() {
         return this.inviteCode != null ? this.inviteCode.getValue() : null;
+    }
+
+    public StudyGroupStatus getStatus() {
+        return status;
+    }
+
+    /**
+     * 更新群组信息（null 字段表示不更新）
+     */
+    public void updateInfo(String name, String description, FileRef avatar, JoinPolicy joinPolicy) {
+        if (name != null) this.name = name;
+        if (description != null) this.description = description;
+        if (avatar != null) this.avatar = avatar;
+        if (joinPolicy != null) this.joinPolicy = joinPolicy;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 激活群组
+     */
+    public void activate() {
+        if (this.status == StudyGroupStatus.ACTIVE) {
+            throw new IllegalStateException("群组已是启用状态");
+        }
+        this.status = StudyGroupStatus.ACTIVE;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 停用群组
+     */
+    public void deactivate() {
+        if (this.status == StudyGroupStatus.INACTIVE) {
+            throw new IllegalStateException("群组已是停用状态");
+        }
+        this.status = StudyGroupStatus.INACTIVE;
+        this.updatedAt = LocalDateTime.now();
     }
 }

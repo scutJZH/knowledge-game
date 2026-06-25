@@ -2,6 +2,7 @@ package com.knowledgegame.app.application.assembler;
 
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.StudyGroupStatus;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.InviteCode;
@@ -23,7 +24,7 @@ class StudyGroupAssemblerTest {
         LocalDateTime now = LocalDateTime.now();
         StudyGroup group = StudyGroup.reconstruct(1L, "测试群组", "描述",
                 FileRef.of(10L, "https://example.com/avatar.png"),
-                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"), now, now);
+                100L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"), now, now);
 
         StudyGroupResponse response = StudyGroupAssembler.INSTANCE.toResponse(group);
 
@@ -45,7 +46,7 @@ class StudyGroupAssemblerTest {
     @Test
     @DisplayName("toResponse FileRef 为 null 时应返回 null 双字段")
     void toResponse_shouldReturnNullFileRefFieldsWhenNull() {
-        StudyGroup group = StudyGroup.reconstruct(1L, "群组", null, null, 100L,
+        StudyGroup group = StudyGroup.reconstruct(1L, "群组", null, null, 100L, StudyGroupStatus.ACTIVE,
                 JoinPolicy.INVITE_ONLY, InviteCode.of("XYZ67890"),
                 LocalDateTime.now(), LocalDateTime.now());
 

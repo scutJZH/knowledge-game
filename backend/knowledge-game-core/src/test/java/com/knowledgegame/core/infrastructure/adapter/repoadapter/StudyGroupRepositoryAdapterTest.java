@@ -1,6 +1,7 @@
 package com.knowledgegame.core.infrastructure.adapter.repoadapter;
 
 import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.StudyGroupStatus;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.infrastructure.db.entity.StudyGroupPO;
@@ -92,7 +93,7 @@ class StudyGroupRepositoryAdapterTest {
                 .joinPolicy(JoinPolicy.OPEN)
                 .inviteCode("VN1KVE01")
                 .createdAt(java.time.LocalDateTime.now())
-                .updatedAt(java.time.LocalDateTime.now())
+                .updatedAt(java.time.LocalDateTime.now()).status(StudyGroupStatus.ACTIVE)
                 .build();
         Long id = entityManager.persistAndGetId(po, Long.class);
         entityManager.flush();
@@ -123,7 +124,7 @@ class StudyGroupRepositoryAdapterTest {
                 .joinPolicy(JoinPolicy.OPEN)
                 .inviteCode("VN1KVE02")
                 .createdAt(java.time.LocalDateTime.now())
-                .updatedAt(java.time.LocalDateTime.now())
+                .updatedAt(java.time.LocalDateTime.now()).status(StudyGroupStatus.ACTIVE)
                 .build();
         Long id = entityManager.persistAndGetId(po, Long.class);
         entityManager.flush();
@@ -146,7 +147,7 @@ class StudyGroupRepositoryAdapterTest {
                 .joinPolicy(JoinPolicy.INVITE_ONLY)
                 .inviteCode("JNVCDE13")
                 .createdAt(java.time.LocalDateTime.now())
-                .updatedAt(java.time.LocalDateTime.now())
+                .updatedAt(java.time.LocalDateTime.now()).status(StudyGroupStatus.ACTIVE)
                 .build();
         entityManager.persistAndFlush(po);
         entityManager.clear();
@@ -175,7 +176,7 @@ class StudyGroupRepositoryAdapterTest {
                 .joinPolicy(JoinPolicy.OPEN)
                 .inviteCode("DVPCDE13")
                 .createdAt(java.time.LocalDateTime.now())
-                .updatedAt(java.time.LocalDateTime.now())
+                .updatedAt(java.time.LocalDateTime.now()).status(StudyGroupStatus.ACTIVE)
                 .build();
         entityManager.persistAndFlush(po1);
         entityManager.clear();
@@ -186,7 +187,7 @@ class StudyGroupRepositoryAdapterTest {
                 .joinPolicy(JoinPolicy.OPEN)
                 .inviteCode("DVPCDE13")
                 .createdAt(java.time.LocalDateTime.now())
-                .updatedAt(java.time.LocalDateTime.now())
+                .updatedAt(java.time.LocalDateTime.now()).status(StudyGroupStatus.ACTIVE)
                 .build();
 
         // TestEntityManager 直连 Hibernate，抛 ConstraintViolationException
@@ -218,10 +219,10 @@ class StudyGroupRepositoryAdapterTest {
     void findByIdIn_shouldReturnMatchingGroups() {
         StudyGroupPO po1 = StudyGroupPO.builder()
                 .name("群组A").ownerId(800L).joinPolicy(JoinPolicy.OPEN)
-                .inviteCode("VNVDE001").createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).build();
+                .inviteCode("VNVDE001").createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).status(StudyGroupStatus.ACTIVE).build();
         StudyGroupPO po2 = StudyGroupPO.builder()
                 .name("群组B").ownerId(800L).joinPolicy(JoinPolicy.INVITE_ONLY)
-                .inviteCode("VNVDE002").createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).build();
+                .inviteCode("VNVDE002").createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).status(StudyGroupStatus.ACTIVE).build();
         Long id1 = entityManager.persistAndGetId(po1, Long.class);
         Long id2 = entityManager.persistAndGetId(po2, Long.class);
         entityManager.flush();

@@ -1,8 +1,10 @@
 package com.knowledgegame.app.application.service;
 
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.StudyGroupDetailResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
+import com.knowledgegame.app.api.dto.UpdateStudyGroupRequest;
 import com.knowledgegame.app.application.assembler.StudyGroupAssembler;
 import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.components.feign.client.FileServiceClient;
@@ -136,5 +138,83 @@ public class StudyGroupAppService {
                     group, member.getRole().name(), memberCount));
         }
         return result;
+    }
+
+    /**
+     * 查询群组详情
+     */
+    @Transactional(readOnly = true)
+    public StudyGroupDetailResponse getDetail(Long groupId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(ResultCode.GROUP_NOT_FOUND));
+
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        GroupRole myRole = member.getRole();
+        String inviteCode = null;
+        if (myRole == GroupRole.OWNER || myRole == GroupRole.ADMIN) {
+            inviteCode = group.getInviteCodeValue();
+        }
+
+        int memberCount = groupMemberRepository.countByGroupIdIn(List.of(groupId))
+                .getOrDefault(groupId, 0);
+
+        return StudyGroupAssembler.INSTANCE.toDetailResponse(
+                group, myRole.name(), inviteCode, memberCount);
+    }
+
+    /**
+     * 编辑群组信息（仅 OWNER）
+     */
+    @Transactional
+    public StudyGroupResponse update(Long groupId, UpdateStudyGroupRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(ResultCode.GROUP_NOT_FOUND));
+
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        if (member.getRole() != GroupRole.OWNER) {
+            throw new BusinessException(ResultCode.NOT_GROUP_OWNER);
+        }
+
+        FileRef newAvatar = null;
+        if (request.getAvatarFileId() != null) {
+            newAvatar = resolveAvatar(request.getAvatarFileId(), currentUserId);
+        }
+
+        JoinPolicy joinPolicy = null;
+        if (request.getJoinPolicy() != null) {
+            joinPolicy = JoinPolicy.valueOf(request.getJoinPolicy());
+        }
+
+        group.updateInfo(request.getName(), request.getDescription(), newAvatar, joinPolicy);
+        StudyGroup saved = studyGroupRepository.save(group);
+        return StudyGroupAssembler.INSTANCE.toResponse(saved);
+    }
+
+    /**
+     * 解散群组（仅 OWNER）
+     */
+    @Transactional
+    public void disband(Long groupId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        StudyGroup group = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(ResultCode.GROUP_NOT_FOUND));
+
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        if (member.getRole() != GroupRole.OWNER) {
+            throw new BusinessException(ResultCode.NOT_GROUP_OWNER);
+        }
+
+        studyGroupRepository.deleteById(groupId);
     }
 }

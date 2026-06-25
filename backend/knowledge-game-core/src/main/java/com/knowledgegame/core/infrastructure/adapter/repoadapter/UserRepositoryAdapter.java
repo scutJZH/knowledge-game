@@ -60,4 +60,14 @@ public class UserRepositoryAdapter implements UserRepositoryPort {
                 .map(UserConverter::toDomain)
                 .toList();
     }
+
+    @Override
+    public List<User> findByIdIn(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return userJpaRepository.findAllById(ids).stream()
+                .map(UserConverter::toDomain)
+                .toList();
+    }
 }

@@ -45,4 +45,9 @@ public interface GroupMemberRepository {
      * 批量查询群组成员数
      */
     Map<Long, Integer> countByGroupIdIn(List<Long> groupIds);
+
+    /**
+     * 查询群组内所有成员，按积分降序
+     */
+    List<GroupMember> findByGroupIdOrderByPointsDesc(Long groupId);
 }

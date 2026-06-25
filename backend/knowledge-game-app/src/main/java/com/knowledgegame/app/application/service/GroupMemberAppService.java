@@ -1,5 +1,6 @@
 package com.knowledgegame.app.application.service;
 
+import com.knowledgegame.app.api.dto.GroupMemberListResponse;
 import com.knowledgegame.app.api.dto.GroupMemberResponse;
 import com.knowledgegame.app.application.assembler.GroupMemberAssembler;
 import com.knowledgegame.auth.security.SecurityUtils;
@@ -8,12 +9,19 @@ import com.knowledgegame.core.common.result.ResultCode;
 import com.knowledgegame.core.domain.model.domainenum.GroupRole;
 import com.knowledgegame.core.domain.model.entity.GroupMember;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
+import com.knowledgegame.core.domain.model.entity.User;
 import com.knowledgegame.core.domain.model.vo.InviteCode;
 import com.knowledgegame.core.domain.port.outbound.GroupMemberRepository;
 import com.knowledgegame.core.domain.port.outbound.StudyGroupRepository;
+import com.knowledgegame.core.domain.port.outbound.UserRepositoryPort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 群组成员应用服务
@@ -23,11 +31,14 @@ public class GroupMemberAppService {
 
     private final StudyGroupRepository studyGroupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final UserRepositoryPort userRepositoryPort;
 
     public GroupMemberAppService(StudyGroupRepository studyGroupRepository,
-                                 GroupMemberRepository groupMemberRepository) {
+                                 GroupMemberRepository groupMemberRepository,
+                                 UserRepositoryPort userRepositoryPort) {
         this.studyGroupRepository = studyGroupRepository;
         this.groupMemberRepository = groupMemberRepository;
+        this.userRepositoryPort = userRepositoryPort;
     }
 
     /**
@@ -171,6 +182,76 @@ public class GroupMemberAppService {
         owner.transferOwnershipTo(target);
         groupMemberRepository.save(owner);
         groupMemberRepository.save(target);
+    }
+
+    /**
+     * 查询群组成员列表（按积分降序）
+     */
+    @Transactional(readOnly = true)
+    public List<GroupMemberListResponse> listMembers(Long groupId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new BusinessException(ResultCode.GROUP_NOT_FOUND));
+
+        groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        List<GroupMember> members = groupMemberRepository.findByGroupIdOrderByPointsDesc(groupId);
+        if (members.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> userIds = members.stream().map(GroupMember::getUserId).toList();
+        Map<Long, User> userMap = userRepositoryPort.findByIdIn(userIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
+
+        return members.stream().map(m -> {
+            User user = userMap.get(m.getUserId());
+            GroupMemberListResponse resp = new GroupMemberListResponse();
+            resp.setUserId(m.getUserId());
+            resp.setNickname(user != null ? user.getNickname() : "未知用户");
+            if (user != null && user.getAvatar() != null) {
+                resp.setAvatarFileId(user.getAvatar().fileId());
+                resp.setAvatarUrl(user.getAvatar().url());
+            }
+            resp.setRole(m.getRole().name());
+            resp.setPoints(m.getPoints());
+            resp.setJoinedAt(GroupMemberAssembler.INSTANCE.toEpochMilli(m.getJoinedAt()));
+            return resp;
+        }).toList();
+    }
+
+    /**
+     * 踢出成员
+     */
+    @Transactional
+    public void kick(Long groupId, Long targetUserId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        GroupMember current = groupMemberRepository.findByGroupIdAndUserId(groupId, currentUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        GroupMember target = groupMemberRepository.findByGroupIdAndUserId(groupId, targetUserId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+        if (!target.getGroupId().equals(groupId)) {
+            throw new BusinessException(ResultCode.NOT_GROUP_MEMBER);
+        }
+
+        if (target.getRole() == GroupRole.OWNER) {
+            throw new BusinessException(ResultCode.CANNOT_KICK_OWNER);
+        }
+
+        if (current.getRole() == GroupRole.MEMBER) {
+            throw new BusinessException(ResultCode.NOT_GROUP_ADMIN);
+        }
+
+        if (current.getRole() == GroupRole.ADMIN && target.getRole() != GroupRole.MEMBER) {
+            throw new BusinessException(ResultCode.NOT_GROUP_ADMIN);
+        }
+
+        groupMemberRepository.deleteByGroupIdAndUserId(groupId, targetUserId);
     }
 
     private GroupMember enforceOwner(Long groupId, Long currentUserId) {

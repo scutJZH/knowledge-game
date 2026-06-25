@@ -1,6 +1,7 @@
 package com.knowledgegame.core.domain.model.entity;
 
 import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.StudyGroupStatus;
 import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.InviteCode;
 import org.junit.jupiter.api.DisplayName;
@@ -109,7 +110,7 @@ class StudyGroupTest {
 
             StudyGroup group = StudyGroup.reconstruct(
                     99L, "重建群组", "重建描述", AVATAR, 100L,
-                    JoinPolicy.OPEN, inviteCode, created, updated);
+                    StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, inviteCode, created, updated);
 
             assertEquals(99L, group.getId());
             assertEquals("重建群组", group.getName());
@@ -128,7 +129,7 @@ class StudyGroupTest {
             InviteCode inviteCode = InviteCode.of("XYZ67890");
             StudyGroup group = StudyGroup.reconstruct(
                     1L, "群组", null, null, 100L,
-                    JoinPolicy.INVITE_ONLY, inviteCode,
+                    StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, inviteCode,
                     LocalDateTime.of(2025, 1, 1, 0, 0),
                     LocalDateTime.of(2025, 1, 1, 0, 0));
 
@@ -144,7 +145,7 @@ class StudyGroupTest {
             InviteCode inviteCode = InviteCode.of("TEST1234");
             StudyGroup group = StudyGroup.reconstruct(
                     1L, "群组", null, null, 100L,
-                    JoinPolicy.INVITE_ONLY, inviteCode,
+                    StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, inviteCode,
                     LocalDateTime.of(2025, 1, 1, 0, 0),
                     LocalDateTime.of(2025, 1, 1, 0, 0));
 
@@ -182,7 +183,7 @@ class StudyGroupTest {
             InviteCode oldCode = InviteCode.of("ABC12345");
             StudyGroup group = StudyGroup.reconstruct(
                     1L, "群组", null, null, 100L,
-                    JoinPolicy.OPEN, oldCode,
+                    StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, oldCode,
                     LocalDateTime.of(2025, 1, 1, 0, 0),
                     LocalDateTime.of(2025, 1, 1, 0, 0));
 
@@ -199,7 +200,7 @@ class StudyGroupTest {
             InviteCode oldCode = InviteCode.of("ABC12345");
             StudyGroup group = StudyGroup.reconstruct(
                     1L, "群组", null, null, 100L,
-                    JoinPolicy.OPEN, oldCode,
+                    StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, oldCode,
                     LocalDateTime.of(2025, 1, 1, 0, 0),
                     oldUpdatedAt);
 
@@ -221,7 +222,7 @@ class StudyGroupTest {
             LocalDateTime oldUpdatedAt = LocalDateTime.of(2025, 1, 1, 0, 0);
             StudyGroup group = StudyGroup.reconstruct(
                     1L, "群组", null, null, 100L,
-                    JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                    StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                     LocalDateTime.of(2025, 1, 1, 0, 0),
                     oldUpdatedAt);
 

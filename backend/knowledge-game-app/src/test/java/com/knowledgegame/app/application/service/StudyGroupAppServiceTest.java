@@ -10,6 +10,7 @@ import com.knowledgegame.core.common.result.Result;
 import com.knowledgegame.core.common.result.ResultCode;
 import com.knowledgegame.core.domain.model.domainenum.GroupRole;
 import com.knowledgegame.core.domain.model.domainenum.JoinPolicy;
+import com.knowledgegame.core.domain.model.domainenum.StudyGroupStatus;
 import com.knowledgegame.core.domain.model.entity.GroupMember;
 import com.knowledgegame.core.domain.model.entity.StudyGroup;
 import com.knowledgegame.core.domain.model.vo.FileRef;
@@ -85,7 +86,7 @@ class StudyGroupAppServiceTest {
 
         StudyGroup mockSaved = StudyGroup.reconstruct(1L, "测试群组", "描述",
                 FileRef.of(10L, "https://example.com/avatar.png"),
-                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                100L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
         when(studyGroupRepository.save(any())).thenReturn(mockSaved);
 
@@ -118,7 +119,7 @@ class StudyGroupAppServiceTest {
         CreateStudyGroupRequest request = buildRequest("群组", null, null, null);
 
         StudyGroup mockSaved = StudyGroup.reconstruct(1L, "群组", null, null,
-                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                100L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
         when(studyGroupRepository.save(any())).thenReturn(mockSaved);
 
@@ -194,7 +195,7 @@ class StudyGroupAppServiceTest {
         CreateStudyGroupRequest request = buildRequest("群组", null, null, null);
 
         StudyGroup mockSaved = StudyGroup.reconstruct(1L, "群组", null, null,
-                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                100L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
         when(studyGroupRepository.save(any())).thenReturn(mockSaved);
 
@@ -209,7 +210,7 @@ class StudyGroupAppServiceTest {
         CreateStudyGroupRequest request = buildRequest("群组", null, null, JoinPolicy.INVITE_ONLY);
 
         StudyGroup mockSaved = StudyGroup.reconstruct(1L, "群组", null, null,
-                100L, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
+                100L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("ABC12345"),
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
         when(studyGroupRepository.save(any())).thenReturn(mockSaved);
 
@@ -338,11 +339,11 @@ class StudyGroupAppServiceTest {
                 .thenReturn(List.of(member2, member1));
 
         StudyGroup group10 = StudyGroup.reconstruct(10L, "群组A", "描述A", null,
-                100L, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
+                100L, StudyGroupStatus.ACTIVE, JoinPolicy.OPEN, InviteCode.of("ABC12345"),
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
         StudyGroup group20 = StudyGroup.reconstruct(20L, "群组B", null,
                 FileRef.of(5L, "https://example.com/avatar.png"),
-                200L, JoinPolicy.INVITE_ONLY, InviteCode.of("DEF67890"),
+                200L, StudyGroupStatus.ACTIVE, JoinPolicy.INVITE_ONLY, InviteCode.of("DEF67890"),
                 java.time.LocalDateTime.now(), java.time.LocalDateTime.now());
         when(studyGroupRepository.findByIdIn(List.of(20L, 10L)))
                 .thenReturn(List.of(group10, group20));

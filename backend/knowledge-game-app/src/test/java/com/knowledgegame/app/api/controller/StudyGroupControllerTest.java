@@ -2,8 +2,10 @@ package com.knowledgegame.app.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.knowledgegame.app.api.dto.CreateStudyGroupRequest;
+import com.knowledgegame.app.api.dto.StudyGroupDetailResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
+import com.knowledgegame.app.api.dto.UpdateStudyGroupRequest;
 import com.knowledgegame.app.application.service.StudyGroupAppService;
 import com.knowledgegame.app.config.JacksonConfig;
 import com.knowledgegame.components.exception.handler.GlobalExceptionHandler;
@@ -24,8 +26,10 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -163,6 +167,64 @@ class StudyGroupControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data").isEmpty());
+    }
+
+    @Test
+    @DisplayName("GET /{id} 查询群组详情应返回 200 + 含 myRole/inviteCode/memberCount")
+    void getDetail_shouldReturn200WithDetail() throws Exception {
+        StudyGroupDetailResponse response = new StudyGroupDetailResponse();
+        response.setId(1L);
+        response.setName("测试群组");
+        response.setJoinPolicy("OPEN");
+        response.setInviteCode("ABC12345");
+        response.setMyRole("OWNER");
+        response.setMemberCount(12);
+        response.setCreatedAt(1718800000000L);
+        response.setUpdatedAt(1718800000000L);
+        when(appService.getDetail(anyLong())).thenReturn(response);
+
+        mockMvc.perform(get("/api/study-groups/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.name").value("测试群组"))
+                .andExpect(jsonPath("$.data.inviteCode").value("ABC12345"))
+                .andExpect(jsonPath("$.data.myRole").value("OWNER"))
+                .andExpect(jsonPath("$.data.memberCount").value(12));
+    }
+
+    @Test
+    @DisplayName("PUT /{id} 编辑群组信息应返回 200")
+    void update_shouldReturn200() throws Exception {
+        StudyGroupResponse response = new StudyGroupResponse();
+        response.setId(1L);
+        response.setName("新名称");
+        response.setJoinPolicy("INVITE_ONLY");
+        response.setCreatedAt(1718800000000L);
+        response.setUpdatedAt(1719900000000L);
+        when(appService.update(anyLong(), any())).thenReturn(response);
+
+        UpdateStudyGroupRequest request = new UpdateStudyGroupRequest();
+        request.setName("新名称");
+        request.setJoinPolicy("INVITE_ONLY");
+
+        mockMvc.perform(put("/api/study-groups/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.name").value("新名称"))
+                .andExpect(jsonPath("$.data.joinPolicy").value("INVITE_ONLY"))
+                .andExpect(jsonPath("$.data.updatedAt").value(1719900000000L));
+    }
+
+    @Test
+    @DisplayName("DELETE /{id} 解散群组应返回 200 + null data")
+    void disband_shouldReturn200() throws Exception {
+        mockMvc.perform(delete("/api/study-groups/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data").isEmpty());
     }
 }

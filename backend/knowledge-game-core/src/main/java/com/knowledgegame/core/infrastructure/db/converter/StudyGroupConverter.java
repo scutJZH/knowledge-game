@@ -32,6 +32,7 @@ public interface StudyGroupConverter {
                 po.getDescription(),
                 avatar,
                 po.getOwnerId(),
+                po.getStatus(),
                 po.getJoinPolicy(),
                 inviteCode,
                 po.getCreatedAt(),
@@ -52,6 +53,7 @@ public interface StudyGroupConverter {
                 .avatarFileId(fileIdOf(domain.getAvatar()))
                 .avatarUrl(urlOf(domain.getAvatar()))
                 .ownerId(domain.getOwnerId())
+                .status(domain.getStatus())
                 .joinPolicy(domain.getJoinPolicy())
                 .inviteCode(inviteCodeOf(domain.getInviteCode()))
                 .createdAt(domain.getCreatedAt())
@@ -75,6 +77,10 @@ public interface StudyGroupConverter {
         // joinPolicy 是 NOT NULL 字段，保留 if-null 守卫
         if (domain.getJoinPolicy() != null) {
             po.setJoinPolicy(domain.getJoinPolicy());
+        }
+        // status 是 NOT NULL 字段，保留 if-null 守卫
+        if (domain.getStatus() != null) {
+            po.setStatus(domain.getStatus());
         }
         // inviteCode 是 NOT NULL 字段，保留 if-null 守卫
         if (domain.getInviteCode() != null) {

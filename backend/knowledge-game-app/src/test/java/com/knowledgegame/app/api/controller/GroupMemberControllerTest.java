@@ -1,6 +1,7 @@
 package com.knowledgegame.app.api.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.knowledgegame.app.api.dto.GroupMemberListResponse;
 import com.knowledgegame.app.api.dto.GroupMemberResponse;
 import com.knowledgegame.app.api.dto.JoinByInviteRequest;
 import com.knowledgegame.app.application.service.GroupMemberAppService;
@@ -18,6 +19,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -332,6 +335,81 @@ class GroupMemberControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(403))
                     .andExpect(jsonPath("$.message").value("仅群主可操作"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /{id}/members（成员列表）")
+    class ListMembersTests {
+
+        @Test
+        @DisplayName("成功应返回 200 + 排序列表")
+        void listMembers_shouldReturn200WithSortedList() throws Exception {
+            GroupMemberListResponse item = new GroupMemberListResponse();
+            item.setUserId(100L);
+            item.setNickname("张三");
+            item.setRole("OWNER");
+            item.setPoints(500);
+            item.setJoinedAt(1718800000000L);
+            when(appService.listMembers(anyLong())).thenReturn(List.of(item));
+
+            mockMvc.perform(get("/api/study-groups/1/members"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.data[0].userId").value(100))
+                    .andExpect(jsonPath("$.data[0].nickname").value("张三"))
+                    .andExpect(jsonPath("$.data[0].role").value("OWNER"))
+                    .andExpect(jsonPath("$.data[0].points").value(500));
+        }
+
+        @Test
+        @DisplayName("空列表应返回 200 + 空数组")
+        void listMembers_empty_returns200WithEmptyArray() throws Exception {
+            when(appService.listMembers(anyLong())).thenReturn(List.of());
+
+            mockMvc.perform(get("/api/study-groups/1/members"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.data").isArray())
+                    .andExpect(jsonPath("$.data").isEmpty());
+        }
+
+        @Test
+        @DisplayName("非成员访问应返回 NOT_GROUP_MEMBER")
+        void listMembers_nonMember_returnsNotGroupMember() throws Exception {
+            when(appService.listMembers(anyLong()))
+                    .thenThrow(new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+
+            mockMvc.perform(get("/api/study-groups/1/members"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(403))
+                    .andExpect(jsonPath("$.message").value("非群组成员"));
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE /{id}/members/{userId}（踢出成员）")
+    class KickTests {
+
+        @Test
+        @DisplayName("成功应返回 200 + null data")
+        void kick_shouldReturn200() throws Exception {
+            mockMvc.perform(delete("/api/study-groups/1/members/200"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.data").isEmpty());
+        }
+
+        @Test
+        @DisplayName("踢出 OWNER 应返回 CANNOT_KICK_OWNER")
+        void kick_owner_returnsCannotKickOwner() throws Exception {
+            doThrow(new BusinessException(ResultCode.CANNOT_KICK_OWNER))
+                    .when(appService).kick(1L, 200L);
+
+            mockMvc.perform(delete("/api/study-groups/1/members/200"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(400))
+                    .andExpect(jsonPath("$.message").value("不能踢出群主"));
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.knowledgegame.app.api.controller;
 
+import com.knowledgegame.app.api.dto.GroupMemberListResponse;
 import com.knowledgegame.app.api.dto.GroupMemberResponse;
 import com.knowledgegame.app.api.dto.JoinByInviteRequest;
 import com.knowledgegame.app.api.dto.TransferOwnershipRequest;
@@ -8,6 +9,8 @@ import com.knowledgegame.app.application.service.GroupMemberAppService;
 import com.knowledgegame.core.common.result.Result;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
+
+import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -80,6 +83,24 @@ public class GroupMemberController {
     public Result<Void> transferOwnership(@PathVariable("id") Long groupId,
                                            @Valid @RequestBody TransferOwnershipRequest request) {
         appService.transferOwnership(groupId, request.getToUserId());
+        return Result.success(null);
+    }
+
+    /**
+     * 查询群组成员列表（按积分降序）
+     */
+    @GetMapping("/{id}/members")
+    public Result<List<GroupMemberListResponse>> listMembers(@PathVariable("id") Long groupId) {
+        return Result.success(appService.listMembers(groupId));
+    }
+
+    /**
+     * 踢出成员（路由安全：Spring MVC 优先匹配 /members/me，字符串 "me" 无法 bind 到 Long）
+     */
+    @DeleteMapping("/{id}/members/{userId}")
+    public Result<Void> kick(@PathVariable("id") Long groupId,
+                             @PathVariable("userId") Long targetUserId) {
+        appService.kick(groupId, targetUserId);
         return Result.success(null);
     }
 }
