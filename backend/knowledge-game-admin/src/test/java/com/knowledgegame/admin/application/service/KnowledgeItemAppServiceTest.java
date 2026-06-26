@@ -20,20 +20,26 @@ import com.knowledgegame.core.domain.model.vo.FileRef;
 import com.knowledgegame.core.domain.model.vo.KnowledgeItemSummary;
 import com.knowledgegame.core.domain.model.vo.PageResult;
 import com.knowledgegame.core.domain.model.vo.SortField;
+import com.knowledgegame.auth.security.SecurityUtils;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
 import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import com.knowledgegame.core.infrastructure.markdown.MarkdownRenderer;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -58,6 +64,9 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -80,8 +89,24 @@ class KnowledgeItemAppServiceTest {
     @Mock
     private MarkdownRenderer markdownRenderer;
 
+    @Mock
+    private RecycleBinItemStrategy<KnowledgeItem> recycleBinStrategy;
+
     @InjectMocks
     private KnowledgeItemAppService appService;
+
+    private MockedStatic<SecurityUtils> securityUtilsMock;
+
+    @BeforeEach
+    void setUp() {
+        securityUtilsMock = mockStatic(SecurityUtils.class);
+        securityUtilsMock.when(SecurityUtils::getCurrentUsername).thenReturn("admin");
+    }
+
+    @AfterEach
+    void tearDown() {
+        securityUtilsMock.close();
+    }
 
     /**
      * create - 正常创建
@@ -148,17 +173,27 @@ class KnowledgeItemAppServiceTest {
     }
 
     /**
-     * delete - 调 domainService.validateDelete + deactivate
+     * delete - 委托 strategy.validateDeletable + moveToRecycleBin，顺序正确
      */
     @Test
-    void delete_shouldDeactivate() {
-        KnowledgeItem item = buildItem(1L);
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
-        when(itemRepository.save(any())).thenReturn(item);
-
+    void delete_shouldCallStrategy() {
         appService.delete(1L);
 
-        assertEquals(KnowledgeItemStatus.INACTIVE, item.getStatus());
+        InOrder inOrder = inOrder(recycleBinStrategy);
+        inOrder.verify(recycleBinStrategy).validateDeletable(1L);
+        inOrder.verify(recycleBinStrategy).moveToRecycleBin(eq(1L), eq("admin"));
+    }
+
+    /**
+     * delete - validateDeletable 抛异常 → 传播，不调用 moveToRecycleBin
+     */
+    @Test
+    void delete_shouldThrow_whenValidationFails() {
+        doThrow(new BusinessException("知识条目不存在: 1"))
+                .when(recycleBinStrategy).validateDeletable(1L);
+
+        assertThrows(BusinessException.class, () -> appService.delete(1L));
+        verify(recycleBinStrategy, never()).moveToRecycleBin(anyLong(), anyString());
     }
 
     /**

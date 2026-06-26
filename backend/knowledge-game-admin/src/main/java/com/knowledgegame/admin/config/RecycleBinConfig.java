@@ -11,14 +11,17 @@ import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.CardTemplateRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.IpSeriesRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.KnowledgeCategoryRecycleBinStrategy;
+import com.knowledgegame.core.infrastructure.adapter.repoadapter.KnowledgeItemRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.QuestionRecycleBinStrategy;
 import com.knowledgegame.core.infrastructure.db.repository.CardTemplateDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.CardTemplateJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.IpSeriesJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryDeletedJpaRepository;
-import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemCategoryRelationJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemDeletedJpaRepository;
+import com.knowledgegame.core.infrastructure.db.repository.KnowledgeItemJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionCategoryRelationJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionDeletedJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionJpaRepository;
@@ -111,5 +114,26 @@ public class RecycleBinConfig {
                 relationJpaRepository,
                 recycleBinItemJpaRepository,
                 categoryJpaRepository);
+    }
+
+    @Bean
+    public KnowledgeItemRecycleBinStrategy knowledgeItemRecycleBinStrategy(
+            KnowledgeItemRepository itemRepository,
+            RecycleBinItemRepositoryPort recycleBinItemRepositoryPort,
+            KnowledgeItemJpaRepository itemJpaRepository,
+            KnowledgeItemDeletedJpaRepository itemDeletedJpaRepository,
+            KnowledgeItemCategoryRelationJpaRepository relationJpaRepository,
+            RecycleBinItemJpaRepository recycleBinItemJpaRepository,
+            KnowledgeCategoryJpaRepository categoryJpaRepository,
+            FileCleanupPort fileCleanupPort) {
+        return new KnowledgeItemRecycleBinStrategy(
+                itemRepository,
+                recycleBinItemRepositoryPort,
+                itemJpaRepository,
+                itemDeletedJpaRepository,
+                relationJpaRepository,
+                recycleBinItemJpaRepository,
+                categoryJpaRepository,
+                fileCleanupPort);
     }
 }

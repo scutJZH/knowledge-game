@@ -26,6 +26,7 @@ import com.knowledgegame.core.domain.model.vo.SortField;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
 import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
+import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import com.knowledgegame.core.infrastructure.markdown.MarkdownRenderer;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Cell;
@@ -74,17 +75,20 @@ public class KnowledgeItemAppService {
     private final KnowledgeCategoryRepositoryPort categoryRepositoryPort;
     private final FileServiceClient fileServiceClient;
     private final MarkdownRenderer markdownRenderer;
+    private final RecycleBinItemStrategy<KnowledgeItem> recycleBinStrategy;
 
     public KnowledgeItemAppService(KnowledgeItemRepository itemRepository,
                                     KnowledgeItemDomainService itemDomainService,
                                     KnowledgeCategoryRepositoryPort categoryRepositoryPort,
                                     FileServiceClient fileServiceClient,
-                                    MarkdownRenderer markdownRenderer) {
+                                    MarkdownRenderer markdownRenderer,
+                                    RecycleBinItemStrategy<KnowledgeItem> recycleBinStrategy) {
         this.itemRepository = itemRepository;
         this.itemDomainService = itemDomainService;
         this.categoryRepositoryPort = categoryRepositoryPort;
         this.fileServiceClient = fileServiceClient;
         this.markdownRenderer = markdownRenderer;
+        this.recycleBinStrategy = recycleBinStrategy;
     }
 
     /**
@@ -176,14 +180,13 @@ public class KnowledgeItemAppService {
     }
 
     /**
-     * 删除知识条目（软删除，无前置校验）
+     * 删除知识条目（移入回收站）
      */
     @Transactional
     public void delete(Long id) {
-        KnowledgeItem item = itemRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("知识条目不存在: " + id));
-        item.deactivate();
-        itemRepository.save(item);
+        String deletedBy = SecurityUtils.getCurrentUsername();
+        recycleBinStrategy.validateDeletable(id);
+        recycleBinStrategy.moveToRecycleBin(id, deletedBy);
     }
 
     /**

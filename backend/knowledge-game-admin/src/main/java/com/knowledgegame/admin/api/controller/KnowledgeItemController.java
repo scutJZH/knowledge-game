@@ -87,7 +87,7 @@ public class KnowledgeItemController {
     }
 
     /**
-     * 删除知识条目（软删除，含分类校验）
+     * 删除知识条目（移入回收站）
      */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
