@@ -1,14 +1,17 @@
 package com.knowledgegame.core.config;
 
 import com.knowledgegame.core.domain.port.outbound.CardTemplateRepositoryPort;
+import com.knowledgegame.core.domain.port.outbound.GroupMemberRepository;
 import com.knowledgegame.core.domain.port.outbound.IpSeriesRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPort;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
+import com.knowledgegame.core.domain.port.outbound.PointTransactionRepository;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.service.CardTemplateDomainService;
 import com.knowledgegame.core.domain.service.IpSeriesDomainService;
 import com.knowledgegame.core.domain.service.KnowledgeCategoryDomainService;
 import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
+import com.knowledgegame.core.domain.service.PointTransactionService;
 import com.knowledgegame.core.domain.service.QuestionDomainService;
 import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
 import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategyRegistry;
@@ -76,6 +79,16 @@ public class KnowledgeGameCoreAutoConfiguration {
             KnowledgeItemRepository itemRepository,
             KnowledgeCategoryRepositoryPort categoryRepositoryPort) {
         return new KnowledgeItemDomainService(itemRepository, categoryRepositoryPort);
+    }
+
+    /**
+     * 注册积分流水领域服务（纯 POJO，需手动注册）
+     */
+    @Bean
+    public PointTransactionService pointTransactionService(
+            GroupMemberRepository groupMemberRepository,
+            PointTransactionRepository pointTransactionRepository) {
+        return new PointTransactionService(groupMemberRepository, pointTransactionRepository);
     }
 
     /**

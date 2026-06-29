@@ -1,6 +1,10 @@
 package com.knowledgegame.core.domain.model.entity;
 
+import com.knowledgegame.core.common.exception.BusinessException;
+import com.knowledgegame.core.common.result.ResultCode;
 import com.knowledgegame.core.domain.model.domainenum.GroupRole;
+import com.knowledgegame.core.domain.model.domainenum.ReferenceType;
+import com.knowledgegame.core.domain.model.domainenum.TxType;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -92,5 +96,35 @@ public class GroupMember {
         }
         this.role = GroupRole.ADMIN;
         target.role = GroupRole.OWNER;
+    }
+
+    /**
+     * 增加积分（游戏/签到/分解/翻牌等场景调用）。
+     * 返回待持久化的 PointTransaction 对象（由调用方在同一事务里 save）。
+     * amount 必须为正数，否则抛 IllegalArgumentException
+     */
+    public PointTransaction earnPoints(int amount, ReferenceType refType, Long referenceId) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("amount 必须为正数");
+        }
+        this.points += amount;
+        return PointTransaction.record(this.groupId, this.userId, TxType.EARN,
+                amount, refType, referenceId, this.points);
+    }
+
+    /**
+     * 扣减积分（抽卡/直购/兑换等场景调用）。
+     * 余额不足抛 BusinessException(POINT_TRANSACTION_INSUFFICIENT_BALANCE)
+     */
+    public PointTransaction spendPoints(int amount, ReferenceType refType, Long referenceId) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("amount 必须为正数");
+        }
+        if (this.points < amount) {
+            throw new BusinessException(ResultCode.POINT_TRANSACTION_INSUFFICIENT_BALANCE);
+        }
+        this.points -= amount;
+        return PointTransaction.record(this.groupId, this.userId, TxType.SPEND,
+                amount, refType, referenceId, this.points);
     }
 }

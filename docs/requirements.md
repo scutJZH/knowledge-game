@@ -245,8 +245,8 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-37 | 卡牌详情页面（升星/兑换/分解） | idea | - | 增加实体奖励兑换入口 | REQ-26 ✅, REQ-22, REQ-23, REQ-57 |
 | REQ-38 | 保底进度页面 | idea | - | 群组维度 | REQ-26 ✅, REQ-25 |
 | REQ-39 | 个人中心页面 | idea | - | | REQ-26 ✅ |
-| REQ-62 | 群组管理端 — IP 库关联页 | done | [req-62-group-ip-library-page.md](prd/req-62-group-ip-library-page.md) | 知识库全局共享，不需要群组授权 | REQ-26 ✅, REQ-51 ✅ |
-| REQ-109 | IP 库 — 禁用/删除语义分离 | done | - | group_ip_library 表新增 status 字段（ACTIVE/DISABLED），禁用=软删除（保留关联数据可恢复），删除=彻底解除关联。前端 ⋮ 菜单中「禁用」和「删除」行为区分 | REQ-62 |
+| REQ-62 | 群组管理端 — IP 库关联页 | designed | [req-62-group-ip-library-page.md](prd/req-62-group-ip-library-page.md) | 知识库全局共享，不需要群组授权 | REQ-26 ✅, REQ-51 ✅ |
+| REQ-109 | IP 库 — 禁用/删除语义分离 | idea | - | group_ip_library 表新增 status 字段（ACTIVE/DISABLED），禁用=软删除（保留关联数据可恢复），删除=彻底解除关联。前端 ⋮ 菜单中「禁用」和「删除」行为区分 | REQ-62 |
 | REQ-110 | IP 库 — 已收集卡片禁止删除校验 | idea | - | 前后端双重校验：有群组成员已收集该 IP 卡片的关联不可删除（前端删除选项置灰，后端 PUT 拒绝）。需新增「查询群组各 IP 卡片收集量」接口 | REQ-62 |
 | REQ-63 | 群组管理端 — 成员与积分管理页 | idea | - | 成员列表查询 + 踢人 API + 积分修改。踢人仅 OWNER/ADMIN 可操作，不能踢 OWNER | REQ-26 ✅, REQ-49 ✅, REQ-52, REQ-50 ✅ |
 | REQ-64 | 群组管理端 — 奖励兑换与订单页 | idea | - | | REQ-26 ✅, REQ-58, REQ-59 |

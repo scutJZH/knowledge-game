@@ -36,7 +36,12 @@ public enum ResultCode {
     NOT_GROUP_ADMIN(403, "仅群主或管理员可操作"),
     CANNOT_KICK_OWNER(400, "不能踢出群主"),
     IP_SERIES_NOT_FOUND(400, "IP系列不存在"),
-    IP_SERIES_NOT_ACTIVE(400, "IP系列未启用");
+    IP_SERIES_NOT_ACTIVE(400, "IP系列未启用"),
+    POINT_TRANSACTION_INSUFFICIENT_BALANCE(400, "积分余额不足"),
+    POINT_TRANSACTION_INVALID_AMOUNT(400, "积分变动金额必须为正数"),
+    POINT_TRANSACTION_USER_NOT_IN_GROUP(400, "用户未加入该群组"),
+    POINT_TRANSACTION_REFERENCE_TYPE_INVALID(400, "不支持的积分来源类型"),
+    OPTIMISTIC_LOCK_CONFLICT(409, "数据已被其他操作修改，请重试");
 
     private final int code;
     private final String message;
