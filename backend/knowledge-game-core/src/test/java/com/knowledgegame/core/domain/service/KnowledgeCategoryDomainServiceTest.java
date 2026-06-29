@@ -223,8 +223,8 @@ class KnowledgeCategoryDomainServiceTest {
     @DisplayName("validateDelete 无 ACTIVE 子分类且无 ACTIVE 题目时应通过")
     void validateDelete_shouldPass_whenNoActiveChildrenAndNoActiveQuestions() {
         when(categoryRepositoryPort.countActiveByParentId(1L)).thenReturn(0L);
-        when(questionRepository.countActiveByCategoryId(1L)).thenReturn(0L);
-        when(itemRepository.countActiveByCategoryId(1L)).thenReturn(0L);
+        when(questionRepository.countByCategoryId(1L)).thenReturn(0L);
+        when(itemRepository.countByCategoryId(1L)).thenReturn(0L);
 
         KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         service.validateDelete(1L);
@@ -252,12 +252,12 @@ class KnowledgeCategoryDomainServiceTest {
     @DisplayName("validateDelete 有 ACTIVE 题目关联时应抛异常")
     void validateDelete_shouldThrow_whenHasActiveQuestions() {
         when(categoryRepositoryPort.countActiveByParentId(1L)).thenReturn(0L);
-        when(questionRepository.countActiveByCategoryId(1L)).thenReturn(5L);
+        when(questionRepository.countByCategoryId(1L)).thenReturn(5L);
 
         KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateDelete(1L));
-        assertEquals("知识点分类关联 5 道 ACTIVE 题目，无法删除", ex.getMessage());
+        assertEquals("知识点分类关联 5 道题目，无法删除", ex.getMessage());
     }
 
     /**
@@ -267,13 +267,13 @@ class KnowledgeCategoryDomainServiceTest {
     @DisplayName("validateDelete 有 ACTIVE 知识条目关联时应抛异常")
     void validateDelete_shouldThrow_whenHasActiveItems() {
         when(categoryRepositoryPort.countActiveByParentId(1L)).thenReturn(0L);
-        when(questionRepository.countActiveByCategoryId(1L)).thenReturn(0L);
-        when(itemRepository.countActiveByCategoryId(1L)).thenReturn(5L);
+        when(questionRepository.countByCategoryId(1L)).thenReturn(0L);
+        when(itemRepository.countByCategoryId(1L)).thenReturn(5L);
 
         KnowledgeCategoryDomainService service = new KnowledgeCategoryDomainService(categoryRepositoryPort, questionRepository, itemRepository);
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.validateDelete(1L));
-        assertEquals("知识点分类关联 5 个 ACTIVE 知识条目，无法删除", ex.getMessage());
+        assertEquals("知识点分类关联 5 个知识条目，无法删除", ex.getMessage());
     }
 
     /**

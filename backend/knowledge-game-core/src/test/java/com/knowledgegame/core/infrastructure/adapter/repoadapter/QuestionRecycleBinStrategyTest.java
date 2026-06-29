@@ -29,6 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -319,7 +320,7 @@ class QuestionRecycleBinStrategyTest {
                 .status(QuestionStatus.ACTIVE)
                 .createdAt(createdAt)
                 .updatedAt(LocalDateTime.now())
-                .relatedData(QuestionRecycleBinStrategy.writeCategoryIds(categoryIds))
+                .relatedData(QuestionRecycleBinStrategy.writeCategoryIds(categoryIds, Map.of()))
                 .deletedBy("admin")
                 .deletedAt(LocalDateTime.now())
                 .build();

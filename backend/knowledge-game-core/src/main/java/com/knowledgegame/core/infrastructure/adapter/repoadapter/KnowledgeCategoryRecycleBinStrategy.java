@@ -102,15 +102,15 @@ public class KnowledgeCategoryRecycleBinStrategy implements RecycleBinItemStrate
 
         for (Long id : subtreeIds) {
             String catName = nameMap.getOrDefault(id, "ID=" + id);
-            long activeQuestionCount = questionRepository.countActiveByCategoryId(id);
-            if (activeQuestionCount > 0) {
-                throw new BusinessException("知识点分类「" + catName + "」关联 " + activeQuestionCount
-                        + " 道 ACTIVE 题目，无法删除");
+            long questionCount = questionRepository.countByCategoryId(id);
+            if (questionCount > 0) {
+                throw new BusinessException("知识点分类「" + catName + "」关联 " + questionCount
+                        + " 道题目，无法删除");
             }
-            long activeItemCount = itemRepository.countActiveByCategoryId(id);
-            if (activeItemCount > 0) {
-                throw new BusinessException("知识点分类「" + catName + "」关联 " + activeItemCount
-                        + " 个 ACTIVE 知识条目，无法删除");
+            long itemCount = itemRepository.countByCategoryId(id);
+            if (itemCount > 0) {
+                throw new BusinessException("知识点分类「" + catName + "」关联 " + itemCount
+                        + " 个知识条目，无法删除");
             }
         }
     }

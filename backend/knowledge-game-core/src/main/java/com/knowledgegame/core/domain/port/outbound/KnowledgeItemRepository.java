@@ -55,9 +55,19 @@ public interface KnowledgeItemRepository {
     List<Long> findActiveCategoryIdsByItemId(Long itemId);
 
     /**
+     * 查询条目关联的全部分类 ID 列表（含 INACTIVE）
+     */
+    List<Long> findCategoryIdsByItemId(Long itemId);
+
+    /**
      * 统计与指定分类关联的 ACTIVE 知识条目数量
      */
     long countActiveByCategoryId(Long categoryId);
+
+    /**
+     * 统计与指定分类关联的全部知识条目数量（含 INACTIVE）
+     */
+    long countByCategoryId(Long categoryId);
 
     /**
      * 查询多个条目关联的全部 ACTIVE 分类 ID，用于列表响应组装

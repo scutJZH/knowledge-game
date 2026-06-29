@@ -70,6 +70,8 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | knowledge_category_deleted | 知识分类删除快照表（镜像 knowledge_category 字段 + related_data JSON） | REQ-100 |
 | knowledge_item_deleted | 知识条目删除快照表（镜像 knowledge_item 字段 + related_data JSON 存分类关联） | REQ-100 |
 | scheduled_task_log | 定时任务执行日志表（task_name/task_display/执行统计/failure_details JSON） | REQ-101 |
+| game_session | 对局表（status/endReason 枚举，currentQuestionId 当前题，user_id+status 索引，group_id+user_id 索引） | REQ-10 |
+| game_answer | 答题记录表（UNIQUE(session_id, sequence)，isCorrect BOOLEAN，timeCostMs 服务端计时） | REQ-10 |
 
 ### 已设计（待实现）
 
@@ -159,6 +161,12 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/study-groups/{id} | DELETE | 解散群组（仅 OWNER） | 已实现（需 JWT，REQ-61） |
 | /api/study-groups/{id}/members | GET | 成员列表（按积分降序，含昵称头像） | 已实现（需 JWT，REQ-61） |
 | /api/study-groups/{id}/members/{userId} | DELETE | 踢出成员（OWNER/ADMIN，不可踢 OWNER） | 已实现（需 JWT，REQ-61） |
+| /api/study-groups/{groupId}/point-transactions | GET | 查询群组积分流水（权限驱动） | 新增（REQ-15） |
+| /api/me/point-transactions | GET | 查询个人跨群组积分流水 | 新增（REQ-15） |
+| /api/study-groups/{groupId}/members/me/balance | GET | 查询当前群组余额 | 新增（REQ-15） |
+| /api/games | POST | 开始对局 | 已实现（需 JWT，REQ-10） |
+| /api/games/{id}/answers | POST | 提交答案 | 已实现（需 JWT，REQ-10） |
+| /api/games/{id}/end | POST | 主动放弃 | 已实现（需 JWT，REQ-10） |
 | /api/questions | GET | 题目列表（按分类分页，仅 ACTIVE） | 已实现（需 JWT，REQ-61） |
 
 ### 管理端 `/api/admin/**`（admin 模块，端口 8081）
@@ -207,7 +215,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/admin/knowledge-items | GET | 分页查询（keyword/categoryId/tag/status 筛选 + sort/order 排序，默认 sortOrder ASC + createdAt DESC，返回 KnowledgeItemListResponse 不含 content/contentHtml） | 已实现 |
 | /api/admin/knowledge-items/{id} | GET | 查询知识条目详情 | 已实现 |
 | /api/admin/knowledge-items/{id} | PUT | 更新知识条目 | 已实现 |
-| /api/admin/knowledge-items/{id} | DELETE | 软删除（含分类关联校验） | 已实现 |
+| /api/admin/knowledge-items/{id} | DELETE | 移入回收站（含分类关联快照） | 已实现 |
 | /api/admin/knowledge-items/{id}/categories | GET | 查询知识条目关联的分类 | 已实现 |
 | /api/admin/knowledge-items/{id}/categories | PUT | 更新分类关联（全量替换） | 已实现 |
 | /api/admin/knowledge-items/batch-activate | PUT | 批量启用（含分类状态前置校验） | 已实现 |
@@ -403,3 +411,10 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | GroupMember 按钮命名修正 | 路径变量 userId → AppService 使用 findByGroupIdAndUserId 而非 findById（修复主键/用户ID混用 bug） | 2026-06-26 REQ-61 |
 | Controller 测试策略 | 用户端 Controller 可用 @WebMvcTest（app 模块无 Nacos 自动配置干扰），管理端需用 Mockito（@ExtendWith(MockitoExtension.class) + @InjectMocks） | 2026-06-25 REQ-61 |
 | 测试架构策略 | Task 计划中 @WebMvcTest → 对接实际模块可行性（app 可用，admin 不可用），禁止计划与实现测试框架不一致 | 2026-06-25 沉淀规则 |
+| 秒判游戏双聚合根 | GameSession + GameAnswer 双表双聚合根，参考 StudyGroup + GroupMember 模式，答题高频 INSERT 独立表 | 2026-06-27 REQ-10 |
+| 答题双计时 | 客户端 + 服务端双计时（容差 3500ms），客户端值仅日志不存储，服务端从 issuedAt 计算防篡改 | 2026-06-27 REQ-10 |
+| 秒判题型范围 | TRUE_FALSE + SINGLE_CHOICE（3 秒/题），MULTIPLE_CHOICE + FILL_BLANK 留给 Boss 关卡 | 2026-06-27 REQ-10 |
+| 并发答题兜底 | catch DataIntegrityViolationException（UNIQUE(session_id, sequence) 冲突）→ GAME_ALREADY_ENDED | 2026-06-27 REQ-10 |
+| 题量上限 | 保护性上限 100 题，正常游戏达不到，防 RAND 异常或攻击 | 2026-06-27 REQ-10 |
+| 单选题选项打乱 | 后端 Collections.shuffle 打乱顺序返回，玩家答案回传原始 key（非打乱后位置） | 2026-06-27 REQ-10 |
+| Assembler 位置 | app 模块 GameSessionAssembler 放 application/assembler/，跟随 Group 系列约定，与 CLAUDE.md 规范冲突立项技术债 | 2026-06-27 REQ-10 |

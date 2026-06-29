@@ -27,6 +27,7 @@ import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPo
 import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
 import com.knowledgegame.core.domain.service.KnowledgeItemDomainService;
 import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
+import com.knowledgegame.core.domain.spec.CategorySelectionSpec;
 import com.knowledgegame.core.infrastructure.markdown.MarkdownRenderer;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Cell;
@@ -96,6 +97,7 @@ public class KnowledgeItemAppService {
      */
     @Transactional
     public KnowledgeItemResponse create(CreateKnowledgeItemRequest request) {
+        validateCategoryIds(request.getCategoryIds());
         String contentHtml = markdownRenderer.render(request.getContent());
         FileRef coverImage = verifyFileRef(request.getCoverImageFileId(), BIZ_TYPE);
         int sortOrder = request.getSortOrder() != null ? request.getSortOrder() : 0;
@@ -137,7 +139,7 @@ public class KnowledgeItemAppService {
                 .map(KnowledgeItemSummary::getId).toList();
         Map<Long, List<Long>> categoryMap = pageItemIds.isEmpty()
                 ? Map.of()
-                : itemRepository.findActiveCategoryIdsByItemIds(pageItemIds);
+                : itemRepository.findCategoryIdsByItemIds(pageItemIds);
 
         return PageResult.<KnowledgeItemListResponse>builder()
                 .content(summaryPage.getContent().stream()
@@ -196,7 +198,7 @@ public class KnowledgeItemAppService {
         if (itemRepository.findById(itemId).isEmpty()) {
             throw new BusinessException("知识条目不存在: " + itemId);
         }
-        return itemRepository.findActiveCategoryIdsByItemId(itemId);
+        return itemRepository.findCategoryIdsByItemId(itemId);
     }
 
     /**
@@ -845,7 +847,7 @@ public class KnowledgeItemAppService {
     }
 
     /**
-     * 校验分类 ID 列表：必须存在且 ACTIVE
+     * 校验分类 ID 列表：必须存在且 ACTIVE，禁止同时选择祖先与后代
      */
     private void validateCategoryIds(List<Long> categoryIds) {
         if (categoryIds == null || categoryIds.isEmpty()) {
@@ -856,6 +858,7 @@ public class KnowledgeItemAppService {
                     .filter(c -> c.getStatus() == KnowledgeCategoryStatus.ACTIVE)
                     .orElseThrow(() -> new BusinessException("分类不存在或已停用: " + categoryId));
         }
+        CategorySelectionSpec.validateNoAncestorDescendantConflict(categoryRepositoryPort, categoryIds);
     }
 
 
@@ -863,7 +866,7 @@ public class KnowledgeItemAppService {
      * 查询条目关联分类并组装响应
      */
     private KnowledgeItemResponse toResponseWithCategories(KnowledgeItem item) {
-        List<Long> categoryIds = itemRepository.findActiveCategoryIdsByItemId(item.getId());
+        List<Long> categoryIds = itemRepository.findCategoryIdsByItemId(item.getId());
         return KnowledgeItemAssembler.INSTANCE.toResponse(item, categoryIds);
     }
 

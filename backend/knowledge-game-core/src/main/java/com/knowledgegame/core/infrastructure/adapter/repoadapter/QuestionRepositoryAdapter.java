@@ -167,8 +167,20 @@ public class QuestionRepositoryAdapter implements QuestionRepository {
     }
 
     @Override
+    public List<Long> findCategoryIdsByQuestionId(Long questionId) {
+        return relationJpaRepository.findByQuestionId(questionId).stream()
+                .map(QuestionCategoryRelationPO::getCategoryId)
+                .toList();
+    }
+
+    @Override
     public long countActiveByCategoryId(Long categoryId) {
         return relationJpaRepository.countActiveQuestionsByCategoryId(categoryId);
+    }
+
+    @Override
+    public long countByCategoryId(Long categoryId) {
+        return relationJpaRepository.countQuestionsByCategoryId(categoryId);
     }
 
     @Override

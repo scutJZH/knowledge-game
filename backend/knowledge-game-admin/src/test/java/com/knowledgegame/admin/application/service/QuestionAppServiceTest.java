@@ -111,7 +111,7 @@ class QuestionAppServiceTest {
                 List.of(QuestionOption.of("A", "面向对象"), QuestionOption.of("B", "面向过程")),
                 "A", Difficulty.EASY, null, null, QuestionStatus.ACTIVE, now, now);
         when(questionRepository.save(any())).thenReturn(saved);
-        when(questionRepository.findActiveCategoryIdsByQuestionId(1L)).thenReturn(List.of());
+        when(questionRepository.findCategoryIdsByQuestionId(1L)).thenReturn(List.of());
 
         QuestionResponse result = appService.create(request);
 
@@ -143,7 +143,7 @@ class QuestionAppServiceTest {
         Question saved = Question.reconstruct(2L, QuestionType.TRUE_FALSE, "地球是平的",
                 null, "false", Difficulty.MEDIUM, null, null, QuestionStatus.ACTIVE, now, now);
         when(questionRepository.save(any())).thenReturn(saved);
-        when(questionRepository.findActiveCategoryIdsByQuestionId(2L)).thenReturn(List.of(10L, 20L));
+        when(questionRepository.findCategoryIdsByQuestionId(2L)).thenReturn(List.of(10L, 20L));
         when(categoryRepositoryPort.findById(10L)).thenReturn(Optional.of(
                 KnowledgeCategory.reconstruct(10L, null, "分类A", null, null, null, null, 0,
                         KnowledgeCategoryStatus.ACTIVE, now, now)));
@@ -167,7 +167,7 @@ class QuestionAppServiceTest {
                 List.of(QuestionOption.of("A", "选项A"), QuestionOption.of("B", "选项B")),
                 "A", Difficulty.EASY, null, null, QuestionStatus.ACTIVE, now, now);
         when(questionRepository.findById(1L)).thenReturn(Optional.of(question));
-        when(questionRepository.findActiveCategoryIdsByQuestionId(1L)).thenReturn(List.of(10L));
+        when(questionRepository.findCategoryIdsByQuestionId(1L)).thenReturn(List.of(10L));
 
         QuestionResponse result = appService.getById(1L);
 
@@ -251,7 +251,7 @@ class QuestionAppServiceTest {
                 "A", Difficulty.EASY, null, null, QuestionStatus.ACTIVE, now, now);
         when(questionRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(questionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(questionRepository.findActiveCategoryIdsByQuestionId(1L)).thenReturn(List.of());
+        when(questionRepository.findCategoryIdsByQuestionId(1L)).thenReturn(List.of());
 
         UpdateQuestionRequest request = new UpdateQuestionRequest();
         request.setContent("新题目");
@@ -309,7 +309,7 @@ class QuestionAppServiceTest {
                 List.of(QuestionOption.of("A", "A"), QuestionOption.of("B", "B")),
                 "A", Difficulty.EASY, null, null, QuestionStatus.ACTIVE, now, now);
         when(questionRepository.findById(1L)).thenReturn(Optional.of(question));
-        when(questionRepository.findActiveCategoryIdsByQuestionId(1L)).thenReturn(List.of(10L, 20L));
+        when(questionRepository.findCategoryIdsByQuestionId(1L)).thenReturn(List.of(10L, 20L));
 
         List<Long> result = appService.getCategoryIds(1L);
 

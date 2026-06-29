@@ -33,6 +33,16 @@ public interface QuestionCategoryRelationJpaRepository extends JpaRepository<Que
     long countActiveQuestionsByCategoryId(@Param("categoryId") Long categoryId);
 
     /**
+     * 统计与指定分类关联的全部题目数量（含 INACTIVE）
+     */
+    @Query("""
+           SELECT COUNT(DISTINCT r.questionId) FROM QuestionCategoryRelationPO r
+           JOIN QuestionPO q ON r.questionId = q.id
+           WHERE r.categoryId = :categoryId
+           """)
+    long countQuestionsByCategoryId(@Param("categoryId") Long categoryId);
+
+    /**
      * 根据题目 ID 列表查询所有关联
      */
     @Query("SELECT r FROM QuestionCategoryRelationPO r WHERE r.questionId IN :questionIds")

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IpLibraryTab from '../IpLibraryTab';
@@ -24,21 +24,21 @@ vi.mock('antd', async () => {
   return { ...actual };
 });
 
-const ACTIVE_IP_LIST = [
-  { id: 1, name: '宝可梦', code: 'PKM', coverImageFileId: 100, coverImageUrl: 'https://example.com/pkm.png' },
-  { id: 2, name: '数码宝贝', code: 'DM', coverImageFileId: null, coverImageUrl: null },
+const LINKED = [
+  { id: 1, groupId: 1, ipSeriesId: 1, ipSeriesName: '宝可梦', ipSeriesCode: 'PKM', coverImageFileId: 100, coverImageUrl: 'https://example.com/pkm.png', addedAt: 1 },
+  { id: 2, groupId: 1, ipSeriesId: 2, ipSeriesName: '数码宝贝', ipSeriesCode: 'DM', coverImageFileId: null, coverImageUrl: null, addedAt: 2 },
 ];
 
-const LINKED_IP_LIST = [
-  { id: 1, groupId: 1, ipSeriesId: 1, ipSeriesName: '宝可梦', ipSeriesCode: 'PKM', coverImageFileId: 100, coverImageUrl: 'https://example.com/pkm.png', addedAt: 1718800000000 },
+const ALL_ACTIVE = [
+  { id: 1, name: '宝可梦', code: 'PKM', coverImageFileId: 100, coverImageUrl: 'https://example.com/pkm.png' },
+  { id: 2, name: '数码宝贝', code: 'DM', coverImageFileId: null, coverImageUrl: null },
+  { id: 3, name: '原神', code: 'GENSHIN', coverImageFileId: null, coverImageUrl: null },
 ];
 
 function setup(myRole: 'OWNER' | 'ADMIN' | 'MEMBER' = 'OWNER') {
-  mockListGroupIpLibrary.mockResolvedValue(LINKED_IP_LIST);
-  mockListActiveIpSeries.mockResolvedValue(ACTIVE_IP_LIST);
-  mockUpdateGroupIpLibrary.mockResolvedValue([
-    { ipSeriesId: 1 }, { ipSeriesId: 2 },
-  ]);
+  mockListGroupIpLibrary.mockResolvedValue(LINKED);
+  mockListActiveIpSeries.mockResolvedValue(ALL_ACTIVE);
+  mockUpdateGroupIpLibrary.mockResolvedValue(LINKED);
   return render(<IpLibraryTab groupId={1} myRole={myRole} />);
 }
 
@@ -47,117 +47,96 @@ describe('IpLibraryTab', () => {
     vi.clearAllMocks();
   });
 
-  it('OWNER 渲染时已关联 IP 的 Checkbox 选中且可点击', async () => {
+  it('渲染已关联 IP 卡片网格', async () => {
+    setup();
+    await waitFor(() => expect(screen.getByTestId('ip-card-1')).toBeInTheDocument());
+    expect(screen.getByTestId('ip-card-1')).toHaveTextContent('宝可梦');
+    expect(screen.getByTestId('ip-card-2')).toHaveTextContent('数码宝贝');
+    expect(screen.getByText('已关联 2 项')).toBeInTheDocument();
+  });
+
+  it('OWNER 看到添加按钮和卡片 ⋮ 菜单', async () => {
     setup('OWNER');
-    await waitFor(() => expect(screen.queryByText('宝可梦')).toBeInTheDocument());
-
-    const checkbox = screen.getByTestId('ip-card-1').querySelector('input[type="checkbox"]') as HTMLInputElement;
-    expect(checkbox.checked).toBe(true);
-    expect(checkbox.disabled).toBe(false);
+    await waitFor(() => expect(screen.getByTestId('ip-card-1')).toBeInTheDocument());
+    expect(screen.getByText('添加 IP 系列')).toBeInTheDocument();
+    expect(screen.getByTestId('ip-card-menu-1')).toBeInTheDocument();
   });
 
-  it('ADMIN 渲染时 Checkbox 可点击且保存按钮可见', async () => {
-    setup('ADMIN');
-    await waitFor(() => expect(screen.queryByText('宝可梦')).toBeInTheDocument());
-
-    expect(screen.getByText('保存修改')).toBeInTheDocument();
-    const checkbox = screen.getByTestId('ip-card-1').querySelector('input[type="checkbox"]') as HTMLInputElement;
-    expect(checkbox.disabled).toBe(false);
-  });
-
-  it('MEMBER 渲染时 Checkbox disabled 且不渲染保存按钮', async () => {
+  it('MEMBER 看不到添加按钮和 ⋮ 菜单', async () => {
     setup('MEMBER');
-    await waitFor(() => expect(screen.queryByText('宝可梦')).toBeInTheDocument());
-
-    const checkbox = screen.getByTestId('ip-card-1').querySelector('input[type="checkbox"]') as HTMLInputElement;
-    expect(checkbox.disabled).toBe(true);
-    expect(screen.queryByText('保存修改')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('ip-card-1')).toBeInTheDocument());
+    expect(screen.queryByText('添加 IP 系列')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ip-card-menu-1')).not.toBeInTheDocument();
   });
 
-  it('勾选新 IP 后保存按钮可用，点击后 PUT 调用参数包含新 ID 并用响应重置', async () => {
+  it('弹出添加弹窗 → 搜索过滤 → 多选确定', async () => {
     const user = userEvent.setup();
-    setup('OWNER');
-    await waitFor(() => expect(screen.queryByText('数码宝贝')).toBeInTheDocument());
+    mockUpdateGroupIpLibrary.mockResolvedValue([...LINKED, { id: 3, groupId: 1, ipSeriesId: 3, ipSeriesName: '原神', ipSeriesCode: 'GENSHIN', coverImageFileId: null, coverImageUrl: null, addedAt: 3 }]);
+    setup();
 
-    await user.click(screen.getByTestId('ip-card-2'));
-    await waitFor(() => expect(screen.getByRole('button', { name: '保存修改' })).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByRole('button', { name: /添加/ })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /添加/ }));
 
-    await user.click(screen.getByRole('button', { name: '保存修改' }));
+    // 弹窗出现，可选列表不含已关联 IP
+    await waitFor(() => expect(screen.getByText('原神')).toBeInTheDocument());
+    // 弹窗内不应该有已关联的 IP
+    const modal = document.querySelector('.ant-modal-body')!;
+    expect(within(modal).queryByText('宝可梦')).not.toBeInTheDocument();
+
+    // 搜索过滤
+    const searchInput = screen.getByPlaceholderText('搜索 IP 名称或编码');
+    await user.type(searchInput, '数码');
+    expect(within(modal).queryByText('原神')).not.toBeInTheDocument();
+    await user.clear(searchInput);
+    expect(within(modal).getByText('原神')).toBeInTheDocument();
+
+    // 勾选 → 确定
+    await user.click(within(modal).getByText('原神'));
+    await user.click(screen.getByRole('button', { name: /确\s*定/ }));
+
     await waitFor(() => {
-      expect(mockUpdateGroupIpLibrary).toHaveBeenCalledWith(1, [1, 2]);
+      expect(mockUpdateGroupIpLibrary).toHaveBeenCalledWith(1, [1, 2, 3]);
     });
   });
 
-  it('取消已勾选的 IP 后保存，PUT 调用参数排除该 ID', async () => {
+  it('⋯ 菜单删除 → PUT 不含该 ID', async () => {
     const user = userEvent.setup();
-    setup('OWNER');
-    await waitFor(() => expect(screen.queryByText('宝可梦')).toBeInTheDocument());
+    mockUpdateGroupIpLibrary.mockResolvedValue([LINKED[1]]);
+    setup();
 
-    await user.click(screen.getByTestId('ip-card-1'));
-    await waitFor(() => expect(screen.getByRole('button', { name: '保存修改' })).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByTestId('ip-card-menu-1')).toBeInTheDocument());
+    await user.click(screen.getByTestId('ip-card-menu-1'));
 
-    await user.click(screen.getByRole('button', { name: '保存修改' }));
+    await waitFor(() => expect(screen.getByText('删除')).toBeInTheDocument());
+    await user.click(screen.getByText('删除'));
+
     await waitFor(() => {
-      expect(mockUpdateGroupIpLibrary).toHaveBeenCalledWith(1, []);
+      expect(mockUpdateGroupIpLibrary).toHaveBeenCalledWith(1, [2]);
     });
   });
 
-  it('已关联列表含孤儿 ID（已停用）时自动过滤，不计入选中等，PUT 不含孤儿 ID', async () => {
-    const user = userEvent.setup();
-    mockListGroupIpLibrary.mockResolvedValue([
-      { ipSeriesId: 1 }, { ipSeriesId: 99 },
-    ]);
-    mockListActiveIpSeries.mockResolvedValue(ACTIVE_IP_LIST);
+  it('空关联时显示空状态文案', async () => {
+    mockListGroupIpLibrary.mockResolvedValue([]);
+    mockListActiveIpSeries.mockResolvedValue(ALL_ACTIVE);
     render(<IpLibraryTab groupId={1} myRole="OWNER" />);
 
-    await waitFor(() => expect(screen.queryByText('宝可梦')).toBeInTheDocument());
-
-    // 孤儿 ID=99 不渲染卡片
-    expect(screen.queryByTestId('ip-card-99')).not.toBeInTheDocument();
-    // 工具栏：已选 1（孤儿不计入）/ 共 2 项
-    expect(screen.getByText(/已选 1 \/ 共 2 项/)).toBeInTheDocument();
-    // 保存按钮 disabled（无修改）
-    expect(screen.getByRole('button', { name: '保存修改' })).toBeDisabled();
-
-    // 勾选 IP2 后保存 → PUT 参数为 [1, 2] 而非 [1, 99, 2]
-    await user.click(screen.getByTestId('ip-card-2'));
-    await waitFor(() => expect(screen.getByRole('button', { name: '保存修改' })).not.toBeDisabled());
-    await user.click(screen.getByRole('button', { name: '保存修改' }));
-    await waitFor(() => {
-      expect(mockUpdateGroupIpLibrary).toHaveBeenCalledWith(1, [1, 2]);
-    });
+    await waitFor(() => expect(screen.getByText(/暂未关联/)).toBeInTheDocument());
   });
 
-  it('无修改时保存按钮 disabled', async () => {
-    setup('OWNER');
-    await waitFor(() => expect(screen.queryByText('宝可梦')).toBeInTheDocument());
-
-    expect(screen.getByRole('button', { name: '保存修改' })).toBeDisabled();
-  });
-
-  it('加载失败时渲染 Result error', async () => {
+  it('加载失败时渲染 Result error + 重试', async () => {
     mockListGroupIpLibrary.mockRejectedValue({ response: { data: { message: '网络错误' } } });
-    mockListActiveIpSeries.mockResolvedValue(ACTIVE_IP_LIST);
+    mockListActiveIpSeries.mockResolvedValue(ALL_ACTIVE);
     render(<IpLibraryTab groupId={1} myRole="OWNER" />);
 
     await waitFor(() => expect(screen.getByText('网络错误')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /重\s*试/ })).toBeInTheDocument();
   });
 
-  it('可选 IP 列表为空时渲染空状态文案', async () => {
-    mockListGroupIpLibrary.mockResolvedValue([]);
-    mockListActiveIpSeries.mockResolvedValue([]);
-    render(<IpLibraryTab groupId={1} myRole="OWNER" />);
-
-    await waitFor(() => expect(screen.getByText('系统中暂无可用 IP 系列')).toBeInTheDocument());
-  });
-
-  it('封面图 url 为 null 时渲染首字占位符', async () => {
-    setup('OWNER');
-    await waitFor(() => expect(screen.queryByText('数码宝贝')).toBeInTheDocument());
-
+  it('封面图为空时渲染首字占位符', async () => {
+    setup();
+    await waitFor(() => expect(screen.getByTestId('ip-card-2')).toBeInTheDocument());
     const card = screen.getByTestId('ip-card-2');
-    const placeholder = card.querySelector('.avatar-placeholder');
-    expect(placeholder).toBeInTheDocument();
-    expect(placeholder?.textContent).toBe('数');
+    const placeholder = within(card).getByText('数');
+    expect(placeholder.closest('.avatar-placeholder')).toBeInTheDocument();
   });
 });

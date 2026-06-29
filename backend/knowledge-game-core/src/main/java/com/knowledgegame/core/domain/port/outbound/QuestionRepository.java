@@ -48,9 +48,19 @@ public interface QuestionRepository {
     List<Long> findActiveCategoryIdsByQuestionId(Long questionId);
 
     /**
+     * 查询题目关联的全部分类 ID 列表（含 INACTIVE）
+     */
+    List<Long> findCategoryIdsByQuestionId(Long questionId);
+
+    /**
      * 统计与指定分类关联的 ACTIVE 题目数量
      */
     long countActiveByCategoryId(Long categoryId);
+
+    /**
+     * 统计与指定分类关联的全部题目数量（含 INACTIVE）
+     */
+    long countByCategoryId(Long categoryId);
 
     /**
      * 查询多道题目关联的全部分类 ID（去重），用于批量启用前的分类状态校验

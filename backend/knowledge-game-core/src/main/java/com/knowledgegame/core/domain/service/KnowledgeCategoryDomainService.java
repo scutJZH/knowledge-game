@@ -119,15 +119,15 @@ public class KnowledgeCategoryDomainService {
         if (activeChildCount > 0) {
             throw new BusinessException("知识点分类下存在 " + activeChildCount + " 个 ACTIVE 子分类，无法删除");
         }
-        // 题目关联校验：仅统计 ACTIVE 题目
-        long activeQuestionCount = questionRepository.countActiveByCategoryId(categoryId);
-        if (activeQuestionCount > 0) {
-            throw new BusinessException("知识点分类关联 " + activeQuestionCount + " 道 ACTIVE 题目，无法删除");
+        // 题目关联校验：全部状态（含 INACTIVE）
+        long questionCount = questionRepository.countByCategoryId(categoryId);
+        if (questionCount > 0) {
+            throw new BusinessException("知识点分类关联 " + questionCount + " 道题目，无法删除");
         }
-        // 知识条目关联校验：仅统计 ACTIVE 条目
-        long activeItemCount = itemRepository.countActiveByCategoryId(categoryId);
-        if (activeItemCount > 0) {
-            throw new BusinessException("知识点分类关联 " + activeItemCount + " 个 ACTIVE 知识条目，无法删除");
+        // 知识条目关联校验：全部状态（含 INACTIVE）
+        long itemCount = itemRepository.countByCategoryId(categoryId);
+        if (itemCount > 0) {
+            throw new BusinessException("知识点分类关联 " + itemCount + " 个知识条目，无法删除");
         }
     }
 }

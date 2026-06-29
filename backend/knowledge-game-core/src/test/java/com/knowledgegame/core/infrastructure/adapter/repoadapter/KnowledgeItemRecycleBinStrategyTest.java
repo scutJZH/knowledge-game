@@ -29,6 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -391,7 +392,7 @@ class KnowledgeItemRecycleBinStrategyTest {
                 .status(KnowledgeItemStatus.ACTIVE)
                 .createdAt(createdAt)
                 .updatedAt(LocalDateTime.now())
-                .relatedData(KnowledgeItemRecycleBinStrategy.writeCategoryIds(categoryIds))
+                .relatedData(KnowledgeItemRecycleBinStrategy.writeCategoryIds(categoryIds, Map.of()))
                 .deletedBy("admin")
                 .deletedAt(LocalDateTime.now())
                 .build();
@@ -422,7 +423,7 @@ class KnowledgeItemRecycleBinStrategyTest {
                 .status(KnowledgeItemStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .relatedData(KnowledgeItemRecycleBinStrategy.writeCategoryIds(List.of()))
+                .relatedData(KnowledgeItemRecycleBinStrategy.writeCategoryIds(List.of(), Map.of()))
                 .deletedBy("admin")
                 .deletedAt(LocalDateTime.now())
                 .build();

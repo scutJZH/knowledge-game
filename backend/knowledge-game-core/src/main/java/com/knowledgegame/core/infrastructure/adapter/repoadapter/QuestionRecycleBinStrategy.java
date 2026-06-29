@@ -12,6 +12,7 @@ import com.knowledgegame.core.domain.model.vo.QuestionOption;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.port.outbound.RecycleBinItemRepositoryPort;
 import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
+import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionCategoryRelationPO;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionDeletedPO;
 import com.knowledgegame.core.infrastructure.db.entity.RecycleBinItemPO;
@@ -27,6 +28,8 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 题目回收站策略
@@ -93,6 +96,10 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
         List<Long> categoryIds = relations.stream()
                 .map(QuestionCategoryRelationPO::getCategoryId)
                 .toList();
+        Map<Long, String> idToName = categoryIds.isEmpty()
+                ? Map.of()
+                : categoryJpaRepository.findAllById(categoryIds).stream()
+                        .collect(Collectors.toMap(KnowledgeCategoryPO::getId, KnowledgeCategoryPO::getName));
 
         QuestionDeletedPO deletedPO = new QuestionDeletedPO();
         deletedPO.setOriginalId(originalId);
@@ -106,7 +113,7 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
         deletedPO.setStatus(question.getStatus());
         deletedPO.setCreatedAt(question.getCreatedAt());
         deletedPO.setUpdatedAt(question.getUpdatedAt());
-        deletedPO.setRelatedData(writeCategoryIds(categoryIds));
+        deletedPO.setRelatedData(writeCategoryIds(categoryIds, idToName));
         deletedPO.setDeletedBy(deletedBy);
         deletedPO.setDeletedAt(LocalDateTime.now());
         questionDeletedJpaRepository.save(deletedPO);
@@ -140,9 +147,20 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
 
         List<Long> categoryIds = parseCategoryIds(deletedPO.getRelatedData());
         if (categoryIds != null && !categoryIds.isEmpty()) {
-            long existingCount = categoryJpaRepository.countByIdIn(categoryIds);
-            if (existingCount != categoryIds.size()) {
-                throw new BusinessException("题目关联的分类已被删除，无法恢复");
+            Set<Long> existingIds = categoryJpaRepository.findAllById(categoryIds).stream()
+                    .map(KnowledgeCategoryPO::getId).collect(Collectors.toSet());
+            if (existingIds.size() != categoryIds.size()) {
+                Map<Long, String> snapshotNames = parseCategoryNames(deletedPO.getRelatedData());
+                String missingDesc = categoryIds.stream()
+                        .filter(id -> !existingIds.contains(id))
+                        .map(id -> {
+                            if (snapshotNames != null && snapshotNames.containsKey(id)) {
+                                return snapshotNames.get(id) + "(ID=" + id + ")";
+                            }
+                            return "#" + id;
+                        })
+                        .collect(Collectors.joining(", "));
+                throw new BusinessException("题目关联的分类已被删除，无法恢复。缺失分类: " + missingDesc);
             }
         }
 
@@ -225,10 +243,12 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
         }
     }
 
-    public static String writeCategoryIds(List<Long> categoryIds) {
+    public static String writeCategoryIds(List<Long> categoryIds, Map<Long, String> idToName) {
         try {
-            return objectMapper.writeValueAsString(
-                    Collections.singletonMap("categoryAssociationIds", categoryIds));
+            Map<String, Object> data = new java.util.HashMap<>();
+            data.put("categoryAssociationIds", categoryIds);
+            data.put("categoryAssociationNames", idToName);
+            return objectMapper.writeValueAsString(data);
         } catch (Exception e) {
             throw new RuntimeException("JSON 序列化 categoryIds 失败", e);
         }
@@ -248,6 +268,27 @@ public class QuestionRecycleBinStrategy implements RecycleBinItemStrategy<Questi
             return raw.stream().map(o -> ((Number) o).longValue()).toList();
         } catch (Exception e) {
             throw new BusinessException("回收站快照数据已损坏（related_data JSON 解析失败），无法恢复，请使用永久删除");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    static Map<Long, String> parseCategoryNames(String relatedData) {
+        if (relatedData == null) {
+            return null;
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(relatedData, Map.class);
+            Map<String, Object> raw = (Map<String, Object>) map.get("categoryAssociationNames");
+            if (raw == null) {
+                return null;
+            }
+            Map<Long, String> result = new java.util.HashMap<>();
+            for (Map.Entry<String, Object> e : raw.entrySet()) {
+                result.put(Long.parseLong(e.getKey()), (String) e.getValue());
+            }
+            return result;
+        } catch (Exception e) {
+            return null;
         }
     }
 }

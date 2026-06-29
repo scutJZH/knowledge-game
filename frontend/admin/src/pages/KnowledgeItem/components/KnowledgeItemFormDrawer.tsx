@@ -5,7 +5,7 @@ import {
   ProFormText,
   ProFormTreeSelect,
 } from '@ant-design/pro-components';
-import { Form, message, Tag, TreeSelect } from 'antd';
+import { Form, message, Tag } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import ImageUploadField from '@/components/ImageUploadField';
 import VditorEditor from '@/components/VditorEditor';
@@ -69,6 +69,7 @@ const KnowledgeItemFormDrawer: React.FC<KnowledgeItemFormDrawerProps> = ({
 
   const handleFinish = async (values: Record<string, any>) => {
     try {
+      const categoryIds: number[] = values.categoryIds || [];
       if (mode === 'create') {
         await createKnowledgeItem({
           title: values.title,
@@ -76,7 +77,7 @@ const KnowledgeItemFormDrawer: React.FC<KnowledgeItemFormDrawerProps> = ({
           coverImageFileId: values.coverImageFileId || null,
           tags: values.tags || [],
           sortOrder: values.sortOrder ?? 0,
-          categoryIds: values.categoryIds || [],
+          categoryIds,
         });
         message.success('创建成功');
       } else if (editId) {
@@ -87,9 +88,9 @@ const KnowledgeItemFormDrawer: React.FC<KnowledgeItemFormDrawerProps> = ({
           tags: values.tags || [],
           sortOrder: values.sortOrder,
         });
-        if (values.categoryIds) {
+        if (categoryIds.length > 0) {
           await updateKnowledgeItemCategories(editId, {
-            categoryIds: values.categoryIds,
+            categoryIds,
           });
         }
         message.success('更新成功');
@@ -145,8 +146,7 @@ const KnowledgeItemFormDrawer: React.FC<KnowledgeItemFormDrawerProps> = ({
         fieldProps={{
           treeData: convertToTreeDataActiveOnly(categoryTree),
           multiple: true,
-          treeCheckable: true,
-          showCheckedStrategy: TreeSelect.SHOW_CHILD,
+          treeDefaultExpandAll: true,
           placeholder: '请选择分类',
           tagRender: (props: any) => {
             const path = idToPathMap.get(props.value) || props.label;

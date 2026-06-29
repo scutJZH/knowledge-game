@@ -10,6 +10,7 @@ import com.knowledgegame.core.domain.model.entity.RecycleBinItem;
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.port.outbound.RecycleBinItemRepositoryPort;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.QuestionRecycleBinStrategy;
+import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
 import com.knowledgegame.core.infrastructure.db.entity.QuestionDeletedPO;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
 import com.knowledgegame.core.infrastructure.db.repository.QuestionCategoryRelationJpaRepository;
@@ -29,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -117,11 +119,15 @@ class QuestionRecycleBinStrategyBlackBoxTest {
     void restore_withCategories_shouldCallSaveCategoryRelations() {
         RecycleBinItem binItem = mockBinItem(3L, 300L, "有分类");
         QuestionDeletedPO deletedPO = buildDeletedPOWithRelatedData(300L,
-                QuestionRecycleBinStrategy.writeCategoryIds(List.of(1L, 2L, 3L)));
+                QuestionRecycleBinStrategy.writeCategoryIds(List.of(1L, 2L, 3L),
+                        Map.of(1L, "A", 2L, "B", 3L, "C")));
 
         lenient().when(recycleBinItemRepositoryPort.findById(3L)).thenReturn(Optional.of(binItem));
         lenient().when(questionDeletedJpaRepository.findByOriginalId(300L)).thenReturn(Optional.of(deletedPO));
-        lenient().when(categoryJpaRepository.countByIdIn(List.of(1L, 2L, 3L))).thenReturn(3L);
+        List<KnowledgeCategoryPO> allCats = List.of(
+                buildCategoryPO(1L, "A"), buildCategoryPO(2L, "B"), buildCategoryPO(3L, "C"));
+        lenient().when(categoryJpaRepository.findAll()).thenReturn(allCats);
+        lenient().when(categoryJpaRepository.findAllById(List.of(1L, 2L, 3L))).thenReturn(allCats);
 
         strategy.restore(3L);
 
@@ -191,5 +197,12 @@ class QuestionRecycleBinStrategyBlackBoxTest {
                 .answer("\"A\"").difficulty(Difficulty.EASY).status(QuestionStatus.ACTIVE)
                 .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now())
                 .relatedData(relatedData).deletedBy("admin").deletedAt(LocalDateTime.now()).build();
+    }
+
+    private KnowledgeCategoryPO buildCategoryPO(Long id, String name) {
+        return KnowledgeCategoryPO.builder()
+                .id(id).name(name).sortOrder(0)
+                .status(com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus.ACTIVE)
+                .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
     }
 }

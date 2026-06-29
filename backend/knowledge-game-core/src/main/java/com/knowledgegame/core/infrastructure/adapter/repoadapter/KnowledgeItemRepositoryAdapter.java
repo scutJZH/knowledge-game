@@ -136,8 +136,20 @@ public class KnowledgeItemRepositoryAdapter implements KnowledgeItemRepository {
     }
 
     @Override
+    public List<Long> findCategoryIdsByItemId(Long itemId) {
+        return relationJpaRepository.findByItemId(itemId).stream()
+                .map(KnowledgeItemCategoryRelationPO::getCategoryId)
+                .toList();
+    }
+
+    @Override
     public long countActiveByCategoryId(Long categoryId) {
         return relationJpaRepository.countActiveItemsByCategoryId(categoryId);
+    }
+
+    @Override
+    public long countByCategoryId(Long categoryId) {
+        return relationJpaRepository.countItemsByCategoryId(categoryId);
     }
 
     @Override

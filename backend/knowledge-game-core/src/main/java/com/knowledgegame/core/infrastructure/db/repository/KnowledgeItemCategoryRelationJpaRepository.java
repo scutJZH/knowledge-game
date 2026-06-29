@@ -34,6 +34,16 @@ public interface KnowledgeItemCategoryRelationJpaRepository
     long countActiveItemsByCategoryId(@Param("categoryId") Long categoryId);
 
     /**
+     * 统计与指定分类关联的全部知识条目数量（含 INACTIVE）
+     */
+    @Query("""
+           SELECT COUNT(DISTINCT r.itemId) FROM KnowledgeItemCategoryRelationPO r
+           JOIN KnowledgeItemPO i ON r.itemId = i.id
+           WHERE r.categoryId = :categoryId
+           """)
+    long countItemsByCategoryId(@Param("categoryId") Long categoryId);
+
+    /**
      * 根据条目 ID 列表查询所有关联
      */
     @Query("SELECT r FROM KnowledgeItemCategoryRelationPO r WHERE r.itemId IN :itemIds")

@@ -22,34 +22,17 @@
 
 .ip-card {
   position: relative;
-  border: 2px solid #f0f0f0;
+  border: 1px solid #f0f0f0;
   border-radius: 8px;
   padding: 12px;
-  cursor: pointer;
-  transition: border-color 0.2s;
   text-align: center;
   background: #fff;
-}
-
-.ip-card:hover {
-  border-color: #8b5cf6;
-}
-
-.ip-card-checked {
-  border-color: #8b5cf6;
-  background: #f5f3ff;
-}
-
-.ip-card-checkbox {
-  position: absolute;
-  top: 6px;
-  left: 6px;
 }
 
 .ip-card-cover {
   width: 96px;
   height: 96px;
-  margin: 8px auto 8px;
+  margin: 0 auto 8px;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -84,6 +67,74 @@
 }
 
 .ip-card-code {
+  font-family: monospace;
+  font-size: 12px;
+  color: #999;
+}
+
+.ip-card-menu-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+/* 添加弹窗 */
+.ip-library-modal-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ip-library-modal-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.ip-library-modal-item:hover {
+  background: #f5f3ff;
+}
+
+.ip-library-modal-item-checked {
+  background: #f5f3ff;
+}
+
+.ip-library-modal-item-cover {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ip-library-modal-item-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ip-library-modal-item-cover .avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #8b5cf6, #c084fc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ip-library-modal-item-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1a1a2e;
+}
+
+.ip-library-modal-item-code {
   font-family: monospace;
   font-size: 12px;
   color: #999;

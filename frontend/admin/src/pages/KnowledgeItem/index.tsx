@@ -9,6 +9,7 @@ import {
   batchActivate,
   batchDeactivate,
   batchSort,
+  deleteKnowledgeItem,
   downloadImportTemplate,
   getKnowledgeItemById,
   importExcel,
@@ -28,7 +29,7 @@ import {
 } from '@/services/knowledge-category';
 import KnowledgeItemFormDrawer from './components/KnowledgeItemFormDrawer';
 import ImportResultModal from './components/ImportResultModal';
-import { PlusOutlined, EditOutlined, EyeOutlined, DownloadOutlined, UploadOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, EyeOutlined, DownloadOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const KnowledgeItemPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -290,6 +291,22 @@ const KnowledgeItemPage: React.FC = () => {
           >
             <Button type="link" size="small">
               {record.status === 'ACTIVE' ? '停用' : '启用'}
+            </Button>
+          </Popconfirm>
+          <Popconfirm
+            title="确定删除？将移入回收站，30天内可恢复"
+            onConfirm={async () => {
+              try {
+                await deleteKnowledgeItem(record.id);
+                message.success('已移入回收站');
+                actionRef.current?.reload();
+              } catch {
+                // 错误已由全局拦截器展示
+              }
+            }}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
             </Button>
           </Popconfirm>
           <Button

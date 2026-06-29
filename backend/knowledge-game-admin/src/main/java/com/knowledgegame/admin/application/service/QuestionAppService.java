@@ -22,6 +22,7 @@ import com.knowledgegame.core.domain.port.outbound.KnowledgeCategoryRepositoryPo
 import com.knowledgegame.core.domain.port.outbound.QuestionRepository;
 import com.knowledgegame.core.domain.service.QuestionDomainService;
 import com.knowledgegame.core.domain.service.recyclebin.RecycleBinItemStrategy;
+import com.knowledgegame.core.domain.spec.CategorySelectionSpec;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -200,7 +201,7 @@ public class QuestionAppService {
         if (!questionRepository.findById(questionId).isPresent()) {
             throw new BusinessException("题目不存在: " + questionId);
         }
-        return questionRepository.findActiveCategoryIdsByQuestionId(questionId);
+        return questionRepository.findCategoryIdsByQuestionId(questionId);
     }
 
     /**
@@ -263,7 +264,7 @@ public class QuestionAppService {
     }
 
     /**
-     * 校验分类 ID 列表：必须存在且 ACTIVE
+     * 校验分类 ID 列表：必须存在且 ACTIVE，禁止同时选择祖先与后代
      */
     private void validateCategoryIds(List<Long> categoryIds) {
         if (categoryIds == null || categoryIds.isEmpty()) {
@@ -274,6 +275,7 @@ public class QuestionAppService {
                     .filter(c -> c.getStatus() == KnowledgeCategoryStatus.ACTIVE)
                     .orElseThrow(() -> new BusinessException("分类不存在或已停用: " + categoryId));
         }
+        CategorySelectionSpec.validateNoAncestorDescendantConflict(categoryRepositoryPort, categoryIds);
     }
 
     /**
@@ -293,7 +295,7 @@ public class QuestionAppService {
      */
     private QuestionResponse toResponseWithCategories(Question question) {
         QuestionResponse response = QuestionAssembler.INSTANCE.toResponse(question);
-        List<Long> categoryIds = questionRepository.findActiveCategoryIdsByQuestionId(question.getId());
+        List<Long> categoryIds = questionRepository.findCategoryIdsByQuestionId(question.getId());
         return toResponseWithCategories(response, categoryIds);
     }
 

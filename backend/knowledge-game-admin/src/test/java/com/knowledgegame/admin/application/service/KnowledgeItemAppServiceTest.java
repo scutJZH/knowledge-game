@@ -66,6 +66,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -101,6 +102,7 @@ class KnowledgeItemAppServiceTest {
     void setUp() {
         securityUtilsMock = mockStatic(SecurityUtils.class);
         securityUtilsMock.when(SecurityUtils::getCurrentUsername).thenReturn("admin");
+        lenient().when(categoryRepositoryPort.findAll()).thenReturn(List.of());
     }
 
     @AfterEach
@@ -115,11 +117,13 @@ class KnowledgeItemAppServiceTest {
     void create_shouldSucceed() {
         CreateKnowledgeItemRequest req = buildCreateRequest();
         KnowledgeItem item = buildItem(1L);
+        when(categoryRepositoryPort.findById(1L))
+                .thenReturn(Optional.of(buildCategory(1L, "分类", KnowledgeCategoryStatus.ACTIVE)));
         when(markdownRenderer.render(anyString())).thenReturn("<p>内容</p>");
         when(itemDomainService.validateAndCreate(anyString(), anyString(), any(), anyList(), anyInt(), anyList()))
                 .thenReturn(item);
         when(itemRepository.save(any())).thenReturn(item);
-        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of(1L));
+        when(itemRepository.findCategoryIdsByItemId(1L)).thenReturn(List.of(1L));
 
         KnowledgeItemResponse response = appService.create(req);
 
@@ -136,11 +140,13 @@ class KnowledgeItemAppServiceTest {
     void create_shouldRenderMarkdown() {
         CreateKnowledgeItemRequest req = buildCreateRequest();
         KnowledgeItem item = buildItem(1L);
+        when(categoryRepositoryPort.findById(1L))
+                .thenReturn(Optional.of(buildCategory(1L, "分类", KnowledgeCategoryStatus.ACTIVE)));
         when(markdownRenderer.render("内容")).thenReturn("<p>内容</p>");
         when(itemDomainService.validateAndCreate(anyString(), anyString(), any(), anyList(), anyInt(), anyList()))
                 .thenReturn(item);
         when(itemRepository.save(any())).thenReturn(item);
-        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of());
+        when(itemRepository.findCategoryIdsByItemId(1L)).thenReturn(List.of());
 
         appService.create(req);
 
@@ -154,7 +160,7 @@ class KnowledgeItemAppServiceTest {
     void getById_shouldReturn_whenExists() {
         KnowledgeItem item = buildItem(1L);
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
-        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of(1L, 2L));
+        when(itemRepository.findCategoryIdsByItemId(1L)).thenReturn(List.of(1L, 2L));
 
         KnowledgeItemResponse response = appService.getById(1L);
 
@@ -284,7 +290,7 @@ class KnowledgeItemAppServiceTest {
                 .content(List.of(summary)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
         when(itemRepository.findByConditionsSummary(any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(domainPage);
-        when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
+        when(itemRepository.findCategoryIdsByItemIds(List.of(1L)))
                 .thenReturn(Map.of(1L, List.of(10L)));
 
         appService.list(null, null, null, null, null, null, 0, 20);
@@ -304,7 +310,7 @@ class KnowledgeItemAppServiceTest {
                 .content(List.of(summary)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
         when(itemRepository.findByConditionsSummary(any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(domainPage);
-        when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
+        when(itemRepository.findCategoryIdsByItemIds(List.of(1L)))
                 .thenReturn(Map.of(1L, List.of(10L)));
 
         appService.list(null, null, null, null, "title", "asc", 0, 20);
@@ -327,7 +333,7 @@ class KnowledgeItemAppServiceTest {
                 .content(List.of(summary)).totalElements(1).pageNumber(0).pageSize(20).totalPages(1).build();
         when(itemRepository.findByConditionsSummary(any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(domainPage);
-        when(itemRepository.findActiveCategoryIdsByItemIds(List.of(1L)))
+        when(itemRepository.findCategoryIdsByItemIds(List.of(1L)))
                 .thenReturn(Map.of(1L, List.of(10L)));
 
         PageResult<KnowledgeItemListResponse> result = appService.list(
@@ -351,7 +357,7 @@ class KnowledgeItemAppServiceTest {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         when(markdownRenderer.render("新内容")).thenReturn("<p>新</p>");
         when(itemRepository.save(any())).thenReturn(item);
-        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of());
+        when(itemRepository.findCategoryIdsByItemId(1L)).thenReturn(List.of());
 
         appService.update(1L, req);
 
@@ -368,7 +374,7 @@ class KnowledgeItemAppServiceTest {
         KnowledgeItem item = buildItem(1L);
         when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
         when(itemRepository.save(any())).thenReturn(item);
-        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of());
+        when(itemRepository.findCategoryIdsByItemId(1L)).thenReturn(List.of());
 
         appService.update(1L, req);
 
@@ -381,7 +387,7 @@ class KnowledgeItemAppServiceTest {
     @Test
     void getCategoryIds_shouldReturn() {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(buildItem(1L)));
-        when(itemRepository.findActiveCategoryIdsByItemId(1L)).thenReturn(List.of(10L, 20L));
+        when(itemRepository.findCategoryIdsByItemId(1L)).thenReturn(List.of(10L, 20L));
 
         List<Long> result = appService.getCategoryIds(1L);
 
@@ -400,6 +406,23 @@ class KnowledgeItemAppServiceTest {
         appService.updateCategories(1L, List.of(10L));
 
         verify(itemRepository).saveCategoryRelations(1L, List.of(10L));
+    }
+
+    /**
+     * updateCategories — 同时选择父分类和子分类 → BusinessException
+     */
+    @Test
+    void updateCategories_shouldThrow_whenAncestorAndDescendant() {
+        when(itemRepository.findById(1L)).thenReturn(Optional.of(buildItem(1L)));
+        KnowledgeCategory parent = buildCategory(10L, "父分类", KnowledgeCategoryStatus.ACTIVE);
+        KnowledgeCategory child = KnowledgeCategory.reconstruct(20L, 10L, "子分类",
+                null, null, null, null, 0, KnowledgeCategoryStatus.ACTIVE, null, null);
+        when(categoryRepositoryPort.findById(10L)).thenReturn(Optional.of(parent));
+        when(categoryRepositoryPort.findById(20L)).thenReturn(Optional.of(child));
+        when(categoryRepositoryPort.findAll()).thenReturn(List.of(parent, child));
+
+        assertThrows(BusinessException.class,
+                () -> appService.updateCategories(1L, List.of(10L, 20L)));
     }
 
     // ========== Excel 导入测试 ==========

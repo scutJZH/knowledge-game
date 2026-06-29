@@ -123,7 +123,7 @@ DELETE /api/admin/recycle-bin/{id}
 | 12 | deletedBy 来源 | `SecurityUtils.getCurrentUsername()` | 遵循 REQ-100 决策 #8，在 `KnowledgeItemAppService.delete()` 中获取后传给策略 |
 | 13 | originalName 取值 | `title` | KnowledgeItem.title 长度 ≤ 200（@Column length=200），无需截断 |
 | 14 | content/contentHtml 字段处理 | 直接拷贝（MEDIUMTEXT 类型，无 JSON 包装） | 字段为纯文本/HTML，无序列化需求 |
-| 15 | tags 字段处理 | 直接拷贝 PO 中已序列化的 JSON 字符串 | KnowledgeItemConverter 已统一序列化为 JSON 数组字符串 |
+| 15 | tags 字段处理 | 从领域 `List<String>` 重新序列化为 JSON 字符串 | 策略通过 Port 读取领域实体（tags 为 List<String>），无法访问 PO 的 JSON 列；与 REQ-106 serializeTags 同模式 |
 
 ### 与已有策略的关键差异
 
@@ -245,7 +245,7 @@ purge(recycleBinId):
 | 文件 | 模块 | 变更 |
 |------|------|------|
 | `admin/.../application/service/KnowledgeItemAppService.java` | admin | `delete()` 改为委托策略（validateDeletable + moveToRecycleBin）；注入 `RecycleBinItemStrategy<KnowledgeItem>` Bean；移除 `item.deactivate()` + `itemRepository.save(item)` 旧逻辑 |
-| `admin/.../api/controller/KnowledgeItemController.java` | admin | Javadoc 注释从「软删除，无前置校验」改为「移入回收站」 |
+| `admin/.../api/controller/KnowledgeItemController.java` | admin | Javadoc 注释从「软删除，含分类校验」改为「移入回收站」（当前文本：`删除知识条目（软删除，含分类校验）`，见 `KnowledgeItemController.java:90`） |
 | `admin/.../config/RecycleBinConfig.java` | admin | 新增 `knowledgeItemRecycleBinStrategy` `@Bean` 注册（含 `FileCleanupPort` 依赖） |
 | `core/.../infrastructure/db/repository/KnowledgeItemDeletedJpaRepository.java` | core | 新增 `findByOriginalId(Long)` / `findAllByOriginalIdIn(List<Long>)` 查询方法 |
 
@@ -306,7 +306,8 @@ purge(recycleBinId):
 | 测试类 | 类型 | 模块 | 覆盖目标 |
 |--------|------|------|---------|
 | `KnowledgeItemRecycleBinStrategyTest` | 集成（`@DataJpaTest`） | core | validateDeletable(2) + moveToRecycleBin(4) + restore(5) + purge(5) = 16 用例 |
-| `KnowledgeItemRecycleBinStrategyBlackBoxTest` | 单元（Mockito） | admin | 恢复 INACTIVE 覆盖 + 分类校验失败 + 循环删除恢复 + 并发删快照静默跳过 + 文件清理失败容错 = 5 用例 |
+| `KnowledgeItemRecycleBinStrategyBlackBoxTest` | 单元（Mockito） | admin | 恢复 INACTIVE 覆盖（ACTIVE→INACTIVE + INACTIVE→INACTIVE）+ 分类校验失败 + saveCategoryRelations 调用契约 + 并发删快照静默跳过 + 循环删除恢复 = 6 用例 |
+| `KnowledgeItemDeleteBlackBoxTest` | 单元（Mockito） | admin | Controller DELETE 返回 200 + AppService.delete 调用契约 + BusinessException 传播 = 3 用例（聚焦 Controller→AppService 边界，AppService→Strategy 由 AppServiceTest 覆盖） |
 | `KnowledgeItemAppServiceTest` | 单元（Mockito） | admin | delete 委托策略 + 不存在抛异常（修改已有 2 用例） |
 
 ### 测试用例明细

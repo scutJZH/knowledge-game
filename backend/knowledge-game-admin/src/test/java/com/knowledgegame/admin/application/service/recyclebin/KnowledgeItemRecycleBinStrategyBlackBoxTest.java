@@ -10,6 +10,7 @@ import com.knowledgegame.core.domain.port.outbound.FileCleanupPort;
 import com.knowledgegame.core.domain.port.outbound.KnowledgeItemRepository;
 import com.knowledgegame.core.domain.port.outbound.RecycleBinItemRepositoryPort;
 import com.knowledgegame.core.infrastructure.adapter.repoadapter.KnowledgeItemRecycleBinStrategy;
+import com.knowledgegame.core.infrastructure.db.entity.KnowledgeCategoryPO;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemCategoryRelationPO;
 import com.knowledgegame.core.infrastructure.db.entity.KnowledgeItemDeletedPO;
 import com.knowledgegame.core.infrastructure.db.repository.KnowledgeCategoryJpaRepository;
@@ -30,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -116,19 +118,21 @@ class KnowledgeItemRecycleBinStrategyBlackBoxTest {
     // ============================================================
 
     @Test
-    @DisplayName("restore — 关联分类已被删除 → BusinessException")
+    @DisplayName("restore — 关联分类已被删除 → BusinessException（含缺失分类名）")
     void restore_categoriesDeleted_shouldThrow() {
         RecycleBinItem binItem = mockBinItem(3L, 300L, "有分类");
         KnowledgeItemDeletedPO deletedPO = buildDeletedPOWithRelatedData(300L,
-                KnowledgeItemRecycleBinStrategy.writeCategoryIds(List.of(1L, 2L)));
+                KnowledgeItemRecycleBinStrategy.writeCategoryIds(List.of(1L, 2L), Map.of(1L, "分类A")));
 
         lenient().when(recycleBinItemRepositoryPort.findById(3L)).thenReturn(Optional.of(binItem));
         lenient().when(itemDeletedJpaRepository.findByOriginalId(300L)).thenReturn(Optional.of(deletedPO));
-        lenient().when(categoryJpaRepository.countByIdIn(List.of(1L, 2L))).thenReturn(1L);
+        KnowledgeCategoryPO cat1 = buildCategoryPO(1L, "分类A");
+        lenient().when(categoryJpaRepository.findAll()).thenReturn(List.of(cat1));
+        lenient().when(categoryJpaRepository.findAllById(List.of(1L, 2L))).thenReturn(List.of(cat1));
 
         assertThatThrownBy(() -> strategy.restore(3L))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("知识条目关联的分类已被删除，无法恢复");
+                .hasMessageContaining("知识条目关联的分类已被删除，无法恢复。缺失分类: #2");
     }
 
     // ============================================================
@@ -140,11 +144,15 @@ class KnowledgeItemRecycleBinStrategyBlackBoxTest {
     void restore_withCategories_shouldCallSaveCategoryRelations() {
         RecycleBinItem binItem = mockBinItem(4L, 400L, "有分类");
         KnowledgeItemDeletedPO deletedPO = buildDeletedPOWithRelatedData(400L,
-                KnowledgeItemRecycleBinStrategy.writeCategoryIds(List.of(1L, 2L, 3L)));
+                KnowledgeItemRecycleBinStrategy.writeCategoryIds(List.of(1L, 2L, 3L),
+                        Map.of(1L, "A", 2L, "B", 3L, "C")));
 
         lenient().when(recycleBinItemRepositoryPort.findById(4L)).thenReturn(Optional.of(binItem));
         lenient().when(itemDeletedJpaRepository.findByOriginalId(400L)).thenReturn(Optional.of(deletedPO));
-        lenient().when(categoryJpaRepository.countByIdIn(List.of(1L, 2L, 3L))).thenReturn(3L);
+        List<KnowledgeCategoryPO> allCats = List.of(
+                buildCategoryPO(1L, "A"), buildCategoryPO(2L, "B"), buildCategoryPO(3L, "C"));
+        lenient().when(categoryJpaRepository.findAll()).thenReturn(allCats);
+        lenient().when(categoryJpaRepository.findAllById(List.of(1L, 2L, 3L))).thenReturn(allCats);
 
         strategy.restore(4L);
 
@@ -215,5 +223,11 @@ class KnowledgeItemRecycleBinStrategyBlackBoxTest {
                 .tags("[\"Java\"]").sortOrder(0).status(KnowledgeItemStatus.ACTIVE)
                 .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now())
                 .relatedData(relatedData).deletedBy("admin").deletedAt(LocalDateTime.now()).build();
+    }
+
+    private KnowledgeCategoryPO buildCategoryPO(Long id, String name) {
+        return KnowledgeCategoryPO.builder().id(id).name(name)
+                .sortOrder(0).status(com.knowledgegame.core.domain.model.domainenum.KnowledgeCategoryStatus.ACTIVE)
+                .createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
     }
 }
