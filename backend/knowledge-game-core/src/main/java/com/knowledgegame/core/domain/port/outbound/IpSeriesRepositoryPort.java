@@ -53,4 +53,9 @@ public interface IpSeriesRepositoryPort {
      * 查询全部 IP 系列（用于批量导入时预加载 code→id 映射）
      */
     List<IpSeries> findAll();
+
+    /**
+     * 查询全部 ACTIVE 状态的 IP 系列（按 ID 升序）
+     */
+    List<IpSeries> findAllActive();
 }

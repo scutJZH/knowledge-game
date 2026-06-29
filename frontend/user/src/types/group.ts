@@ -79,3 +79,24 @@ export interface QuestionPageResponse {
   totalPages: number;
 }
 
+/** 群组已关联 IP 库响应（REQ-51） */
+export interface GroupIpLibraryResponse {
+  id: number;
+  groupId: number;
+  ipSeriesId: number;
+  ipSeriesName: string;
+  ipSeriesCode: string;
+  coverImageFileId: number | null;
+  coverImageUrl: string | null;
+  addedAt: number;
+}
+
+/** ACTIVE IP 系列响应（用户端 IP 库 Tab 数据源） */
+export interface ActiveIpSeriesResponse {
+  id: number;
+  name: string;
+  code: string;
+  coverImageFileId: number | null;
+  coverImageUrl: string | null;
+}
+

@@ -5,6 +5,7 @@ import com.knowledgegame.core.infrastructure.db.entity.IpSeriesPO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -22,4 +23,9 @@ public interface IpSeriesJpaRepository extends JpaRepository<IpSeriesPO, Long>,
      * 根据名称查询
      */
     Optional<IpSeriesPO> findByName(String name);
+
+    /**
+     * 根据状态查询并按 ID 升序排列
+     */
+    List<IpSeriesPO> findByStatusOrderByIdAsc(IpSeriesStatus status);
 }
