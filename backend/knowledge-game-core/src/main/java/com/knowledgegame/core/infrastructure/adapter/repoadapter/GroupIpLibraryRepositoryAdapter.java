@@ -8,6 +8,7 @@ import com.knowledgegame.core.infrastructure.db.repository.GroupIpLibraryJpaRepo
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 群组 IP 库关联仓储适配器（实现领域层出端口）
@@ -56,5 +57,11 @@ public class GroupIpLibraryRepositoryAdapter implements GroupIpLibraryRepository
     @Override
     public void deleteAllByGroupId(Long groupId) {
         jpaRepository.deleteAllByGroupId(groupId);
+    }
+
+    @Override
+    public Optional<GroupIpLibrary> findByGroupIdAndIpSeriesId(Long groupId, Long ipSeriesId) {
+        return jpaRepository.findByGroupIdAndIpSeriesId(groupId, ipSeriesId)
+                .map(GroupIpLibraryConverter.INSTANCE::toDomain);
     }
 }

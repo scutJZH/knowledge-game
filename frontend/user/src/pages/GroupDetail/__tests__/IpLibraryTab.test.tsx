@@ -25,8 +25,8 @@ vi.mock('antd', async () => {
 });
 
 const LINKED = [
-  { id: 1, groupId: 1, ipSeriesId: 1, ipSeriesName: '宝可梦', ipSeriesCode: 'PKM', coverImageFileId: 100, coverImageUrl: 'https://example.com/pkm.png', addedAt: 1 },
-  { id: 2, groupId: 1, ipSeriesId: 2, ipSeriesName: '数码宝贝', ipSeriesCode: 'DM', coverImageFileId: null, coverImageUrl: null, addedAt: 2 },
+  { id: 1, groupId: 1, ipSeriesId: 1, ipSeriesName: '宝可梦', ipSeriesCode: 'PKM', coverImageFileId: 100, coverImageUrl: 'https://example.com/pkm.png', status: 'ACTIVE' as const, addedAt: 1 },
+  { id: 2, groupId: 1, ipSeriesId: 2, ipSeriesName: '数码宝贝', ipSeriesCode: 'DM', coverImageFileId: null, coverImageUrl: null, status: 'ACTIVE' as const, addedAt: 2 },
 ];
 
 const ALL_ACTIVE = [

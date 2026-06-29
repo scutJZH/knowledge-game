@@ -1,7 +1,10 @@
 package com.knowledgegame.core.infrastructure.db.entity;
 
+import com.knowledgegame.core.domain.model.domainenum.GroupIpLibraryStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -30,6 +33,10 @@ public class GroupIpLibraryPO {
 
     @Column(name = "ip_series_id", nullable = false)
     private Long ipSeriesId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private GroupIpLibraryStatus status;
 
     @Column(name = "added_at", nullable = false)
     private LocalDateTime addedAt;

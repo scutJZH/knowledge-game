@@ -23,6 +23,7 @@ public interface GroupIpLibraryConverter {
                 po.getId(),
                 po.getGroupId(),
                 po.getIpSeriesId(),
+                po.getStatus(),
                 po.getAddedAt()
         );
     }
@@ -34,6 +35,7 @@ public interface GroupIpLibraryConverter {
         return new GroupIpLibraryPO()
                 .setGroupId(domain.getGroupId())
                 .setIpSeriesId(domain.getIpSeriesId())
+                .setStatus(domain.getStatus())
                 .setAddedAt(domain.getAddedAt());
     }
 

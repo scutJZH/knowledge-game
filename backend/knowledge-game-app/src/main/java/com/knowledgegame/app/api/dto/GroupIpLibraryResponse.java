@@ -32,6 +32,11 @@ public class GroupIpLibraryResponse {
     public String getCoverImageUrl() { return coverImageUrl; }
     public void setCoverImageUrl(String coverImageUrl) { this.coverImageUrl = coverImageUrl; }
 
+    private String status;
+
     public Long getAddedAt() { return addedAt; }
     public void setAddedAt(Long addedAt) { this.addedAt = addedAt; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 }

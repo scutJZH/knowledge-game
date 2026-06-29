@@ -7,6 +7,7 @@ import {
   listGroupIpLibrary,
   updateGroupIpLibrary,
   listActiveIpSeries,
+  updateGroupIpLibraryStatus,
 } from '@/services/group-api';
 import './IpLibraryTab.css';
 
@@ -44,7 +45,6 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
 
   useEffect(() => { loadData(); }, [groupId]);
 
-  // 可选 IP：已启用但未关联到本群组的
   const availableIps = useMemo(() => {
     return allActive.filter((ip) => !linkedIds.has(ip.id));
   }, [allActive, linkedIds]);
@@ -57,7 +57,6 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
     );
   }, [availableIps, modalSearch]);
 
-  // 添加：合并当前 ID + 弹窗选中 ID → PUT
   const handleAdd = async () => {
     if (modalSelected.size === 0) return;
     setSaving(true);
@@ -70,17 +69,15 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
       setModalSelected(new Set());
       message.success('添加成功');
     } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        '添加失败';
-      message.error(msg);
+      message.error(
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message || '添加失败',
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  // 移除（禁用/删除）：当前 ID 剔除目标 → PUT
-  const handleRemove = async (ipSeriesId: number) => {
+  const handleDelete = async (ipSeriesId: number) => {
     setSaving(true);
     const newIds = linkedList
       .filter((item) => item.ipSeriesId !== ipSeriesId)
@@ -88,12 +85,28 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
     try {
       const result = await updateGroupIpLibrary(groupId, newIds);
       setLinkedList(result);
-      message.success('操作成功');
+      message.success('已删除');
     } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        '操作失败';
-      message.error(msg);
+      message.error(
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message || '删除失败',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleStatus = async (ipSeriesId: number, status: 'ACTIVE' | 'DISABLED') => {
+    setSaving(true);
+    try {
+      const updated = await updateGroupIpLibraryStatus(groupId, ipSeriesId, status);
+      setLinkedList((prev) =>
+        prev.map((item) => (item.ipSeriesId === ipSeriesId ? updated : item)),
+      );
+      message.success(status === 'ACTIVE' ? '已恢复' : '已禁用');
+    } catch (e: unknown) {
+      message.error(
+        (e as { response?: { data?: { message?: string } } })?.response?.data?.message || '操作失败',
+      );
     } finally {
       setSaving(false);
     }
@@ -106,9 +119,7 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
       <Result
         status="error"
         title={error}
-        extra={
-          <Button onClick={loadData} type="primary">重试</Button>
-        }
+        extra={<Button onClick={loadData} type="primary">重试</Button>}
       />
     );
   }
@@ -116,13 +127,13 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
   return (
     <div className="ip-library-tab">
       <div className="ip-library-toolbar">
-        <span className="ip-library-count">已关联 {linkedList.length} 项</span>
+        <span className="ip-library-count">
+          已关联 {linkedList.filter((i) => i.status === 'ACTIVE').length} 项
+          {linkedList.some((i) => i.status === 'DISABLED') &&
+            `（${linkedList.filter((i) => i.status === 'DISABLED').length} 项已禁用）`}
+        </span>
         {canEdit && (
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setModalOpen(true)}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
             添加 IP 系列
           </Button>
         )}
@@ -139,7 +150,8 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
               key={item.ipSeriesId}
               item={item}
               canEdit={canEdit}
-              onRemove={() => handleRemove(item.ipSeriesId)}
+              onDelete={() => handleDelete(item.ipSeriesId)}
+              onToggleStatus={(status) => handleToggleStatus(item.ipSeriesId, status)}
             />
           ))}
         </div>
@@ -148,41 +160,14 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
       <Modal
         title="添加 IP 系列"
         open={modalOpen}
-        onCancel={() => {
-          setModalOpen(false);
-          setModalSearch('');
-          setModalSelected(new Set());
-        }}
+        onCancel={() => { setModalOpen(false); setModalSearch(''); setModalSelected(new Set()); }}
         footer={[
-          <Button
-            key="cancel"
-            onClick={() => {
-              setModalOpen(false);
-              setModalSearch('');
-              setModalSelected(new Set());
-            }}
-          >
-            取消
-          </Button>,
-          <Button
-            key="submit"
-            type="primary"
-            loading={saving}
-            disabled={modalSelected.size === 0}
-            onClick={handleAdd}
-          >
-            确定
-          </Button>,
+          <Button key="cancel" onClick={() => { setModalOpen(false); setModalSearch(''); setModalSelected(new Set()); }}>取消</Button>,
+          <Button key="submit" type="primary" loading={saving} disabled={modalSelected.size === 0} onClick={handleAdd}>确定</Button>,
         ]}
         destroyOnClose
       >
-        <Input
-          placeholder="搜索 IP 名称或编码"
-          value={modalSearch}
-          onChange={(e) => setModalSearch(e.target.value)}
-          allowClear
-          style={{ marginBottom: 12 }}
-        />
+        <Input placeholder="搜索 IP 名称或编码" value={modalSearch} onChange={(e) => setModalSearch(e.target.value)} allowClear style={{ marginBottom: 12 }} />
         <div className="ip-library-modal-list">
           {filteredAvailable.length === 0 ? (
             <div className="ip-library-empty">无可用 IP 系列</div>
@@ -191,21 +176,11 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
               <div
                 key={ip.id}
                 className={`ip-library-modal-item ${modalSelected.has(ip.id) ? 'ip-library-modal-item-checked' : ''}`}
-                onClick={() =>
-                  setModalSelected((prev) => {
-                    const next = new Set(prev);
-                    next.has(ip.id) ? next.delete(ip.id) : next.add(ip.id);
-                    return next;
-                  })
-                }
+                onClick={() => setModalSelected((prev) => { const next = new Set(prev); next.has(ip.id) ? next.delete(ip.id) : next.add(ip.id); return next; })}
               >
                 <Checkbox checked={modalSelected.has(ip.id)} />
                 <div className="ip-library-modal-item-cover">
-                  {ip.coverImageUrl ? (
-                    <img src={ip.coverImageUrl} alt="" />
-                  ) : (
-                    <div className="avatar-placeholder">{ip.name.charAt(0)}</div>
-                  )}
+                  {ip.coverImageUrl ? <img src={ip.coverImageUrl} alt="" /> : <div className="avatar-placeholder">{ip.name.charAt(0)}</div>}
                 </div>
                 <div>
                   <div className="ip-library-modal-item-name">{ip.name}</div>
@@ -220,24 +195,31 @@ export default function IpLibraryTab({ groupId, myRole }: Props) {
   );
 }
 
-/** 单个已关联 IP 卡片，右上角 ⋮ 操作菜单 */
 function IpCard({
   item,
   canEdit,
-  onRemove,
+  onDelete,
+  onToggleStatus,
 }: {
   item: GroupIpLibraryResponse;
   canEdit: boolean;
-  onRemove: () => void;
+  onDelete: () => void;
+  onToggleStatus: (status: 'ACTIVE' | 'DISABLED') => void;
 }) {
-  const menuItems: MenuProps['items'] = [
-    { key: 'disable', label: '禁用', onClick: onRemove },
-    // TODO 优化需求：有群组成员已收集卡片时，删除选项置灰或后端校验拦截
-    { key: 'delete', label: '删除', danger: true, onClick: onRemove },
-  ];
+  const isDisabled = item.status === 'DISABLED';
+
+  const menuItems: MenuProps['items'] = isDisabled
+    ? [
+        { key: 'restore', label: '恢复', onClick: () => onToggleStatus('ACTIVE') },
+        { key: 'delete', label: '删除', danger: true, onClick: onDelete },
+      ]
+    : [
+        { key: 'disable', label: '禁用', onClick: () => onToggleStatus('DISABLED') },
+        { key: 'delete', label: '删除', danger: true, onClick: onDelete },
+      ];
 
   return (
-    <div className="ip-card" data-testid={`ip-card-${item.ipSeriesId}`}>
+    <div className={`ip-card ${isDisabled ? 'ip-card-disabled' : ''}`} data-testid={`ip-card-${item.ipSeriesId}`}>
       {canEdit && (
         <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
           <Button
@@ -259,6 +241,7 @@ function IpCard({
       </div>
       <div className="ip-card-name">{item.ipSeriesName}</div>
       <div className="ip-card-code">{item.ipSeriesCode}</div>
+      {isDisabled && <div className="ip-card-disabled-tag">已禁用</div>}
     </div>
   );
 }

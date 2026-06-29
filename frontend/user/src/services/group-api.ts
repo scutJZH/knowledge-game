@@ -101,3 +101,15 @@ export function updateGroupIpLibrary(groupId: number, ipSeriesIds: number[]) {
 export function listActiveIpSeries() {
   return apiClient.get<never, ActiveIpSeriesResponse[]>('/ip-series');
 }
+
+/** 更新群组 IP 库单个关联状态（禁用/恢复） */
+export function updateGroupIpLibraryStatus(
+  groupId: number,
+  ipSeriesId: number,
+  status: 'ACTIVE' | 'DISABLED',
+) {
+  return apiClient.patch<never, GroupIpLibraryResponse>(
+    `/study-groups/${groupId}/ip-library/${ipSeriesId}`,
+    { status },
+  );
+}

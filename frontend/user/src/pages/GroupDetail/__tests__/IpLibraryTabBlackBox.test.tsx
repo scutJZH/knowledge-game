@@ -42,7 +42,7 @@ vi.mock('antd', async () => {
 });
 
 const LINKED = [
-  { id: 1, groupId: 1, ipSeriesId: 1, ipSeriesName: 'IP一号', ipSeriesCode: 'IP001', coverImageFileId: null, coverImageUrl: null, addedAt: 1 },
+  { id: 1, groupId: 1, ipSeriesId: 1, ipSeriesName: 'IP一号', ipSeriesCode: 'IP001', coverImageFileId: null, coverImageUrl: null, status: 'ACTIVE' as const, addedAt: 1 },
 ];
 
 const ALL_ACTIVE = [

@@ -29,6 +29,7 @@ public interface GroupIpLibraryAssembler {
             response.setCoverImageFileId(fileIdOf(ipSeries.getCoverImage()));
             response.setCoverImageUrl(urlOf(ipSeries.getCoverImage()));
         }
+        response.setStatus(item.getStatus().name());
         response.setAddedAt(toEpochMilli(item.getAddedAt()));
         return response;
     }

@@ -6,6 +6,7 @@ import com.knowledgegame.app.api.dto.StudyGroupDetailResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.app.api.dto.UpdateGroupIpLibraryRequest;
+import com.knowledgegame.app.api.dto.UpdateGroupIpLibraryStatusRequest;
 import com.knowledgegame.app.api.dto.UpdateStudyGroupRequest;
 import com.knowledgegame.app.application.service.StudyGroupAppService;
 import com.knowledgegame.core.common.result.Result;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -82,5 +84,13 @@ public class StudyGroupController {
             @PathVariable("id") Long groupId,
             @Valid @RequestBody UpdateGroupIpLibraryRequest request) {
         return Result.success(appService.updateIpLibrary(groupId, request));
+    }
+
+    @PatchMapping("/{id}/ip-library/{ipSeriesId}")
+    public Result<GroupIpLibraryResponse> updateIpLibraryStatus(
+            @PathVariable("id") Long groupId,
+            @PathVariable Long ipSeriesId,
+            @Valid @RequestBody UpdateGroupIpLibraryStatusRequest request) {
+        return Result.success(appService.updateIpLibraryStatus(groupId, ipSeriesId, request));
     }
 }

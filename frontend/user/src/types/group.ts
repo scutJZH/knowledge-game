@@ -88,6 +88,7 @@ export interface GroupIpLibraryResponse {
   ipSeriesCode: string;
   coverImageFileId: number | null;
   coverImageUrl: string | null;
+  status: 'ACTIVE' | 'DISABLED';
   addedAt: number;
 }
 

@@ -72,6 +72,20 @@
   color: #999;
 }
 
+.ip-card-disabled {
+  opacity: 0.55;
+}
+
+.ip-card-disabled-tag {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #faad14;
+  background: #fffbe6;
+  border-radius: 3px;
+  padding: 1px 8px;
+  display: inline-block;
+}
+
 .ip-card-menu-btn {
   position: absolute;
   top: 4px;

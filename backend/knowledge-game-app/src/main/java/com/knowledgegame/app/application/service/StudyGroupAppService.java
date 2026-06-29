@@ -6,6 +6,7 @@ import com.knowledgegame.app.api.dto.StudyGroupDetailResponse;
 import com.knowledgegame.app.api.dto.StudyGroupListResponse;
 import com.knowledgegame.app.api.dto.StudyGroupResponse;
 import com.knowledgegame.app.api.dto.UpdateGroupIpLibraryRequest;
+import com.knowledgegame.app.api.dto.UpdateGroupIpLibraryStatusRequest;
 import com.knowledgegame.app.api.dto.UpdateStudyGroupRequest;
 import com.knowledgegame.app.application.assembler.GroupIpLibraryAssembler;
 import com.knowledgegame.app.application.assembler.StudyGroupAssembler;
@@ -310,5 +311,34 @@ public class StudyGroupAppService {
         return updated.stream()
                 .map(item -> GroupIpLibraryAssembler.INSTANCE.toResponse(item, ipMap.get(item.getIpSeriesId())))
                 .toList();
+    }
+
+    /**
+     * 更新群组 IP 库单个关联的状态（禁用/恢复）
+     */
+    @Transactional
+    public GroupIpLibraryResponse updateIpLibraryStatus(Long groupId, Long ipSeriesId,
+                                                         UpdateGroupIpLibraryStatusRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        if (!studyGroupRepository.existsById(groupId)) {
+            throw new BusinessException(ResultCode.GROUP_NOT_FOUND);
+        }
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, userId)
+                .orElseThrow(() -> new BusinessException(ResultCode.NOT_GROUP_MEMBER));
+        if (member.getRole() != GroupRole.OWNER && member.getRole() != GroupRole.ADMIN) {
+            throw new BusinessException(ResultCode.NOT_GROUP_ADMIN);
+        }
+
+        GroupIpLibrary item = groupIpLibraryRepository
+                .findByGroupIdAndIpSeriesId(groupId, ipSeriesId)
+                .orElseThrow(() -> new BusinessException(ResultCode.IP_SERIES_NOT_FOUND));
+
+        item.updateStatus(request.getStatus());
+        GroupIpLibrary saved = groupIpLibraryRepository.save(item);
+
+        IpSeries ipSeries = ipSeriesRepositoryPort.findById(ipSeriesId)
+                .orElseThrow(() -> new BusinessException(ResultCode.IP_SERIES_NOT_FOUND));
+        return GroupIpLibraryAssembler.INSTANCE.toResponse(saved, ipSeries);
     }
 }
