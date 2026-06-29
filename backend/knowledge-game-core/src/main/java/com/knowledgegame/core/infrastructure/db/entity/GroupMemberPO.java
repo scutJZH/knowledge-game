@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -52,4 +53,8 @@ public class GroupMemberPO {
 
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private int version;
 }

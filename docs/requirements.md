@@ -63,7 +63,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 ---
 
-## 已完成需求（45 项）
+## 已完成需求（56 项）
 
 ### Phase 1：后端基础 + 认证
 
@@ -97,6 +97,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-48 | 群组 — 创建群组 API | done | [req-48-create-study-group.md](prd/req-48-create-study-group.md) | 用户端硬删除（无 status）+ 原子加 OWNER 成员 + 双独立聚合根（StudyGroup + GroupMember） | REQ-01 ✅, REQ-06 ✅ |
 | REQ-49 | 群组 — 成员管理 API（加入/退出/邀请） | done | [req-49-group-member-mgmt.md](prd/req-49-group-member-mgmt.md) | OPEN+INVITE_ONLY 双策略 + 8 位 Crockford Base32 邀请码 + OWNER 不能退 + 8 个新 ResultCode | REQ-48 ✅ |
 | REQ-50 | 群组 — 管理员设置与转让 API | done | [req-50-admin-and-transfer.md](prd/req-50-admin-and-transfer.md) | 提升/降级 ADMIN + 转让 OWNER（含 StudyGroup.ownerId 同步）。踢人划入 REQ-63 | REQ-48 ✅ |
+| REQ-51 | 群组 — 关联 IP 库 API | done | [req-51-group-ip-library.md](prd/req-51-group-ip-library.md) | 群组管理员将系统 IP 库添加到群组。知识库全局共享，不需要群组授权 | REQ-48 ✅, REQ-16 ✅ |
 
 ### Phase 6：前端游戏界面（用户端）
 
@@ -105,6 +106,8 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-26 | 前端项目搭建（React + Vite + 路由 + 布局） | done | docs/prd/req-26-user-scaffold.md | | 无 |
 | REQ-27 | 前端 Axios 封装 + 认证状态管理 | done | docs/prd/req-27-axios-auth.md | | REQ-26 ✅ |
 | REQ-28 | 登录/注册页面 | done | docs/prd/req-28-login-register-pages.md | 分屏品牌化登录/注册页面 + 记住我 storage 切换 + AuthLayout | REQ-26 ✅, REQ-27 ✅, REQ-04 ✅, REQ-05 ✅ |
+| REQ-60 | 群组列表 + 创建/加入页面 | done | [req-60-group-list-create-join.md](prd/req-60-group-list-create-join.md) | 含 REQ-49 手工测试用例 | REQ-26 ✅, REQ-48 ✅, REQ-49 ✅ |
+| REQ-61 | 群组详情 + 管理页面 | done | [req-61-group-detail-management.md](prd/req-61-group-detail-management.md) | 含 REQ-49 重新生成邀请码 + REQ-50 管理员设置与转让手工验收 | REQ-26 ✅, REQ-48 ✅ |
 
 ### Phase 7：系统管理后台（管理端）
 
@@ -125,10 +128,16 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
 | REQ-100 | 通用回收站系统 — 架构设计与前端页面 | done | [req-100-recycle-bin.md](prd/req-100-recycle-bin.md) | DELETE 与 INACTIVE 解耦；1 总览表 + 5 _deleted 详情表 + 策略模式 + 管理端列表页 | 无 |
+| REQ-101 | 回收站定时清理任务 | done | [req-101-scheduled-cleanup.md](prd/req-101-scheduled-cleanup.md) | Spring `@Scheduled` 定时任务 + 通用 `scheduled_task_log` 表 + 管理端查询页 | REQ-100 ✅ |
 | REQ-102 | 回收站手动永久删除 | done | [req-102-recycle-bin-purge.md](prd/req-102-recycle-bin-purge.md) | 单条永久删除 + 批量永久删除；逐条独立事务 + BatchPurgeResult 部分成功响应 | REQ-100 ✅, REQ-103 ✅ |
 | REQ-103 | 回收站通用恢复框架 | done | [req-103-recycle-bin-restore.md](prd/req-103-recycle-bin-restore.md) | 单条恢复 + 批量恢复；AppService self 注入 + @Transactional(REQUIRES_NEW) 逐条独立事务 | REQ-100 ✅ |
+| REQ-104 | IP 系列对接回收站 | done | [PRD](prd/req-104-ip-series-recycle-bin.md) | DELETE 改为移入回收站；实现 `IpSeriesRecycleBinStrategy` Bean | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-16 ✅ |
+| REQ-105 | 卡牌管理对接回收站 | done | [PRD](prd/req-105-card-template-recycle-bin.md) | DELETE 改为移入回收站；实现 `CardTemplateRecycleBinStrategy` Bean；恢复时校验 IP 系列仍存在 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-17 ✅ |
+| REQ-106 | 题库管理对接回收站 | done | [PRD](prd/req-106-question-recycle-bin.md) | DELETE 改为移入回收站；实现 `QuestionRecycleBinStrategy` Bean，恢复时校验关联分类仍存在 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-09 ✅ |
+| REQ-107 | 分类管理对接回收站 | done | [PRD](prd/req-107-knowledge-category-recycle-bin.md) | DELETE 改为递归移入回收站；实现 `KnowledgeCategoryRecycleBinStrategy` Bean；删除前校验子树全部节点无关联题目/条目 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-07 ✅ |
 | REQ-109 | 知识条目管理 — 排序增强 | done | [req-109-knowledge-item-sort.md](prd/req-109-knowledge-item-sort.md) | Adapter 标准化 + categoryName 子查询排序 + 前端 7 列 sorter | REQ-97 ✅ |
 | REQ-110 | 卡牌管理 — 批量导入 | done | [req-110-card-template-import.md](prd/req-110-card-template-import.md) | Excel 批量导入卡牌模板（参考题库 REQ-43 导入模式） | REQ-17 ✅ |
+| REQ-111 | 知识条目管理 — 批量导入 | done | [req-111-knowledge-item-import.md](prd/req-111-knowledge-item-import.md) | Excel + Markdown zip 双模式批量导入。校验：分类存在且ACTIVE + 域层长度/数量限制 | REQ-97 ✅ |
 | REQ-112 | 知识条目管理 — Markdown 源码编辑 + 在线预览 | done | - | Input.TextArea 纯文本编辑 + vditor 静态 preview() 预览 Modal | REQ-97 ✅ |
 
 ### 后期优化 / 跨领域增强
@@ -146,10 +155,11 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-94 | 聚合根停用/启用前的关联校验 | done | [req-94-deactivation-association-check.md](../docs/prd/req-94-deactivation-association-check.md) | core Repository 出端口 + 领域服务 + Adapter。285 tests pass | REQ-07 ✅, REQ-16 ✅, REQ-17 ✅ |
 | REQ-96 | 分类管理页改名（原"知识库管理"） | done | [req-96-category-rename.md](prd/req-96-category-rename.md) | 仅前端展示层改名（菜单标签/路由/组件目录），后端不动 | REQ-65 ✅ |
 | REQ-113 | 后端日志路径统一 | done | - | 3 个模块 `logging.file.path` 从 `logs` 改为 `../logs`，统一输出到 `backend/logs/` | REQ-82 ✅ |
+| REQ-114 | 知识条目列表性能优化 — 列表与详情分离 | done | [req-114-knowledge-item-list-optimization.md](prd/req-114-knowledge-item-list-optimization.md) | DTO + JPA 投影双裁剪，Tuple 查询只 SELECT 9 个非正文列。前端 TS 类型对齐新 ListResponse | REQ-97 ✅ |
 
 ---
 
-## 未完成需求（68 项）
+## 未完成需求（58 项）
 
 ### Phase 1：后端基础 + 认证
 
@@ -165,7 +175,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-10 | 秒判游戏 — 开始对局 + 答题流程 | idea | - | | REQ-09 ✅, REQ-48 ✅ |
+| REQ-10 | 秒判游戏 — 开始对局 + 答题流程 | in-progress | [req-10-blink-judge-game.md](prd/req-10-blink-judge-game.md) | 双表双聚合根（GameSession + GameAnswer），3 API：开始/答题/放弃；客户端+服务端双计时（容差 500ms）；仅 TRUE_FALSE+SINGLE_CHOICE；不计分不连击不触发 Boss（留 REQ-11/12）。检视意见修复 9 条已沉淀到 stage-1.md 5 处规则。计划已拆 5 Issue（plans/req-10-blink-judge-game/task_plan.md） | REQ-09 ✅, REQ-48 ✅ |
 | REQ-11 | 秒判游戏 — 积分计算 + 连击逻辑 | idea | - | 积分为群组维度 | REQ-10, REQ-48 ✅ |
 | REQ-12 | Boss 关卡 — 关键词补全 API | idea | - | | REQ-09 ✅, REQ-10 |
 | REQ-13 | 知识链串联 — 概念关系 API | idea | - | | REQ-09 ✅, REQ-10 |
@@ -179,7 +189,6 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-51 | 群组 — 关联 IP 库 API | done | [req-51-group-ip-library.md](prd/req-51-group-ip-library.md) | 群组管理员将系统 IP 库添加到群组。知识库全局共享，不需要群组授权 | REQ-48 ✅, REQ-16 ✅ |
 | REQ-52 | 群组 — 积分管理 API | idea | - | 查看群组积分、管理员修改成员积分 | REQ-48 ✅, REQ-15 |
 | REQ-53 | 群组 — 全局统计查询 API | idea | - | 跨群组的卡片收集汇总统计 | REQ-48 ✅ |
 | REQ-54 | 群组管理端 — 基础框架 | idea | - | 群组创建人/管理员进入群组管理端（用户 App 内的群组后台，非系统管理后台） | REQ-48 ✅ |
@@ -194,7 +203,7 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-15 | 积分流水记录（point_transaction CRUD） | idea | - | 群组维度积分流水 | REQ-48 ✅ |
+| REQ-15 | 积分流水记录（point_transaction CRUD） | in-progress | [req-15-point-transaction.md](prd/req-15-point-transaction.md) | 写入抽象（PointTransaction 实体 + Service + @Version 乐观锁）+ 双视角查询接口（群组 + 个人跨群组）+ 轻量余额读。流水只追加，管理员调整归 REQ-52 | REQ-48 ✅ |
 | REQ-18 | 卡牌 — 用户端查询 API（系列/收集状态） | idea | - | 基于群组维度 | REQ-17 ✅, REQ-48 ✅ |
 | REQ-19 | 盲盒抽取 — 单抽 API（概率 + 保底） | idea | - | 群组维度，增加保留/换积分选择 | REQ-17 ✅, REQ-48 ✅, REQ-15 |
 | REQ-20 | 盲盒抽取 — 十连抽 API | idea | - | 群组维度，增加保留/换积分选择 | REQ-19 |
@@ -236,9 +245,9 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 | REQ-37 | 卡牌详情页面（升星/兑换/分解） | idea | - | 增加实体奖励兑换入口 | REQ-26 ✅, REQ-22, REQ-23, REQ-57 |
 | REQ-38 | 保底进度页面 | idea | - | 群组维度 | REQ-26 ✅, REQ-25 |
 | REQ-39 | 个人中心页面 | idea | - | | REQ-26 ✅ |
-| REQ-60 | 群组列表 + 创建/加入页面 | done | [req-60-group-list-create-join.md](prd/req-60-group-list-create-join.md) | 含 REQ-49 手工测试用例 | REQ-26 ✅, REQ-48 ✅, REQ-49 ✅ |
-| REQ-61 | 群组详情 + 管理页面 | done | [req-61-group-detail-management.md](prd/req-61-group-detail-management.md) | 含 REQ-49 重新生成邀请码 + REQ-50 管理员设置与转让手工验收 | REQ-26 ✅, REQ-48 ✅ |
-| REQ-62 | 群组管理端 — IP 库关联页 | idea | - | 知识库全局共享，不需要群组授权 | REQ-26 ✅, REQ-51 |
+| REQ-62 | 群组管理端 — IP 库关联页 | designed | [req-62-group-ip-library-page.md](prd/req-62-group-ip-library-page.md) | 知识库全局共享，不需要群组授权 | REQ-26 ✅, REQ-51 ✅ |
+| REQ-109 | IP 库 — 禁用/删除语义分离 | idea | - | group_ip_library 表新增 status 字段（ACTIVE/DISABLED），禁用=软删除（保留关联数据可恢复），删除=彻底解除关联。前端 ⋮ 菜单中「禁用」和「删除」行为区分 | REQ-62 |
+| REQ-110 | IP 库 — 已收集卡片禁止删除校验 | idea | - | 前后端双重校验：有群组成员已收集该 IP 卡片的关联不可删除（前端删除选项置灰，后端 PUT 拒绝）。需新增「查询群组各 IP 卡片收集量」接口 | REQ-62 |
 | REQ-63 | 群组管理端 — 成员与积分管理页 | idea | - | 成员列表查询 + 踢人 API + 积分修改。踢人仅 OWNER/ADMIN 可操作，不能踢 OWNER | REQ-26 ✅, REQ-49 ✅, REQ-52, REQ-50 ✅ |
 | REQ-64 | 群组管理端 — 奖励兑换与订单页 | idea | - | | REQ-26 ✅, REQ-58, REQ-59 |
 | REQ-71 | 卡包页面 | idea | - | 查看卡包中的卡片，支持取出处理 | REQ-26 ✅, REQ-70 |
@@ -269,27 +278,11 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 > 通用回收站系统 + 批量导入 + 编辑器优化。回收站替代当前软删除。
 > 优先级：**P0**（回收站基础设施 + 资源对接） / **P3**（批量导入/编辑器）
 
-**回收站基础设施**
-
-| 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
-|------|---------|------|-----|------|---------|
-| REQ-101 | 回收站定时清理任务 | done | [req-101-scheduled-cleanup.md](prd/req-101-scheduled-cleanup.md) | Spring `@Scheduled` 定时任务 + 通用 `scheduled_task_log` 表 + 管理端查询页。50 tests + jest + tsc 全绿。设计时必须参考 [REQ-100 PRD](prd/req-100-recycle-bin.md)：复用 `restore_deadline`、`RecycleBinItemStrategy.purge()`、`ResourceType.toBizTypes()` 文件清理 | REQ-100 ✅ |
-
 **资源对接回收站**
 
 | 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
 |------|---------|------|-----|------|---------|
-| REQ-104 | IP 系列对接回收站 | done | [PRD](prd/req-104-ip-series-recycle-bin.md) | DELETE 改为移入回收站；实现 `IpSeriesRecycleBinStrategy` Bean | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-16 ✅ |
-| REQ-105 | 卡牌管理对接回收站 | done | [PRD](prd/req-105-card-template-recycle-bin.md) | DELETE 改为移入回收站；实现 `CardTemplateRecycleBinStrategy` Bean；恢复时校验 IP 系列仍存在 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-17 ✅ |
-| REQ-106 | 题库管理对接回收站 | done | [PRD](prd/req-106-question-recycle-bin.md) | DELETE 改为移入回收站；实现 `QuestionRecycleBinStrategy` Bean，恢复时校验关联分类仍存在 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-09 ✅ |
-| REQ-107 | 分类管理对接回收站 | done | [PRD](prd/req-107-knowledge-category-recycle-bin.md) | DELETE 改为递归移入回收站；实现 `KnowledgeCategoryRecycleBinStrategy` Bean；删除前校验子树全部节点无关联题目/条目 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-07 ✅ |
-| REQ-108 | 知识条目管理对接回收站 | confirmed | - | DELETE 改为移入回收站；实现 `KnowledgeItemRecycleBinStrategy` Bean，`knowledge_item_deleted.related_data` JSON 快照，恢复时校验关联分类仍存在，purge 时清理封面图 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-97 ✅ |
-
-**数据管理增强**
-
-| 编号 | 需求名称 | 状态 | PRD | 备注 | 前置需求 |
-|------|---------|------|-----|------|---------|
-| REQ-111 | 知识条目管理 — 批量导入 | done | [req-111-knowledge-item-import.md](prd/req-111-knowledge-item-import.md) | Excel + Markdown zip 双模式批量导入。校验：分类存在且ACTIVE + 域层长度/数量限制 | REQ-97 ✅ |
+| REQ-108 | 知识条目管理对接回收站 | done | [req-108-knowledge-item-recycle-bin.md](prd/req-108-knowledge-item-recycle-bin.md) | DELETE 改为移入回收站；实现 `KnowledgeItemRecycleBinStrategy` Bean，`knowledge_item_deleted.related_data` JSON 快照，恢复时校验关联分类仍存在，purge 时清理封面图 | REQ-100 ✅, REQ-103 ✅, REQ-102 ✅, REQ-97 ✅ |
 
 ### 后期优化 / 跨领域增强
 
@@ -297,4 +290,3 @@ Phase 8 (回收站) ←── 依赖 Phase 1/2/7 中各资源的管理端 CRUD
 |------|---------|------|-----|------|---------|
 | REQ-81 | Token 黑名单 Redis 存储迁移 | idea | - | P3：从内存迁移到 Redis，支持多实例部署。REQ-06 预留接口 | REQ-06 ✅ |
 | REQ-99 | 知识库 — 学习记录追踪 + 富媒体扩展 | idea | - | P0：`user_learning_record` 表（用户维度，浏览/停留时长/累计学习统计），富媒体扩展（视频/外链等） | REQ-97 ✅, REQ-98 |
-| REQ-114 | 知识条目列表性能优化 — 列表与详情分离 | done | [req-114-knowledge-item-list-optimization.md](prd/req-114-knowledge-item-list-optimization.md) | P2：DTO + JPA 投影双裁剪，Tuple 查询只 SELECT 9 个非正文列。列表接口返回 `KnowledgeItemListResponse`（不含 content/contentHtml），详情/创建/更新不变。前端 TS 类型对齐新 ListResponse | REQ-97 ✅ |
