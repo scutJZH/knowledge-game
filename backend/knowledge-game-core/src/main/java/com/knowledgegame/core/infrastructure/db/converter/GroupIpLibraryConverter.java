@@ -33,6 +33,7 @@ public interface GroupIpLibraryConverter {
             return null;
         }
         return new GroupIpLibraryPO()
+                .setId(domain.getId())
                 .setGroupId(domain.getGroupId())
                 .setIpSeriesId(domain.getIpSeriesId())
                 .setStatus(domain.getStatus())
