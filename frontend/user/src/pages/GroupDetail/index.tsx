@@ -7,6 +7,7 @@ import GroupInfoCard from './GroupInfoCard';
 import MemberTab from './MemberTab';
 import KnowledgeTab from './KnowledgeTab';
 import SettingsTab from './SettingsTab';
+import IpLibraryTab from './IpLibraryTab';
 import './GroupDetail.css';
 
 export default function GroupDetail() {
@@ -59,6 +60,7 @@ export default function GroupDetail() {
   const tabItems = [
     { key: 'members', label: '成员', children: <MemberTab key={memberRefreshKey} groupId={group.id} myRole={group.myRole} onGroupChanged={handleGroupChanged} /> },
     { key: 'knowledge', label: '知识库', children: <KnowledgeTab /> },
+    { key: 'ip-library', label: 'IP 库', children: <IpLibraryTab groupId={group.id} myRole={group.myRole} /> },
     { key: 'settings', label: '设置', children: <SettingsTab group={group} myRole={group.myRole} onUpdated={fetchGroup} /> },
   ];
 

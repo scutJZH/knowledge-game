@@ -134,6 +134,13 @@ public class IpSeriesRepositoryAdapter implements IpSeriesRepositoryPort {
     }
 
     @Override
+    public List<IpSeries> findAllActive() {
+        return ipSeriesJpaRepository.findByStatusOrderByIdAsc(IpSeriesStatus.ACTIVE).stream()
+                .map(IpSeriesConverter.INSTANCE::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsById(Long id) {
         return ipSeriesJpaRepository.existsById(id);
     }

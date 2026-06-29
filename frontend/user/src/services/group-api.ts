@@ -7,6 +7,8 @@ import type {
   UpdateStudyGroupRequest,
   QuestionListResponse,
   QuestionPageResponse,
+  GroupIpLibraryResponse,
+  ActiveIpSeriesResponse,
 } from '@/types/group';
 
 /** 查询当前用户已加入的群组列表 */
@@ -83,4 +85,19 @@ export function getUploadCredential(bizType: string) {
     '/upload-credential',
     { params: { bizType, count: 1 } },
   );
+}
+
+/** 查询群组已关联的 IP 库列表 */
+export function listGroupIpLibrary(groupId: number) {
+  return apiClient.get<never, GroupIpLibraryResponse[]>(`/study-groups/${groupId}/ip-library`);
+}
+
+/** 全量更新群组关联的 IP 库 */
+export function updateGroupIpLibrary(groupId: number, ipSeriesIds: number[]) {
+  return apiClient.put<never, GroupIpLibraryResponse[]>(`/study-groups/${groupId}/ip-library`, { ipSeriesIds });
+}
+
+/** 查询全部 ACTIVE 状态的 IP 系列 */
+export function listActiveIpSeries() {
+  return apiClient.get<never, ActiveIpSeriesResponse[]>('/ip-series');
 }
