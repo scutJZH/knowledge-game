@@ -62,6 +62,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | knowledge_item_category_relation | 知识条目-分类多对多关联表 | REQ-97 |
 | file_info | 文件信息表（图片元数据、metadata JSON 列、basePath 存储路径、软删除） | REQ-83、REQ-87、REQ-93 |
 | study_group | 学习群组表（无 FK 约束 + join_policy + invite_code + avatar FileRef 双字段 + status ACTIVE/INACTIVE） | REQ-48, REQ-49, REQ-61 |
+| group_ip_library | 群组关联 IP 库（UNIQUE(group_id, ip_series_id)，status ACTIVE/DISABLED） | REQ-51, REQ-109 |
 | group_member | 群组成员表（UNIQUE(group_id, user_id)，role VARCHAR 存枚举名，无 FK 约束） | REQ-48 |
 | recycle_bin | 回收站总览索引表（resource_type + original_id 联合唯一，restore_deadline 定时清理索引） | REQ-100 |
 | ip_series_deleted | IP 系列删除快照表（镜像 ip_series 字段 + original_id/deleted_by/deleted_at） | REQ-100, REQ-104 |
@@ -118,7 +119,6 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 
 | 表 | 说明 | 所属需求 |
 |----|------|---------|
-| group_ip_library | 群组关联 IP 库 | REQ-51 |
 | group_knowledge_base | 群组关联知识库 | REQ-51 |
 | check_in_strategy | 签到策略（群组配置） | REQ-69 |
 | check_in_record | 签到记录 | REQ-68 |
@@ -164,6 +164,10 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | /api/study-groups/{groupId}/point-transactions | GET | 查询群组积分流水（权限驱动） | 新增（REQ-15） |
 | /api/me/point-transactions | GET | 查询个人跨群组积分流水 | 新增（REQ-15） |
 | /api/study-groups/{groupId}/members/me/balance | GET | 查询当前群组余额 | 新增（REQ-15） |
+| /api/study-groups/{id}/ip-library | GET | 查询群组已关联 IP 库 | 已实现（需 JWT，REQ-51） |
+| /api/study-groups/{id}/ip-library | PUT | 全量更新群组 IP 库关联 | 已实现（需 JWT，REQ-51） |
+| /api/study-groups/{id}/ip-library/{ipSeriesId} | PATCH | 更新单个 IP 关联状态（禁用/恢复） | 已实现（需 JWT，REQ-109） |
+| /api/ip-series | GET | 查询全部 ACTIVE IP 系列（供 IP 库 Tab 数据源） | 已实现（需 JWT，REQ-62） |
 | /api/games | POST | 开始对局 | 已实现（需 JWT，REQ-10） |
 | /api/games/{id}/answers | POST | 提交答案 | 已实现（需 JWT，REQ-10） |
 | /api/games/{id}/end | POST | 主动放弃 | 已实现（需 JWT，REQ-10） |
@@ -262,7 +266,7 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | 注册 | /register | 分屏品牌化布局，确认密码/自动登录/redirect跳转/错误兜底 | REQ-28 已实现 |
 | 忘记密码 | /forgot-password | 占位页面，功能待后续实现 | REQ-28 已实现 |
 | 群组列表 | /groups | 我的群组卡片列表 + 创建/加入 Modal | REQ-60 已实现 |
-| 群组详情 | /groups/:id | 信息卡片 + 成员/知识库/设置三 Tab | REQ-61 已实现 |
+| 群组详情 | /groups/:id | 信息卡片 + 成员/知识库/IP库/设置四 Tab | REQ-61, REQ-62 已实现 |
 
 ### 认证基础组件（REQ-27）
 
@@ -418,3 +422,6 @@ app / admin 各自包含 api（Controller + DTO + Assembler（MapStruct））、
 | 题量上限 | 保护性上限 100 题，正常游戏达不到，防 RAND 异常或攻击 | 2026-06-27 REQ-10 |
 | 单选题选项打乱 | 后端 Collections.shuffle 打乱顺序返回，玩家答案回传原始 key（非打乱后位置） | 2026-06-27 REQ-10 |
 | Assembler 位置 | app 模块 GameSessionAssembler 放 application/assembler/，跟随 Group 系列约定，与 CLAUDE.md 规范冲突立项技术债 | 2026-06-27 REQ-10 |
+| IP 库 Tab 入口 | 群组详情页新增「IP 库」Tab，位置在知识库与设置之间 | 2026-06-29 REQ-62 |
+| IP 库编辑交互 | 已关联 IP 卡片网格 + ⋮ 操作菜单 + 添加弹窗（搜索过滤多选），替代早期 Checkbox 全量网格方案 | 2026-06-29 REQ-62 |
+| IP 库禁用/恢复 | group_ip_library 新增 status 列（ACTIVE/DISABLED），PATCH 端点变更单个状态，禁用 IP 灰显可恢复，删除硬移除 | 2026-06-29 REQ-109 |
